@@ -18,6 +18,7 @@ publish:
   provider: github
   owner: vaxtly
   repo: app
+  releaseType: release
 
 win:
   target: nsis
