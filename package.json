@@ -2,6 +2,10 @@
   "name": "vaxtly-next",
   "version": "0.1.0",
   "description": "Vaxtly API Tester - Electron Prototype",
+  "author": {
+    "name": "Vaxtly",
+    "email": "vaxtly.app@gmail.com"
+  },
   "main": "./out/main/index.js",
   "scripts": {
     "dev": "electron-vite dev",
