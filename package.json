@@ -8,7 +8,11 @@
     "build": "electron-vite build",
     "preview": "electron-vite preview",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "dist": "electron-vite build && electron-builder",
+    "dist:win": "electron-vite build && electron-builder --win",
+    "dist:mac": "electron-vite build && electron-builder --mac",
+    "dist:linux": "electron-vite build && electron-builder --linux"
   },
   "devDependencies": {
     "@electron-toolkit/tsconfig": "^1.0.1",
@@ -17,7 +21,9 @@
     "@types/better-sqlite3": "^7.6.13",
     "@types/js-yaml": "^4.0.9",
     "@types/uuid": "^10.0.0",
+    "@electron/notarize": "^3.0.0",
     "electron": "^35.0.0",
+    "electron-builder": "^26.0.0",
     "electron-vite": "^3.0.0",
     "svelte": "^5.0.0",
     "tailwindcss": "^4.0.0",

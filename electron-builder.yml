@@ -1,0 +1,46 @@
+appId: com.vaxtly.app
+productName: Vaxtly
+
+directories:
+  buildResources: build
+  output: dist
+
+files:
+  - out/**/*
+  - package.json
+  - node_modules/**/*
+
+npmRebuild: true
+
+afterSign: build/notarize.js
+
+publish:
+  provider: github
+  owner: vaxtly
+  repo: app
+
+win:
+  target: nsis
+  artifactName: Vaxtly-${version}-setup.${ext}
+  executableName: vaxtly
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+
+mac:
+  target:
+    - dmg
+    - zip
+  artifactName: Vaxtly-${version}-${arch}.${ext}
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.plist
+  hardenedRuntime: true
+  gatekeeperAssess: false
+
+linux:
+  target:
+    - AppImage
+    - deb
+  category: Development
+  artifactName: Vaxtly-${version}.${ext}

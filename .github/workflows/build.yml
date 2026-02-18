@@ -1,0 +1,297 @@
+name: Build Desktop App
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version number (e.g. 0.1.0)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: linux
+            arch: x64
+          - os: windows-latest
+            platform: win
+            arch: x64
+          - os: macos-latest
+            platform: mac
+            arch: arm64
+          - os: macos-latest
+            platform: mac
+            arch: x64
+
+    runs-on: ${{ matrix.os }}
+    name: Build (${{ matrix.platform }}-${{ matrix.arch }})
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build with electron-vite
+        run: npx electron-vite build
+
+      - name: Build and publish native app
+        shell: bash
+        env:
+          APPLE_ID_SECRET: ${{ secrets.APPLE_ID }}
+          APPLE_ID_PASS_SECRET: ${{ secrets.APPLE_ID_PASS }}
+          APPLE_TEAM_ID_SECRET: ${{ secrets.APPLE_TEAM_ID }}
+          CSC_LINK_SECRET: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD_SECRET: ${{ secrets.CSC_KEY_PASSWORD }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ inputs.version }}"
+          VERSION="${VERSION#v}"
+
+          if [[ -n "$CSC_LINK_SECRET" ]]; then
+            export CSC_LINK="$CSC_LINK_SECRET"
+            export CSC_KEY_PASSWORD="$CSC_KEY_PASSWORD_SECRET"
+          else
+            export CSC_IDENTITY_AUTO_DISCOVERY=false
+          fi
+
+          if [[ -n "$APPLE_ID_SECRET" ]]; then
+            export APPLE_ID="$APPLE_ID_SECRET"
+            export APPLE_ID_PASS="$APPLE_ID_PASS_SECRET"
+            export APPLE_TEAM_ID="$APPLE_TEAM_ID_SECRET"
+          fi
+
+          ARGS="--${{ matrix.platform }} --publish always"
+          ARGS="$ARGS --config.extraMetadata.version=$VERSION"
+
+          if [[ "${{ matrix.platform }}" == "mac" ]]; then
+            ARGS="$ARGS --${{ matrix.arch }}"
+          fi
+
+          npx electron-builder $ARGS
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: vaxtly-${{ matrix.platform }}-${{ matrix.arch }}
+          path: |
+            dist/*.deb
+            dist/*.AppImage
+            dist/*.exe
+            dist/*-setup.exe
+            dist/*.dmg
+            dist/*.zip
+          retention-days: 30
+
+  fix-mac-update-yml:
+    needs: build
+    runs-on: ubuntu-latest
+    name: Fix latest-mac.yml
+    steps:
+      - name: Merge arm64 and x64 into latest-mac.yml
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          VERSION="${{ inputs.version }}"
+          VERSION="${VERSION#v}"
+
+          # Wait for latest-mac.yml to be available
+          for i in $(seq 1 30); do
+            STATUS=$(curl -sL -o /dev/null -w '%{http_code}' \
+              "https://github.com/vaxtly/app/releases/download/v${VERSION}/latest-mac.yml")
+            if [[ "$STATUS" == "200" ]]; then break; fi
+            echo "Waiting for latest-mac.yml... (attempt $i)"
+            sleep 10
+          done
+
+          # Download current latest-mac.yml
+          curl -sL -o latest-mac.yml \
+            "https://github.com/vaxtly/app/releases/download/v${VERSION}/latest-mac.yml"
+          echo "--- Current latest-mac.yml ---"
+          cat latest-mac.yml
+          echo "---"
+
+          # Download arm64 zip to compute sha512
+          curl -sL -o arm64.zip \
+            "https://github.com/vaxtly/app/releases/download/v${VERSION}/Vaxtly-${VERSION}-arm64.zip"
+          ARM64_ZIP_SHA512=$(sha512sum arm64.zip | awk '{print $1}' | xxd -r -p | base64 -w0)
+          ARM64_ZIP_SIZE=$(stat -c%s arm64.zip)
+
+          # Download arm64 dmg to compute sha512
+          curl -sL -o arm64.dmg \
+            "https://github.com/vaxtly/app/releases/download/v${VERSION}/Vaxtly-${VERSION}-arm64.dmg"
+          ARM64_DMG_SHA512=$(sha512sum arm64.dmg | awk '{print $1}' | xxd -r -p | base64 -w0)
+          ARM64_DMG_SIZE=$(stat -c%s arm64.dmg)
+
+          # Download x64 zip to compute sha512
+          curl -sL -o x64.zip \
+            "https://github.com/vaxtly/app/releases/download/v${VERSION}/Vaxtly-${VERSION}-x64.zip"
+          X64_ZIP_SHA512=$(sha512sum x64.zip | awk '{print $1}' | xxd -r -p | base64 -w0)
+          X64_ZIP_SIZE=$(stat -c%s x64.zip)
+
+          # Download x64 dmg to compute sha512
+          curl -sL -o x64.dmg \
+            "https://github.com/vaxtly/app/releases/download/v${VERSION}/Vaxtly-${VERSION}-x64.dmg"
+          X64_DMG_SHA512=$(sha512sum x64.dmg | awk '{print $1}' | xxd -r -p | base64 -w0)
+          X64_DMG_SIZE=$(stat -c%s x64.dmg)
+
+          # Extract releaseDate from existing yml
+          RELEASE_DATE=$(grep '^releaseDate:' latest-mac.yml | sed "s/releaseDate: *'\\(.*\\)'/\\1/" || date -u +"%Y-%m-%dT%H:%M:%S.000Z")
+
+          # Build merged latest-mac.yml with both architectures
+          cat > latest-mac.yml <<YAML
+          version: ${VERSION}
+          files:
+            - url: Vaxtly-${VERSION}-arm64.zip
+              sha512: ${ARM64_ZIP_SHA512}
+              size: ${ARM64_ZIP_SIZE}
+            - url: Vaxtly-${VERSION}-arm64.dmg
+              sha512: ${ARM64_DMG_SHA512}
+              size: ${ARM64_DMG_SIZE}
+            - url: Vaxtly-${VERSION}-x64.zip
+              sha512: ${X64_ZIP_SHA512}
+              size: ${X64_ZIP_SIZE}
+            - url: Vaxtly-${VERSION}-x64.dmg
+              sha512: ${X64_DMG_SHA512}
+              size: ${X64_DMG_SIZE}
+          path: Vaxtly-${VERSION}-arm64.zip
+          sha512: ${ARM64_ZIP_SHA512}
+          releaseDate: '${RELEASE_DATE}'
+          YAML
+
+          # Remove leading whitespace from heredoc
+          sed -i 's/^          //' latest-mac.yml
+
+          echo "--- Merged latest-mac.yml ---"
+          cat latest-mac.yml
+          echo "---"
+
+          # Delete old asset and upload merged file
+          ASSET_ID=$(gh api repos/vaxtly/app/releases/tags/v${VERSION} --jq '.assets[] | select(.name == "latest-mac.yml") | .id' 2>/dev/null || echo "")
+          if [[ -n "$ASSET_ID" ]]; then
+            gh api repos/vaxtly/app/releases/assets/$ASSET_ID -X DELETE
+          fi
+          UPLOAD_URL=$(gh api repos/vaxtly/app/releases/tags/v${VERSION} --jq '.upload_url' | sed 's/{.*//')
+          curl -s -X POST "${UPLOAD_URL}?name=latest-mac.yml" \
+            -H "Authorization: token $GH_TOKEN" \
+            -H "Content-Type: application/x-yaml" \
+            --data-binary @latest-mac.yml | jq '{name, size, state}'
+
+  update-homebrew:
+    needs: fix-mac-update-yml
+    runs-on: ubuntu-latest
+    name: Update Homebrew tap
+    steps:
+      - name: Wait for release assets
+        shell: bash
+        run: |
+          VERSION="${{ inputs.version }}"
+          VERSION="${VERSION#v}"
+          for i in $(seq 1 30); do
+            ARM64=$(curl -sL -o /dev/null -w '%{http_code}' "https://github.com/vaxtly/app/releases/download/v${VERSION}/Vaxtly-${VERSION}-arm64.dmg")
+            X64=$(curl -sL -o /dev/null -w '%{http_code}' "https://github.com/vaxtly/app/releases/download/v${VERSION}/Vaxtly-${VERSION}-x64.dmg")
+            if [[ "$ARM64" == "200" && "$X64" == "200" ]]; then
+              echo "Both DMGs available"
+              break
+            fi
+            echo "Waiting for release assets... (attempt $i)"
+            sleep 10
+          done
+
+      - name: Compute SHA256 hashes
+        id: hashes
+        shell: bash
+        run: |
+          VERSION="${{ inputs.version }}"
+          VERSION="${VERSION#v}"
+          SHA_ARM64=$(curl -sL "https://github.com/vaxtly/app/releases/download/v${VERSION}/Vaxtly-${VERSION}-arm64.dmg" | sha256sum | awk '{print $1}')
+          SHA_X64=$(curl -sL "https://github.com/vaxtly/app/releases/download/v${VERSION}/Vaxtly-${VERSION}-x64.dmg" | sha256sum | awk '{print $1}')
+          echo "sha_arm64=$SHA_ARM64" >> "$GITHUB_OUTPUT"
+          echo "sha_x64=$SHA_X64" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Update cask formula
+        env:
+          GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        shell: bash
+        run: |
+          VERSION="${{ steps.hashes.outputs.version }}"
+          SHA_ARM64="${{ steps.hashes.outputs.sha_arm64 }}"
+          SHA_X64="${{ steps.hashes.outputs.sha_x64 }}"
+
+          CASK_CONTENT=$(cat <<'RUBY'
+          cask "vaxtly" do
+            version "VERSION_PLACEHOLDER"
+
+            on_arm do
+              sha256 "SHA_ARM64_PLACEHOLDER"
+              url "https://github.com/vaxtly/app/releases/download/v#{version}/Vaxtly-#{version}-arm64.dmg"
+            end
+
+            on_intel do
+              sha256 "SHA_X64_PLACEHOLDER"
+              url "https://github.com/vaxtly/app/releases/download/v#{version}/Vaxtly-#{version}-x64.dmg"
+            end
+
+            name "Vaxtly"
+            desc "API testing tool"
+            homepage "https://vaxtly.github.io"
+
+            app "Vaxtly.app"
+
+            postflight do
+              system "xattr", "-dr", "com.apple.quarantine", "#{appdir}/Vaxtly.app"
+            end
+
+            zap trash: [
+              "~/Library/Application Support/Vaxtly",
+              "~/Library/Preferences/com.vaxtly.app.plist",
+              "~/Library/Saved Application State/com.vaxtly.app.savedState",
+            ]
+          end
+          RUBY
+          )
+
+          CASK_CONTENT="${CASK_CONTENT//VERSION_PLACEHOLDER/$VERSION}"
+          CASK_CONTENT="${CASK_CONTENT//SHA_ARM64_PLACEHOLDER/$SHA_ARM64}"
+          CASK_CONTENT="${CASK_CONTENT//SHA_X64_PLACEHOLDER/$SHA_X64}"
+
+          # Remove leading whitespace from heredoc
+          CASK_CONTENT=$(echo "$CASK_CONTENT" | sed 's/^          //')
+
+          # Get current file SHA for update
+          FILE_SHA=$(gh api repos/vaxtly/homebrew-tap/contents/Casks/vaxtly.rb --jq '.sha' 2>/dev/null || echo "")
+
+          ENCODED=$(echo "$CASK_CONTENT" | base64 -w0)
+
+          if [[ -n "$FILE_SHA" ]]; then
+            gh api repos/vaxtly/homebrew-tap/contents/Casks/vaxtly.rb \
+              -X PUT \
+              -f message="Update Vaxtly to v${VERSION}" \
+              -f committer[name]="vaxtly" \
+              -f committer[email]="vaxtly.app@gmail.com" \
+              -f content="$ENCODED" \
+              -f sha="$FILE_SHA"
+          else
+            gh api repos/vaxtly/homebrew-tap/contents/Casks/vaxtly.rb \
+              -X PUT \
+              -f message="Update Vaxtly to v${VERSION}" \
+              -f committer[name]="vaxtly" \
+              -f committer[email]="vaxtly.app@gmail.com" \
+              -f content="$ENCODED"
+          fi
+
+          echo "Homebrew tap updated to v${VERSION}"
