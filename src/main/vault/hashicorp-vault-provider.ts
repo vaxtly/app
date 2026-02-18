@@ -1,0 +1,227 @@
+/**
+ * HashiCorp Vault KV v2 provider.
+ * Supports token and AppRole authentication.
+ * Namespace header is only used during AppRole auth — data operations do NOT send it.
+ */
+
+import type { SecretsProvider } from './secrets-provider.interface'
+import { logVault } from '../services/session-log'
+
+export class HashiCorpVaultProvider implements SecretsProvider {
+  private token: string
+  private readonly authNamespace: string | null
+
+  constructor(
+    private readonly url: string,
+    token: string,
+    namespace: string | null,
+    private readonly mount: string,
+    private readonly authMethod: 'token' | 'approle' = 'token',
+    private readonly roleId?: string,
+    private readonly secretId?: string,
+    private readonly verifySsl = true,
+  ) {
+    this.authNamespace = namespace
+    // AppRole login is async — callers must use the static create() method
+    this.token = token
+  }
+
+  /**
+   * Factory method that handles async AppRole login.
+   */
+  static async create(opts: {
+    url: string
+    token: string
+    namespace: string | null
+    mount: string
+    authMethod: 'token' | 'approle'
+    roleId?: string
+    secretId?: string
+    verifySsl?: boolean
+  }): Promise<HashiCorpVaultProvider> {
+    const provider = new HashiCorpVaultProvider(
+      opts.url,
+      opts.token,
+      opts.namespace,
+      opts.mount,
+      opts.authMethod,
+      opts.roleId,
+      opts.secretId,
+      opts.verifySsl ?? true,
+    )
+
+    if (opts.authMethod === 'approle') {
+      provider.token = await provider.loginWithAppRole()
+    }
+
+    return provider
+  }
+
+  async listSecrets(basePath?: string): Promise<string[]> {
+    const trimmed = basePath ? basePath.replace(/^\/|\/$/g, '') : null
+    const url = trimmed
+      ? `${this.url}/v1/${this.mount}/metadata/${trimmed}`
+      : `${this.url}/v1/${this.mount}/metadata`
+
+    const response = await this.request('LIST', url)
+
+    if (response.status === 404) {
+      logVault('list', basePath ?? '/', 'No secrets found')
+      return []
+    }
+
+    if (!response.ok) {
+      throw new Error(`Vault LIST failed: ${response.status} ${response.statusText}`)
+    }
+
+    const json = await response.json()
+    const keys: string[] = json?.data?.keys ?? []
+    logVault('list', basePath ?? '/', `Listed ${keys.length} secret(s)`)
+    return keys
+  }
+
+  async getSecrets(path: string): Promise<Record<string, string> | null> {
+    const response = await this.request('GET', `${this.url}/v1/${this.mount}/data/${path}`)
+
+    if (response.status === 404) {
+      logVault('get', path, 'Secret not found', false)
+      return null
+    }
+
+    if (!response.ok) {
+      throw new Error(`Vault GET failed: ${response.status} ${response.statusText}`)
+    }
+
+    const json = await response.json()
+    const data: Record<string, string> = json?.data?.data ?? {}
+    logVault('get', path, `Retrieved ${Object.keys(data).length} key(s)`)
+    return data
+  }
+
+  async putSecrets(path: string, data: Record<string, string>): Promise<void> {
+    const response = await this.request('POST', `${this.url}/v1/${this.mount}/data/${path}`, {
+      data,
+    })
+
+    if (!response.ok) {
+      throw new Error(`Vault PUT failed: ${response.status} ${response.statusText}`)
+    }
+
+    logVault('put', path, `Saved ${Object.keys(data).length} key(s)`)
+  }
+
+  async deleteSecrets(path: string): Promise<void> {
+    const response = await this.request(
+      'DELETE',
+      `${this.url}/v1/${this.mount}/metadata/${path}`,
+    )
+
+    if (response.status === 404) {
+      return
+    }
+
+    if (!response.ok) {
+      throw new Error(`Vault DELETE failed: ${response.status} ${response.statusText}`)
+    }
+  }
+
+  async testConnection(): Promise<boolean> {
+    if (this.authMethod === 'token') {
+      try {
+        const response = await this.request('GET', `${this.url}/v1/auth/token/lookup-self`)
+        return response.ok
+      } catch {
+        return false
+      }
+    }
+
+    // For AppRole, test the login endpoint
+    try {
+      const headers: Record<string, string> = {}
+      if (this.authNamespace) {
+        headers['X-Vault-Namespace'] = this.authNamespace
+      }
+
+      const controller = new AbortController()
+      const timeout = setTimeout(() => controller.abort(), 30_000)
+
+      const response = await fetch(`${this.url}/v1/auth/approle/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...headers },
+        body: JSON.stringify({
+          role_id: this.roleId,
+          secret_id: this.secretId,
+        }),
+        signal: controller.signal,
+      })
+
+      clearTimeout(timeout)
+      return response.ok
+    } catch {
+      return false
+    }
+  }
+
+  private async loginWithAppRole(): Promise<string> {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    }
+
+    if (this.authNamespace) {
+      headers['X-Vault-Namespace'] = this.authNamespace
+    }
+
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 30_000)
+
+    const response = await fetch(`${this.url}/v1/auth/approle/login`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        role_id: this.roleId,
+        secret_id: this.secretId,
+      }),
+      signal: controller.signal,
+    })
+
+    clearTimeout(timeout)
+
+    if (!response.ok) {
+      throw new Error(`AppRole login failed: ${response.status} ${response.statusText}`)
+    }
+
+    const json = await response.json()
+    return json.auth.client_token
+  }
+
+  /**
+   * Make an authenticated request for data operations.
+   * Namespace header is NOT sent for data operations — only for authentication.
+   */
+  private async request(
+    method: string,
+    url: string,
+    body?: unknown,
+  ): Promise<Response> {
+    const headers: Record<string, string> = {
+      'X-Vault-Token': this.token,
+    }
+
+    if (body) {
+      headers['Content-Type'] = 'application/json'
+    }
+
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 30_000)
+
+    const response = await fetch(url, {
+      method,
+      headers,
+      body: body ? JSON.stringify(body) : undefined,
+      signal: controller.signal,
+    })
+
+    clearTimeout(timeout)
+    return response
+  }
+}

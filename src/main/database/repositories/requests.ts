@@ -1,0 +1,145 @@
+import { v4 as uuid } from 'uuid'
+import { getDatabase } from '../connection'
+import type { Request } from '../../../shared/types/models'
+
+export function create(data: {
+  collection_id: string
+  name: string
+  folder_id?: string
+  method?: string
+  url?: string
+  body_type?: string
+}): Request {
+  const db = getDatabase()
+  const id = uuid()
+  const now = new Date().toISOString()
+
+  db.prepare(`
+    INSERT INTO requests (id, collection_id, folder_id, name, url, method, body_type, "order", created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?,
+      (SELECT COALESCE(MAX("order"), 0) + 1 FROM requests
+       WHERE collection_id = ? AND folder_id IS ?),
+      ?, ?)
+  `).run(
+    id,
+    data.collection_id,
+    data.folder_id ?? null,
+    data.name,
+    data.url ?? '',
+    data.method ?? 'GET',
+    data.body_type ?? 'json',
+    data.collection_id,
+    data.folder_id ?? null,
+    now,
+    now
+  )
+
+  return findById(id)!
+}
+
+export function findById(id: string): Request | undefined {
+  const db = getDatabase()
+  return db.prepare('SELECT * FROM requests WHERE id = ?').get(id) as Request | undefined
+}
+
+export function findByCollection(collectionId: string): Request[] {
+  const db = getDatabase()
+  return db
+    .prepare('SELECT * FROM requests WHERE collection_id = ? ORDER BY "order" ASC')
+    .all(collectionId) as Request[]
+}
+
+export function findByFolder(folderId: string | null, collectionId: string): Request[] {
+  const db = getDatabase()
+  if (folderId) {
+    return db
+      .prepare('SELECT * FROM requests WHERE folder_id = ? AND collection_id = ? ORDER BY "order" ASC')
+      .all(folderId, collectionId) as Request[]
+  }
+  return db
+    .prepare('SELECT * FROM requests WHERE folder_id IS NULL AND collection_id = ? ORDER BY "order" ASC')
+    .all(collectionId) as Request[]
+}
+
+export function update(
+  id: string,
+  data: Partial<Omit<Request, 'id' | 'created_at'>>
+): Request | undefined {
+  const db = getDatabase()
+  const existing = findById(id)
+  if (!existing) return undefined
+
+  db.prepare(`
+    UPDATE requests SET
+      collection_id = ?,
+      folder_id = ?,
+      name = ?,
+      url = ?,
+      method = ?,
+      headers = ?,
+      query_params = ?,
+      body = ?,
+      body_type = ?,
+      auth = ?,
+      scripts = ?,
+      "order" = ?,
+      updated_at = ?
+    WHERE id = ?
+  `).run(
+    data.collection_id ?? existing.collection_id,
+    data.folder_id !== undefined ? data.folder_id : existing.folder_id,
+    data.name ?? existing.name,
+    data.url ?? existing.url,
+    data.method ?? existing.method,
+    data.headers ?? existing.headers,
+    data.query_params ?? existing.query_params,
+    data.body ?? existing.body,
+    data.body_type ?? existing.body_type,
+    data.auth ?? existing.auth,
+    data.scripts ?? existing.scripts,
+    data.order ?? existing.order,
+    new Date().toISOString(),
+    id
+  )
+
+  return findById(id)!
+}
+
+export function remove(id: string): boolean {
+  const db = getDatabase()
+  const result = db.prepare('DELETE FROM requests WHERE id = ?').run(id)
+  return result.changes > 0
+}
+
+export function move(id: string, targetFolderId: string | null, targetCollectionId?: string): Request | undefined {
+  const db = getDatabase()
+  const existing = findById(id)
+  if (!existing) return undefined
+
+  const collectionId = targetCollectionId ?? existing.collection_id
+
+  // Get next order in target location
+  const maxOrder = db.prepare(
+    'SELECT COALESCE(MAX("order"), 0) as max_order FROM requests WHERE collection_id = ? AND folder_id IS ?'
+  ).get(collectionId, targetFolderId) as { max_order: number }
+
+  db.prepare(`
+    UPDATE requests SET folder_id = ?, collection_id = ?, "order" = ?, updated_at = ? WHERE id = ?
+  `).run(targetFolderId, collectionId, maxOrder.max_order + 1, new Date().toISOString(), id)
+
+  return findById(id)!
+}
+
+export function reorder(ids: string[]): void {
+  const db = getDatabase()
+  const stmt = db.prepare('UPDATE requests SET "order" = ?, updated_at = ? WHERE id = ?')
+  const now = new Date().toISOString()
+
+  const run = db.transaction(() => {
+    ids.forEach((id, index) => {
+      stmt.run(index, now, id)
+    })
+  })
+
+  run()
+}

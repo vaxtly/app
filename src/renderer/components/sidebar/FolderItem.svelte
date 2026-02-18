@@ -1,0 +1,168 @@
+<script lang="ts">
+  import { collectionsStore, type TreeNode } from '../../lib/stores/collections.svelte'
+  import { dragStore } from '../../lib/stores/drag.svelte'
+  import ContextMenu from '../shared/ContextMenu.svelte'
+  import EnvironmentAssociationModal from '../modals/EnvironmentAssociationModal.svelte'
+  import FolderItem from './FolderItem.svelte'
+  import RequestItem from './RequestItem.svelte'
+
+  interface Props {
+    node: TreeNode
+    onrequestclick: (requestId: string) => void
+  }
+
+  let { node, onrequestclick }: Props = $props()
+
+  let showEnvModal = $state(false)
+  let renaming = $state(false)
+  let renameValue = $state('')
+  let contextMenu = $state<{ x: number; y: number } | null>(null)
+  let inputEl = $state<HTMLInputElement | null>(null)
+
+  function handleToggle(): void {
+    collectionsStore.toggleExpanded(node.id)
+  }
+
+  function handleContextMenu(e: MouseEvent): void {
+    e.preventDefault()
+    contextMenu = { x: e.clientX, y: e.clientY }
+  }
+
+  function startRename(): void {
+    renameValue = node.name
+    renaming = true
+    requestAnimationFrame(() => inputEl?.select())
+  }
+
+  async function commitRename(): Promise<void> {
+    const trimmed = renameValue.trim()
+    if (trimmed && trimmed !== node.name) {
+      await collectionsStore.renameFolder(node.id, trimmed)
+    }
+    renaming = false
+  }
+
+  function handleRenameKeydown(e: KeyboardEvent): void {
+    if (e.key === 'Enter') commitRename()
+    if (e.key === 'Escape') renaming = false
+  }
+
+  async function addSubfolder(): Promise<void> {
+    await collectionsStore.createFolder(node.collectionId, 'New Folder', node.id)
+  }
+
+  async function addRequest(): Promise<void> {
+    const req = await collectionsStore.createRequest(node.collectionId, 'New Request', node.id)
+    onrequestclick(req.id)
+  }
+
+  async function handleDelete(): Promise<void> {
+    await collectionsStore.deleteFolder(node.id)
+  }
+
+  let isDropTarget = $derived(dragStore.dropTargetId === node.id)
+
+  function handleDragOver(e: DragEvent): void {
+    if (dragStore.dragging?.type === 'request' && dragStore.dragging.id !== node.id) {
+      e.preventDefault()
+      dragStore.setDropTarget(node.id)
+    }
+  }
+
+  function handleDragLeave(): void {
+    if (dragStore.dropTargetId === node.id) {
+      dragStore.setDropTarget(null)
+    }
+  }
+
+  async function handleDrop(e: DragEvent): Promise<void> {
+    e.preventDefault()
+    dragStore.setDropTarget(null)
+    const dragging = dragStore.dragging
+    if (dragging?.type === 'request') {
+      await window.api.requests.move(dragging.id, node.id, node.collectionId)
+      await collectionsStore.reloadCollection(dragging.collectionId)
+      if (dragging.collectionId !== node.collectionId) {
+        await collectionsStore.reloadCollection(node.collectionId)
+      }
+    }
+    dragStore.endDrag()
+  }
+
+  let contextMenuItems = $derived([
+    { label: 'Add Request', action: addRequest },
+    { label: 'Add Subfolder', action: addSubfolder },
+    { label: 'Rename', action: startRename },
+    { label: 'Set Environments', action: () => { showEnvModal = true } },
+    { label: '', action: () => {}, separator: true },
+    { label: 'Delete', action: handleDelete, danger: true },
+  ])
+</script>
+
+<!-- svelte-ignore a11y_no_static_element_interactions -->
+<div class="group" oncontextmenu={handleContextMenu} ondragover={handleDragOver} ondragleave={handleDragLeave} ondrop={handleDrop}>
+  <!-- svelte-ignore a11y_no_static_element_interactions -->
+  <div
+    class="flex w-full cursor-pointer items-center gap-1 rounded px-2 py-0.5 text-left transition-colors {isDropTarget ? 'border border-brand-500 bg-brand-500/10' : 'hover:bg-surface-800'}"
+    role="button"
+    tabindex="0"
+    aria-expanded={node.expanded}
+    onclick={handleToggle}
+    onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleToggle() } }}
+  >
+    <svg
+      class="h-3 w-3 shrink-0 text-surface-500 transition-transform {node.expanded ? 'rotate-90' : ''}"
+      fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"
+    >
+      <path d="M9 5l7 7-7 7" />
+    </svg>
+
+    <svg class="h-3 w-3 shrink-0 text-surface-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+      <path d="M2.25 12.75V12A2.25 2.25 0 014.5 9.75h15A2.25 2.25 0 0121.75 12v.75m-8.69-6.44l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z" />
+    </svg>
+
+    {#if renaming}
+      <input
+        bind:this={inputEl}
+        bind:value={renameValue}
+        onblur={commitRename}
+        onkeydown={handleRenameKeydown}
+        class="h-5 min-w-0 flex-1 rounded border border-brand-500 bg-surface-800 px-1 text-xs text-surface-100 outline-none"
+      />
+    {:else}
+      <span class="min-w-0 flex-1 truncate text-xs text-surface-300">
+        {node.name}
+      </span>
+    {/if}
+
+    <button
+      onclick={(e) => { e.stopPropagation(); addRequest() }}
+      aria-label="Add request to folder"
+      class="flex h-5 w-5 shrink-0 items-center justify-center rounded text-surface-500 opacity-0 hover:bg-surface-700 hover:text-brand-400 group-hover:opacity-100"
+    >
+      <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <path d="M12 4v16m8-8H4" />
+      </svg>
+    </button>
+  </div>
+</div>
+
+{#if node.expanded}
+  <div class="ml-3 border-l border-surface-800 pl-1">
+    {#each node.children as child (child.id)}
+      {#if child.type === 'folder'}
+        <FolderItem node={child} {onrequestclick} />
+      {:else if child.type === 'request'}
+        <RequestItem node={child} {onrequestclick} />
+      {/if}
+    {/each}
+  </div>
+{/if}
+
+{#if contextMenu}
+  <ContextMenu x={contextMenu.x} y={contextMenu.y} items={contextMenuItems} onclose={() => contextMenu = null} />
+{/if}
+
+{#if showEnvModal}
+  <EnvironmentAssociationModal targetId={node.id} targetType="folder" onclose={() => { showEnvModal = false }} />
+{/if}
