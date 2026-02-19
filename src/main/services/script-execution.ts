@@ -5,11 +5,14 @@
  * Post-response: extracts a value from the response and sets it as a collection variable.
  */
 
+import { Agent, fetch as undiciFetch } from 'undici'
 import * as requestsRepo from '../database/repositories/requests'
 import * as collectionsRepo from '../database/repositories/collections'
 import * as environmentsRepo from '../database/repositories/environments'
+import * as settingsRepo from '../database/repositories/settings'
 import { substitute } from './variable-substitution'
 import { DEFAULTS } from '../../shared/constants'
+import { logHttp } from './session-log'
 import type { ScriptsConfig, PreRequestScript, PostResponseScript } from '../../shared/types/models'
 import type { ResponseData } from '../../shared/types/http'
 
@@ -33,11 +36,16 @@ export async function executePreRequestScripts(
     return true
   }
 
-  if (!scripts.pre_request) return true
+  if (!scripts.pre_request) {
+    logHttp('pre-script', requestId, 'No pre-request scripts found')
+    return true
+  }
 
   for (const script of Array.isArray(scripts.pre_request) ? scripts.pre_request : [scripts.pre_request]) {
     if (script.action !== 'send_request' || !script.request_id) continue
+    logHttp('pre-script', requestId, `Firing dependent request: ${script.request_id}`)
     await executeDependentRequest(script.request_id, collectionId, workspaceId)
+    logHttp('pre-script', requestId, 'Dependent request completed')
   }
 
   return true
@@ -68,9 +76,13 @@ export function executePostResponseScripts(
     if (script.action !== 'set_variable' || !script.source || !script.target) continue
 
     const value = extractValue(script.source, response.status, response.body, response.headers)
+    logHttp('post-script', requestId, `Extract "${script.source}" → ${value !== null ? `"${value.slice(0, 50)}..."` : 'null'}, target: "${script.target}"`)
     if (value !== null) {
       setCollectionVariable(collectionId, script.target, value)
       mirrorToActiveEnvironment(collectionId, script.target, value, workspaceId)
+      logHttp('post-script', requestId, `Variable "${script.target}" set successfully`)
+    } else {
+      logHttp('post-script', requestId, `Failed to extract "${script.source}" from response`, false)
     }
   }
 }
@@ -104,6 +116,7 @@ async function executeDependentRequest(
 
     // Execute the HTTP request
     const response = await executeHttpRequest(requestId, collectionId, workspaceId)
+    logHttp('pre-script', requestId, `Dependent request returned ${response.status} ${response.statusText}`)
 
     // Run post-response scripts
     executePostResponseScripts(requestId, collectionId, response, workspaceId)
@@ -142,7 +155,36 @@ async function executeHttpRequest(
   // Build body
   let body: string | undefined
   if (request.body && request.body_type !== 'none') {
-    body = sub(request.body)
+    if (request.body_type === 'urlencoded') {
+      // Parse URL-encoded params, substitute variables in decoded key/values, re-encode
+      const params = new URLSearchParams(request.body)
+      const resolved = new URLSearchParams()
+      for (const [k, v] of params) {
+        resolved.append(sub(k), sub(v))
+      }
+      body = resolved.toString()
+    } else if (request.body_type === 'graphql') {
+      body = JSON.stringify({ query: sub(request.body) })
+    } else {
+      body = sub(request.body)
+    }
+  }
+
+  // Apply auth config (same logic as renderer's implicitHeaders)
+  if (request.auth) {
+    try {
+      const auth = JSON.parse(request.auth) as import('../../shared/types/models').AuthConfig
+      const hasAuth = Object.keys(headers).some((k) => k.toLowerCase() === 'authorization')
+      if (!hasAuth) {
+        if (auth.type === 'bearer' && auth.bearer_token) {
+          headers['Authorization'] = `Bearer ${sub(auth.bearer_token)}`
+        } else if (auth.type === 'basic' && auth.basic_username) {
+          headers['Authorization'] = `Basic ${Buffer.from(`${sub(auth.basic_username)}:${sub(auth.basic_password ?? '')}`).toString('base64')}`
+        } else if (auth.type === 'api-key' && auth.api_key_header) {
+          headers[sub(auth.api_key_header)] = sub(auth.api_key_value ?? '')
+        }
+      }
+    } catch { /* ignore */ }
   }
 
   // Set content-type if not already set
@@ -153,19 +195,30 @@ async function executeHttpRequest(
     else if (request.body_type === 'urlencoded') headers['Content-Type'] = 'application/x-www-form-urlencoded'
   }
 
-  const fetchOptions: RequestInit = {
-    method: request.method,
+  // Read SSL setting (same as main proxy)
+  const verifySsl = settingsRepo.getSetting('request.verify_ssl') !== 'false'
+  const dispatcher = !verifySsl
+    ? new Agent({ connect: { rejectUnauthorized: false } })
+    : undefined
+
+  const fetchOptions: Parameters<typeof undiciFetch>[1] = {
+    method: request.method as any,
     headers,
+    dispatcher,
   }
 
   if (request.method !== 'GET' && request.method !== 'HEAD' && body) {
     fetchOptions.body = body
   }
 
+  // Debug: log what we're about to send
+  const headerKeys = Object.keys(headers).join(', ')
+  logHttp('pre-script', requestId, `→ ${request.method} ${resolvedUrl} | headers: [${headerKeys}] | body_type: ${request.body_type ?? 'none'} | body: ${body ? body.slice(0, 100) : '(empty)'}`)
+
   const startTime = performance.now()
 
   try {
-    const response = await fetch(resolvedUrl, fetchOptions)
+    const response = await undiciFetch(resolvedUrl, fetchOptions)
     const ttfb = performance.now() - startTime
     const bodyBuffer = await response.arrayBuffer()
     const total = performance.now() - startTime

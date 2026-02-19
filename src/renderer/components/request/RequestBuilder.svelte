@@ -75,6 +75,15 @@
     return resolvedVars
   }
 
+  function refreshResolvedVars(): void {
+    window.api.variables.resolveWithSource(
+      appStore.activeWorkspaceId ?? undefined,
+      currentCollectionId,
+    ).then((result) => {
+      resolvedVars = result as Record<string, ResolvedVariable>
+    })
+  }
+
   // Provide resolved vars via context for VarInput and CodeEditor children
   setContext('resolvedVars', getResolvedVariables)
 
@@ -134,6 +143,9 @@
 
   async function sendRequest(): Promise<void> {
     if (!state?.url?.trim()) return
+
+    // Auto-save before sending so scripts and latest changes are in DB
+    await saveRequest()
     update({ loading: true, response: null })
 
     // Build headers map
@@ -175,6 +187,10 @@
         collectionId: collectionsStore.getRequestById(requestId)?.collection_id,
       })
       update({ response, loading: false })
+
+      // Refresh resolved variables and environment store — post-response scripts may have set new values
+      refreshResolvedVars()
+      environmentsStore.loadAll(appStore.activeWorkspaceId ?? undefined)
     } catch (error) {
       update({
         loading: false,

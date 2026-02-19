@@ -21,7 +21,17 @@ export function registerProxyHandlers(): void {
     const controller = new AbortController()
     activeRequests.set(requestId, controller)
 
-    // Substitute {{variables}} in URL, headers, body
+    // Execute pre-request scripts BEFORE variable substitution
+    // so dependent requests can set variables (e.g. auth tokens) that this request uses
+    if (config.collectionId) {
+      try {
+        await executePreRequestScripts(requestId, config.collectionId, config.workspaceId)
+      } catch (error) {
+        logHttp('pre-script', config.url, `Pre-request script failed: ${error instanceof Error ? error.message : String(error)}`, false)
+      }
+    }
+
+    // Substitute {{variables}} in URL, headers, body (after pre-request scripts have run)
     const sub = (text: string | undefined): string | undefined =>
       text ? substitute(text, config.workspaceId, config.collectionId) : text
     const resolvedUrl = substitute(config.url, config.workspaceId, config.collectionId)
@@ -30,15 +40,6 @@ export function registerProxyHandlers(): void {
       resolvedHeaders[sub(key)!] = sub(value)!
     }
     const resolvedBody = sub(config.body)
-
-    // Execute pre-request scripts (dependent requests)
-    if (config.collectionId) {
-      try {
-        await executePreRequestScripts(requestId, config.collectionId, config.workspaceId)
-      } catch (error) {
-        logHttp('pre-script', resolvedUrl, `Pre-request script failed: ${error instanceof Error ? error.message : String(error)}`, false)
-      }
-    }
 
     // Read settings
     const verifySsl = config.verifySsl ?? (settingsRepo.getSetting('request.verify_ssl') !== 'false')
