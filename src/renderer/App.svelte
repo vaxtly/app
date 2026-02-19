@@ -15,6 +15,67 @@
   // Track the active RequestBuilder for save/send shortcuts
   let activeBuilder: { save: () => Promise<void>; send: () => Promise<void> } | undefined
   let showWelcome = $state(false)
+  let sessionRestored = $state(false)
+
+  // --- Session persistence ---
+
+  interface PersistedSession {
+    tabs: Array<{ type: 'request' | 'environment'; entityId: string; pinned: boolean }>
+    activeEntityId: string | null
+  }
+
+  let saveTimer: ReturnType<typeof setTimeout> | undefined
+
+  function saveSession(): void {
+    clearTimeout(saveTimer)
+    saveTimer = setTimeout(() => {
+      const session: PersistedSession = {
+        tabs: appStore.openTabs.map((t) => ({ type: t.type, entityId: t.entityId, pinned: t.pinned })),
+        activeEntityId: appStore.activeTab?.entityId ?? null,
+      }
+      window.api.settings.set('session.tabs', JSON.stringify(session))
+    }, 500)
+  }
+
+  $effect(() => {
+    // Track tab list and active tab — triggers on any change
+    void appStore.openTabs.length
+    void appStore.activeTabId
+    if (sessionRestored) saveSession()
+  })
+
+  async function restoreSession(): Promise<void> {
+    try {
+      const raw = await window.api.settings.get('session.tabs')
+      if (!raw) return
+      const session: PersistedSession = JSON.parse(raw)
+      if (!Array.isArray(session.tabs)) return
+
+      for (const saved of session.tabs) {
+        if (saved.type === 'request') {
+          const req = collectionsStore.getRequestById(saved.entityId)
+          if (req) {
+            appStore.openRequestTab(req)
+            if (saved.pinned) appStore.togglePinTab(`tab-${saved.entityId}`)
+          }
+        } else if (saved.type === 'environment') {
+          const env = environmentsStore.getById(saved.entityId)
+          if (env) {
+            appStore.openEnvironmentTab({ id: env.id, name: env.name })
+            if (saved.pinned) appStore.togglePinTab(`tab-env-${saved.entityId}`)
+          }
+        }
+      }
+
+      // Restore active tab
+      if (session.activeEntityId) {
+        const tab = appStore.openTabs.find((t) => t.entityId === session.activeEntityId)
+        if (tab) appStore.setActiveTab(tab.id)
+      }
+    } catch {
+      // Corrupted session data — start fresh
+    }
+  }
 
   // Active request ID for system log history tab
   let activeRequestId = $derived(
@@ -76,7 +137,9 @@
       appStore.setActiveWorkspace(workspaces[0].id)
       await collectionsStore.loadAll(workspaces[0].id)
       await environmentsStore.loadAll(workspaces[0].id)
+      await restoreSession()
     }
+    sessionRestored = true
 
     // Menu event listeners
     const cleanups = [
