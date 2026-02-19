@@ -13,6 +13,7 @@
 | CSS | Tailwind CSS | 4 |
 | Editor | CodeMirror | 6 |
 | Database | better-sqlite3 (SQLite WAL) | 12 |
+| HTTP | undici (custom TLS Agent) | 7 |
 | Encryption | Electron safeStorage + AES-256-CBC | — |
 | Tests | Vitest (unit) | 4 |
 | Types | TypeScript strict | 5.7 |
@@ -521,6 +522,7 @@ All stores use this pattern: module-level `$state` + `$derived` + exported objec
 - Directory structure: `{uuid}/_collection.yaml`, `_manifest.yaml`, `{reqUuid}.yaml`, `{folderUuid}/_folder.yaml`
 - Manifest files track folder/request ordering
 - Environment hints: vault_path-based cross-machine environment ID resolution
+- `validateEnvironmentIds()` handles `environment_ids` as both YAML arrays and JSON strings (backward compat with Laravel app)
 - `sanitize` option strips sensitive data via `sanitizeRequestData()`/`sanitizeCollectionData()`
 - Strips local file references from form-data before sync
 
@@ -533,13 +535,14 @@ All stores use this pattern: module-level `$state` + `$derived` + exported objec
 
 ### Git Providers (`sync/github-provider.ts`, `sync/gitlab-provider.ts`)
 - Both implement `GitProvider` interface from `sync/git-provider.interface.ts`
-- **GitHub**: Git Data API (trees for listing, blob+tree+commit+ref for atomic multi-file commits), Contents API for single files
-- **GitLab**: Repository API v4 (tree listing, Files API, Commits API with actions array for atomic commits)
+- **GitHub**: Git Data API (trees for listing, blob+tree+commit+ref for atomic multi-file commits), Contents API for single files. Paths passed directly to Contents API (no `encodeURIComponent` — GitHub handles slashes natively).
+- **GitLab**: Repository API v4 (tree listing, Files API, Commits API with actions array for atomic commits). Uses `encodeURIComponent` per GitLab's file path encoding requirement.
 - Key difference: GitHub uses blob SHA for conflict detection, GitLab uses `last_commit_id`
 - Both: `listDirectoryRecursive()`, `getDirectoryTree()`, `getFile()`, `createFile()`, `updateFile()`, `deleteFile()`, `deleteDirectory()`, `commitMultipleFiles()`, `testConnection()`
 
 ### Remote Sync Service (`sync/remote-sync-service.ts`)
-- `pull(workspaceId?)` → `SyncResult` — pulls all collections, detects conflicts
+- Settings keys: `sync.provider`, `sync.repository`, `sync.token`, `sync.branch` (must match UI's `RemoteSyncTab`)
+- `pull(workspaceId?)` → `SyncResult` — pulls all collections, detects conflicts, collects per-collection errors
 - `pushCollection(collection, sanitize?)` — 3-way merge per file, atomic commit
 - `pushAll(workspaceId?)` → `SyncResult` — pushes all dirty/unsynced collections
 - `pullSingleCollection(collection, workspaceId?)` — pulls one collection
@@ -552,13 +555,16 @@ All stores use this pattern: module-level `$state` + `$derived` + exported objec
 
 ### HashiCorp Vault Provider (`vault/hashicorp-vault-provider.ts`)
 - Implements `SecretsProvider` interface from `vault/secrets-provider.interface.ts`
-- KV v2 API: `listSecrets()`, `getSecrets()`, `putSecrets()`, `deleteSecrets()`
+- KV v2 API: `listSecrets()` (GET with `?list=true`), `getSecrets()`, `putSecrets()`, `deleteSecrets()`
 - Auth methods: token (direct) or AppRole (login to get token)
 - Namespace header only sent during AppRole auth — data operations use token only
 - `testConnection()` — token: lookup-self, AppRole: login attempt
 - Static factory: `HashiCorpVaultProvider.create(opts)` handles async AppRole login
+- SSL bypass: when `verifySsl` is false, uses undici `Agent({ connect: { rejectUnauthorized: false } })` — all HTTP calls route through `this.fetch()` wrapper which dispatches via undici when the custom Agent is present
 
 ### Vault Sync Service (`vault/vault-sync-service.ts`)
+- Settings keys: `vault.provider`, `vault.url`, `vault.auth_method`, `vault.token`, `vault.role_id`, `vault.secret_id`, `vault.namespace`, `vault.mount`, `vault.verify_ssl`
+- `vault.verify_ssl` parsed as boolean: `'0'` and `'false'` both mean SSL verification off (UI stores `String(boolean)`)
 - `getProvider()` → reads vault config from `app_settings`, returns cached `SecretsProvider`
 - `fetchVariables(envId)` → get secrets from Vault, return as `EnvironmentVariable[]` (cached 60s)
 - `pushVariables(envId, vars)` → push enabled variables to Vault
@@ -572,7 +578,7 @@ All stores use this pattern: module-level `$state` + `$derived` + exported objec
 - All exports return: `{ vaxtly_export: true, version: 1, type, exported_at, data }`
 - `importData(json, wsId?)` → detects type, dispatches to importCollections/Environments/Config
 - Collections exported with nested folder tree + requests; vault-synced environments export with empty variables
-- Config export covers `remote.*` and `vault.*` settings (tokens NOT exported)
+- Config export covers `sync.*` and `vault.*` settings (tokens NOT exported)
 - Unique name generation for duplicate collections/environments
 
 ### Postman Import (`services/postman-import.ts`)
@@ -679,3 +685,14 @@ All stores use this pattern: module-level `$state` + `$derived` + exported objec
 - No E2E tests (Playwright planned)
 - SQLCipher not yet integrated (requires `libcrypto` — using plain better-sqlite3 + field-level encryption for now)
 - `better-sqlite3` native module must be rebuilt when switching between Electron (`npx electron-rebuild -f -w better-sqlite3`) and system Node.js (`npm rebuild better-sqlite3`) for tests
+
+## Resolved Issues (Post Phase 5)
+
+- **Settings key mismatch**: backend sync service read `remote.*` keys while UI saved `sync.*` — unified to `sync.*`
+- **Missing vault.provider**: VaultTab never set `vault.provider` on save — provider creation silently failed
+- **GitHub path encoding**: `encodeURIComponent()` on Contents API paths encoded slashes, causing 404s
+- **Vault LIST method**: changed from HTTP `LIST` to `GET ?list=true` for broader compatibility
+- **environment_ids type mismatch**: old Laravel app stored as JSON string, YAML import assumed array — now handles both
+- **Pull error messages swallowed**: errors were overwritten by "Everything up to date" — now collected and reported
+- **Vault SSL bypass broken**: `verify_ssl` setting stored as `'false'` but only `'0'` was checked; also required undici Agent for actual TLS bypass (Node's `NODE_TLS_REJECT_UNAUTHORIZED` doesn't affect Electron's fetch)
+- **UI not refreshing after vault pull**: environments store not reloaded after pullAll — now calls `environmentsStore.loadAll()`
