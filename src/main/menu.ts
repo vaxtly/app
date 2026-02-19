@@ -115,6 +115,21 @@ export function buildMenu(): void {
           : [{ role: 'close' as const }]),
       ],
     },
+    {
+      role: 'help',
+      submenu: [
+        {
+          label: 'User Manual',
+          accelerator: 'F1',
+          click: (): void => sendToFocused('menu:open-manual'),
+        },
+        { type: 'separator' },
+        {
+          label: 'Check for Updates...',
+          click: (): void => sendToFocused('menu:check-updates'),
+        },
+      ],
+    },
   ]
 
   const menu = Menu.buildFromTemplate(template)

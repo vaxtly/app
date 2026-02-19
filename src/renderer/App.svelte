@@ -7,6 +7,7 @@
   import SystemLog from './components/layout/SystemLog.svelte'
   import SettingsModal from './components/settings/SettingsModal.svelte'
   import WelcomeGuide from './components/modals/WelcomeGuide.svelte'
+  import UserManual from './components/help/UserManual.svelte'
   import { appStore } from './lib/stores/app.svelte'
   import { collectionsStore } from './lib/stores/collections.svelte'
   import { environmentsStore } from './lib/stores/environments.svelte'
@@ -161,6 +162,8 @@
       window.api.on.menuNewRequest(handleNewRequest),
       window.api.on.menuSaveRequest(handleSave),
       window.api.on.menuOpenSettings(() => appStore.openSettings()),
+      window.api.on.menuOpenManual(() => appStore.openManual()),
+      window.api.on.menuCheckUpdates(() => alert('You\'re on the latest version.')),
     ]
 
     // Global keyboard shortcuts
@@ -190,6 +193,9 @@
       } else if (mod && e.key === 'l') {
         e.preventDefault()
         // Focus URL input — the active RequestBuilder will handle this
+      } else if (e.key === 'F1') {
+        e.preventDefault()
+        appStore.openManual()
       } else if (e.ctrlKey && e.key === 'PageDown') {
         e.preventDefault()
         appStore.nextTab()
@@ -270,6 +276,7 @@
     </div>
   </div>
 
+  <UserManual open={appStore.showManual} onclose={() => appStore.closeManual()} />
   <SettingsModal open={appStore.showSettings} onclose={() => appStore.closeSettings()} />
   <WelcomeGuide open={showWelcome} onclose={() => { showWelcome = false }} />
 </div>
