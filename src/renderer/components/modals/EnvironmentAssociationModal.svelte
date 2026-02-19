@@ -72,11 +72,14 @@
           environment_ids: ids,
           default_environment_id: defaultEnvId,
         })
+        await collectionsStore.reloadCollection(targetId)
       } else {
+        const folder = collectionsStore.folders.find((f) => f.id === targetId)
         await window.api.folders.update(targetId, {
           environment_ids: ids,
           default_environment_id: defaultEnvId,
         })
+        if (folder) await collectionsStore.reloadCollection(folder.collection_id)
       }
       onclose()
     } finally {

@@ -84,7 +84,7 @@ vaxtly-next/
 │   └── renderer/
 │       ├── index.html
 │       ├── main.ts                     # Svelte mount point
-│       ├── App.svelte                  # Root: sidebar + tabs + content
+│       ├── App.svelte                  # Root: sidebar + tabs + content + session persistence + auto-reveal + default env
 │       ├── env.d.ts                    # window.api type declaration
 │       ├── styles/app.css              # Tailwind + theme + scrollbars + CodeMirror
 │       ├── lib/
@@ -139,7 +139,7 @@ vaxtly-next/
 │           │   ├── CodeSnippetModal.svelte # Language tabs + generated code + copy
 │           │   ├── ConflictModal.svelte    # 2-card sync conflict resolution
 │           │   ├── SensitiveDataModal.svelte # Sensitive data findings before push
-│           │   ├── EnvironmentAssociationModal.svelte # Env checkbox list + default star
+│           │   ├── EnvironmentAssociationModal.svelte # Env checkbox list + default star + reloads store on save
 │           │   └── WelcomeGuide.svelte    # 5-step onboarding modal
 │           └── shared/
 │               ├── KeyValueEditor.svelte  # Reusable checkbox + key + value + delete rows
@@ -449,13 +449,19 @@ All stores use this pattern: module-level `$state` + `$derived` + exported objec
 
 **Actions**: `openRequestTab`, `openEnvironmentTab`, `closeTab`, `closeOtherTabs`, `closeAllTabs`, `togglePinTab`, `setActiveTab`, `nextTab`, `prevTab`, `toggleSidebar`, `getTabState`, `updateTabState`, `markTabSaved`, `updateTabLabel`
 
+**Session persistence**: Open tabs + active tab serialized to `app_settings` key `session.tabs` (debounced 500ms). Restored on mount after collections/environments load. Deleted entities silently skipped.
+
 ### `collectionsStore` — `lib/stores/collections.svelte.ts`
 
 **State**: `collections`, `folders`, `requests`, `tree: TreeNode[]`, `expandedIds: Set`
 
 **`TreeNode`**: `{ type: 'collection'|'folder'|'request', id, name, children, expanded, collectionId, parentId, method? }`
 
-**Actions**: `loadAll`, `rebuildTree`, `toggleExpanded`, `createCollection/Folder/Request`, `renameCollection/Folder/Request`, `deleteCollection/Folder/Request`, `reloadCollection`, `getRequestById`, `getCollectionById`
+**Actions**: `loadAll`, `rebuildTree`, `toggleExpanded`, `createCollection/Folder/Request`, `renameCollection/Folder/Request`, `deleteCollection/Folder/Request`, `reloadCollection`, `getRequestById`, `getCollectionById`, `revealRequest`, `resolveDefaultEnvironment`
+
+**`revealRequest(requestId)`**: Expands the collection and all ancestor folders so the request is visible in the sidebar tree.
+
+**`resolveDefaultEnvironment(requestId)`**: Walks up the folder chain → collection, returns the first `default_environment_id` found (nearest folder wins).
 
 ### `environmentsStore` — `lib/stores/environments.svelte.ts`
 
@@ -602,6 +608,7 @@ All stores use this pattern: module-level `$state` + `$derived` + exported objec
 
 | Shortcut | Action |
 |----------|--------|
+| Cmd/Ctrl+, | Open settings |
 | Cmd/Ctrl+N | New request (in first collection) |
 | Cmd/Ctrl+S | Save current request |
 | Cmd/Ctrl+W | Close active tab (unless pinned) |
@@ -610,6 +617,16 @@ All stores use this pattern: module-level `$state` + `$derived` + exported objec
 | Cmd/Ctrl+L | Focus URL input (planned) |
 | Ctrl+PageDown | Next tab |
 | Ctrl+PageUp | Previous tab |
+
+---
+
+## App-Level Reactive Behaviors (`App.svelte`)
+
+Three `$effect` hooks in `App.svelte` drive cross-cutting UX behaviors:
+
+1. **Session save**: Watches `openTabs.length` + `activeTabId`, debounce-writes to `session.tabs` setting (skipped until initial restore completes via `sessionRestored` flag).
+2. **Sidebar auto-reveal**: When active tab changes — request tabs: expands ancestor tree nodes + switches sidebar to "collections"; environment tabs: switches sidebar to "environments".
+3. **Default environment auto-activation**: When a request tab becomes active, resolves the nearest `default_environment_id` (folder chain → collection) and activates it if different from current.
 
 ---
 

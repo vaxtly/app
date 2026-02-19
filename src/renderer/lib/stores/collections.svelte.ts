@@ -284,6 +284,25 @@ function revealRequest(requestId: string): void {
   }
 }
 
+/** Resolve the default environment for a request by walking folder chain → collection. */
+function resolveDefaultEnvironment(requestId: string): string | null {
+  const req = requests.find((r) => r.id === requestId)
+  if (!req) return null
+
+  // Walk up the folder chain looking for a default_environment_id
+  let folderId = req.folder_id
+  while (folderId) {
+    const folder = folders.find((f) => f.id === folderId)
+    if (!folder) break
+    if (folder.default_environment_id) return folder.default_environment_id
+    folderId = folder.parent_id
+  }
+
+  // Fall back to collection
+  const col = collections.find((c) => c.id === req.collection_id)
+  return col?.default_environment_id ?? null
+}
+
 function getCollectionById(id: string): Collection | undefined {
   return collections.find((c) => c.id === id)
 }
@@ -310,5 +329,6 @@ export const collectionsStore = {
   reloadCollection,
   getRequestById,
   getCollectionById,
+  resolveDefaultEnvironment,
   revealRequest,
 }
