@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.0.4] - 2026-02-19
+
+### Added
+- Auto-update notification system using electron-updater
+- Platform-aware update UI: macOS shows `brew upgrade` command, Windows/Linux auto-downloads with quit-and-install
+- Update banner with download progress, copy brew command, and restart button
+- "Check for updates" button in Settings → General → About section
+- Standard Linux icon sizes (16–512px) for proper Ubuntu dock/taskbar display
+
+### Fixed
+- App version in Settings now reads from Electron instead of hardcoded default
+
 ## [0.0.3] - 2026-02-19
 
 ### Fixed
