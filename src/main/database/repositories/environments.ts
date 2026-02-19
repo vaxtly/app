@@ -1,6 +1,41 @@
 import { v4 as uuid } from 'uuid'
 import { getDatabase } from '../connection'
-import type { Environment } from '../../../shared/types/models'
+import { encryptValue, decryptValue } from '../../services/encryption'
+import type { Environment, EnvironmentVariable } from '../../../shared/types/models'
+
+const ENC_PREFIX = 'enc:'
+
+function encryptVariables(json: string): string {
+  if (!json || json === '[]') return json
+  const vars: EnvironmentVariable[] = JSON.parse(json)
+  return JSON.stringify(
+    vars.map((v) => ({
+      ...v,
+      value: v.value ? ENC_PREFIX + encryptValue(v.value) : v.value,
+    }))
+  )
+}
+
+function decryptVariables(json: string): string {
+  if (!json || json === '[]') return json
+  const vars: EnvironmentVariable[] = JSON.parse(json)
+  return JSON.stringify(
+    vars.map((v) => {
+      if (v.value && v.value.startsWith(ENC_PREFIX)) {
+        try {
+          return { ...v, value: decryptValue(v.value.slice(ENC_PREFIX.length)) }
+        } catch {
+          return v // corrupted — return as-is
+        }
+      }
+      return v
+    })
+  )
+}
+
+function decryptEnvironment(env: Environment): Environment {
+  return { ...env, variables: decryptVariables(env.variables) }
+}
 
 export function create(data: {
   name: string
@@ -11,40 +46,43 @@ export function create(data: {
   const id = uuid()
   const now = new Date().toISOString()
 
+  const variables = data.variables ? encryptVariables(data.variables) : '[]'
+
   db.prepare(`
     INSERT INTO environments (id, workspace_id, name, variables, "order", created_at, updated_at)
     VALUES (?, ?, ?, ?,
       (SELECT COALESCE(MAX("order"), 0) + 1 FROM environments WHERE workspace_id IS ?),
       ?, ?)
-  `).run(id, data.workspace_id ?? null, data.name, data.variables ?? '[]', data.workspace_id ?? null, now, now)
+  `).run(id, data.workspace_id ?? null, data.name, variables, data.workspace_id ?? null, now, now)
 
   return findById(id)!
 }
 
 export function findById(id: string): Environment | undefined {
   const db = getDatabase()
-  return db.prepare('SELECT * FROM environments WHERE id = ?').get(id) as Environment | undefined
+  const row = db.prepare('SELECT * FROM environments WHERE id = ?').get(id) as Environment | undefined
+  return row ? decryptEnvironment(row) : undefined
 }
 
 export function findByWorkspace(workspaceId: string | null): Environment[] {
   const db = getDatabase()
-  if (workspaceId) {
-    return db.prepare('SELECT * FROM environments WHERE workspace_id = ? ORDER BY "order" ASC').all(workspaceId) as Environment[]
-  }
-  return db.prepare('SELECT * FROM environments WHERE workspace_id IS NULL ORDER BY "order" ASC').all() as Environment[]
+  const rows = workspaceId
+    ? db.prepare('SELECT * FROM environments WHERE workspace_id = ? ORDER BY "order" ASC').all(workspaceId) as Environment[]
+    : db.prepare('SELECT * FROM environments WHERE workspace_id IS NULL ORDER BY "order" ASC').all() as Environment[]
+  return rows.map(decryptEnvironment)
 }
 
 export function findAll(): Environment[] {
   const db = getDatabase()
-  return db.prepare('SELECT * FROM environments ORDER BY "order" ASC').all() as Environment[]
+  return (db.prepare('SELECT * FROM environments ORDER BY "order" ASC').all() as Environment[]).map(decryptEnvironment)
 }
 
 export function findActive(workspaceId?: string): Environment | undefined {
   const db = getDatabase()
-  if (workspaceId) {
-    return db.prepare('SELECT * FROM environments WHERE is_active = 1 AND workspace_id = ? LIMIT 1').get(workspaceId) as Environment | undefined
-  }
-  return db.prepare('SELECT * FROM environments WHERE is_active = 1 LIMIT 1').get() as Environment | undefined
+  const row = workspaceId
+    ? db.prepare('SELECT * FROM environments WHERE is_active = 1 AND workspace_id = ? LIMIT 1').get(workspaceId) as Environment | undefined
+    : db.prepare('SELECT * FROM environments WHERE is_active = 1 LIMIT 1').get() as Environment | undefined
+  return row ? decryptEnvironment(row) : undefined
 }
 
 export function update(
@@ -54,6 +92,11 @@ export function update(
   const db = getDatabase()
   const existing = findById(id)
   if (!existing) return undefined
+
+  // Re-encrypt variables if provided; existing.variables is already decrypted by findById
+  const variables = data.variables
+    ? encryptVariables(data.variables)
+    : encryptVariables(existing.variables)
 
   db.prepare(`
     UPDATE environments SET
@@ -69,7 +112,7 @@ export function update(
   `).run(
     data.workspace_id ?? existing.workspace_id,
     data.name ?? existing.name,
-    data.variables ?? existing.variables,
+    variables,
     data.is_active ?? existing.is_active,
     data.order ?? existing.order,
     data.vault_synced ?? existing.vault_synced,

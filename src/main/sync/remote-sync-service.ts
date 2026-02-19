@@ -13,6 +13,7 @@
 import { createHash } from 'crypto'
 import { getDatabase } from '../database/connection'
 import * as collectionsRepo from '../database/repositories/collections'
+import * as settingsRepo from '../database/repositories/settings'
 import type { Collection, FileState } from '../../shared/types/models'
 import type { FileContent, SyncResult, SyncConflict } from '../../shared/types/sync'
 import type { GitProvider, DirectoryItem } from './git-provider.interface'
@@ -26,18 +27,10 @@ const COLLECTIONS_PATH = 'collections'
 // --- Provider management ---
 
 export function getProvider(workspaceId?: string): GitProvider | null {
-  const db = getDatabase()
-
-  // Read sync settings
-  const getSetting = (key: string): string | null => {
-    const row = db.prepare('SELECT value FROM app_settings WHERE key = ?').get(key) as { value: string } | undefined
-    return row?.value ?? null
-  }
-
-  const providerType = getSetting('sync.provider')
-  const repository = getSetting('sync.repository')
-  const token = getSetting('sync.token')
-  const branch = getSetting('sync.branch') ?? 'main'
+  const providerType = settingsRepo.getSetting('sync.provider') ?? null
+  const repository = settingsRepo.getSetting('sync.repository') ?? null
+  const token = settingsRepo.getSetting('sync.token') ?? null
+  const branch = settingsRepo.getSetting('sync.branch') ?? 'main'
 
   if (!providerType || !repository || !token) return null
 

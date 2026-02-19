@@ -1,6 +1,47 @@
 import { v4 as uuid } from 'uuid'
 import { getDatabase } from '../connection'
-import type { Request } from '../../../shared/types/models'
+import { encryptValue, decryptValue } from '../../services/encryption'
+import type { Request, AuthConfig } from '../../../shared/types/models'
+
+const ENC_PREFIX = 'enc:'
+
+const AUTH_SENSITIVE_FIELDS: (keyof AuthConfig)[] = [
+  'bearer_token',
+  'basic_password',
+  'api_key_value',
+]
+
+function encryptAuth(json: string | null): string | null {
+  if (!json) return json
+  const auth: AuthConfig = JSON.parse(json)
+  for (const field of AUTH_SENSITIVE_FIELDS) {
+    const val = auth[field]
+    if (typeof val === 'string' && val) {
+      ;(auth as Record<string, string>)[field] = ENC_PREFIX + encryptValue(val)
+    }
+  }
+  return JSON.stringify(auth)
+}
+
+function decryptAuth(json: string | null): string | null {
+  if (!json) return json
+  const auth: AuthConfig = JSON.parse(json)
+  for (const field of AUTH_SENSITIVE_FIELDS) {
+    const val = auth[field]
+    if (typeof val === 'string' && val.startsWith(ENC_PREFIX)) {
+      try {
+        ;(auth as Record<string, string>)[field] = decryptValue(val.slice(ENC_PREFIX.length))
+      } catch {
+        // corrupted — leave as-is
+      }
+    }
+  }
+  return JSON.stringify(auth)
+}
+
+function decryptRequest(req: Request): Request {
+  return { ...req, auth: decryptAuth(req.auth) }
+}
 
 export function create(data: {
   collection_id: string
@@ -39,26 +80,25 @@ export function create(data: {
 
 export function findById(id: string): Request | undefined {
   const db = getDatabase()
-  return db.prepare('SELECT * FROM requests WHERE id = ?').get(id) as Request | undefined
+  const row = db.prepare('SELECT * FROM requests WHERE id = ?').get(id) as Request | undefined
+  return row ? decryptRequest(row) : undefined
 }
 
 export function findByCollection(collectionId: string): Request[] {
   const db = getDatabase()
-  return db
+  return (db
     .prepare('SELECT * FROM requests WHERE collection_id = ? ORDER BY "order" ASC')
-    .all(collectionId) as Request[]
+    .all(collectionId) as Request[]).map(decryptRequest)
 }
 
 export function findByFolder(folderId: string | null, collectionId: string): Request[] {
   const db = getDatabase()
-  if (folderId) {
-    return db
-      .prepare('SELECT * FROM requests WHERE folder_id = ? AND collection_id = ? ORDER BY "order" ASC')
-      .all(folderId, collectionId) as Request[]
-  }
-  return db
-    .prepare('SELECT * FROM requests WHERE folder_id IS NULL AND collection_id = ? ORDER BY "order" ASC')
-    .all(collectionId) as Request[]
+  const rows = folderId
+    ? db.prepare('SELECT * FROM requests WHERE folder_id = ? AND collection_id = ? ORDER BY "order" ASC')
+        .all(folderId, collectionId) as Request[]
+    : db.prepare('SELECT * FROM requests WHERE folder_id IS NULL AND collection_id = ? ORDER BY "order" ASC')
+        .all(collectionId) as Request[]
+  return rows.map(decryptRequest)
 }
 
 export function update(
@@ -68,6 +108,11 @@ export function update(
   const db = getDatabase()
   const existing = findById(id)
   if (!existing) return undefined
+
+  // Encrypt auth field; existing.auth is already decrypted by findById
+  const auth = data.auth
+    ? encryptAuth(data.auth)
+    : encryptAuth(existing.auth)
 
   db.prepare(`
     UPDATE requests SET
@@ -95,7 +140,7 @@ export function update(
     data.query_params ?? existing.query_params,
     data.body ?? existing.body,
     data.body_type ?? existing.body_type,
-    data.auth ?? existing.auth,
+    auth,
     data.scripts ?? existing.scripts,
     data.order ?? existing.order,
     new Date().toISOString(),
