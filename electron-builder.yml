@@ -24,6 +24,7 @@ win:
   target: nsis
   artifactName: Vaxtly-${version}-setup.${ext}
   executableName: vaxtly
+  icon: build/icon.ico
 
 nsis:
   oneClick: false
@@ -34,6 +35,7 @@ mac:
     - dmg
     - zip
   artifactName: Vaxtly-${version}-${arch}.${ext}
+  icon: build/icon.icns
   entitlements: build/entitlements.mac.plist
   entitlementsInherit: build/entitlements.mac.plist
   hardenedRuntime: true
@@ -45,3 +47,5 @@ linux:
     - deb
   category: Development
   artifactName: Vaxtly-${version}.${ext}
+  icon: build/icon.png
+  executableName: vaxtly
