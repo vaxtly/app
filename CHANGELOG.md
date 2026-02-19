@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [0.1.2] - 2026-02-19
 
 ### Added
 - 4 new unit test suites: encryption round-trip, fetch-error formatting, session-log ring buffer, proxy helper functions
@@ -14,6 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 - Exported `parseCookies`, `setDefaultHeader`, `deleteHeader` from `ipc/proxy.ts` for testability
+
+### Fixed
+- Environment selector not changing active environment — the auto-activate default environment effect was overriding user selections due to a reactive dependency loop
 
 ## [0.1.1] - 2026-02-19
 
