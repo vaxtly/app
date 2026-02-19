@@ -2,7 +2,6 @@
   import { settingsStore } from '../../lib/stores/settings.svelte'
   import Toggle from '../shared/Toggle.svelte'
 
-  // Local state mirrors store for immediate UI feedback
   let layout = $derived(settingsStore.get('request.layout'))
   let timeout = $derived(settingsStore.get('request.timeout'))
   let verifySsl = $derived(settingsStore.get('request.verify_ssl'))
@@ -10,8 +9,7 @@
   let retentionDays = $derived(settingsStore.get('history.retention_days'))
   let appVersion = $derived(settingsStore.get('app.version'))
 
-  function handleLayoutChange(e: Event): void {
-    const value = (e.target as HTMLSelectElement).value as 'rows' | 'columns'
+  function handleLayoutChange(value: 'rows' | 'columns'): void {
     settingsStore.set('request.layout', value)
   }
 
@@ -34,93 +32,345 @@
   }
 </script>
 
-<div class="space-y-0">
-  <!-- Request Layout -->
-  <div class="flex items-center justify-between border-b border-surface-700 py-3">
-    <div>
-      <div class="text-sm text-surface-200">Request Layout</div>
-      <div class="text-xs text-surface-500">How request and response panels are arranged</div>
-    </div>
-    <select
-      value={layout}
-      onchange={handleLayoutChange}
-      class="h-7 rounded border border-surface-700 bg-surface-800/50 px-2 text-xs text-surface-100 focus:border-brand-500 focus:outline-none"
-    >
-      <option value="rows">Top / Bottom</option>
-      <option value="columns">Side by Side</option>
-    </select>
-  </div>
-
-  <!-- Request Timeout -->
-  <div class="flex items-center justify-between border-b border-surface-700 py-3">
-    <div>
-      <div class="text-sm text-surface-200">Request Timeout</div>
-      <div class="text-xs text-surface-500">Maximum time to wait for a response (seconds)</div>
-    </div>
-    <div class="flex items-center gap-1.5">
-      <input
-        type="number"
-        value={timeout}
-        onchange={handleTimeoutChange}
-        min="1"
-        max="300"
-        class="h-7 w-16 rounded border border-surface-700 bg-surface-800/50 px-2 text-right text-xs text-surface-100 focus:border-brand-500 focus:outline-none"
-      />
-      <span class="text-xs text-surface-500">sec</span>
-    </div>
-  </div>
-
-  <!-- Verify SSL -->
-  <div class="flex items-center justify-between border-b border-surface-700 py-3">
-    <div>
-      <div class="text-sm text-surface-200">Verify SSL Certificates</div>
-      <div class="text-xs text-surface-500">Reject requests with invalid or self-signed certificates</div>
-    </div>
-    <Toggle checked={verifySsl} onchange={toggleSsl} />
-  </div>
-
-  <!-- Follow Redirects -->
-  <div class="flex items-center justify-between border-b border-surface-700 py-3">
-    <div>
-      <div class="text-sm text-surface-200">Follow Redirects</div>
-      <div class="text-xs text-surface-500">Automatically follow HTTP redirects (3xx responses)</div>
-    </div>
-    <Toggle checked={followRedirects} onchange={toggleRedirects} />
-  </div>
-
-  <!-- History Retention -->
-  <div class="flex items-center justify-between border-b border-surface-700 py-3">
-    <div>
-      <div class="text-sm text-surface-200">History Retention</div>
-      <div class="text-xs text-surface-500">How long to keep request history entries</div>
-    </div>
-    <select
-      value={retentionDays}
-      onchange={handleRetentionChange}
-      class="h-7 rounded border border-surface-700 bg-surface-800/50 px-2 text-xs text-surface-100 focus:border-brand-500 focus:outline-none"
-    >
-      <option value={1}>1 day</option>
-      <option value={7}>7 days</option>
-      <option value={30}>30 days</option>
-      <option value={90}>90 days</option>
-    </select>
-  </div>
-
-  <!-- About -->
-  <div class="pt-4">
-    <div class="text-xs font-medium uppercase tracking-wider text-surface-500">About</div>
-    <div class="mt-2 rounded border border-surface-700 bg-surface-800/30 p-3">
-      <div class="flex items-center gap-3">
-        <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-600/20">
-          <svg class="h-6 w-6 text-brand-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-            <path d="M13 10V3L4 14h7v7l9-11h-7z" />
-          </svg>
-        </div>
-        <div>
-          <div class="text-sm font-medium text-surface-200">Vaxtly</div>
-          <div class="text-xs text-surface-500">Version {appVersion}</div>
-        </div>
+<div class="general-tab">
+  <!-- HTTP section -->
+  <section class="section">
+    <div class="section-header">
+      <div class="section-icon http-icon">
+        <svg viewBox="0 0 18 18" fill="none">
+          <path d="M3 9H15M15 9L11 5M15 9L11 13" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <div>
+        <div class="section-title">Requests</div>
+        <div class="section-subtitle">HTTP client behavior and defaults</div>
       </div>
     </div>
-  </div>
+
+    <!-- Layout picker -->
+    <div class="setting-row">
+      <div class="setting-info">
+        <span class="setting-label">Layout</span>
+        <span class="setting-desc">How request and response panels are arranged</span>
+      </div>
+      <div class="layout-picker">
+        <button
+          class="layout-option"
+          class:is-active={layout === 'rows'}
+          onclick={() => handleLayoutChange('rows')}
+          title="Top / Bottom"
+        >
+          <svg viewBox="0 0 28 20" fill="none">
+            <rect x="1" y="1" width="26" height="8" rx="1.5" stroke="currentColor" stroke-width="1"/>
+            <rect x="1" y="11" width="26" height="8" rx="1.5" stroke="currentColor" stroke-width="1"/>
+          </svg>
+        </button>
+        <button
+          class="layout-option"
+          class:is-active={layout === 'columns'}
+          onclick={() => handleLayoutChange('columns')}
+          title="Side by Side"
+        >
+          <svg viewBox="0 0 28 20" fill="none">
+            <rect x="1" y="1" width="12" height="18" rx="1.5" stroke="currentColor" stroke-width="1"/>
+            <rect x="15" y="1" width="12" height="18" rx="1.5" stroke="currentColor" stroke-width="1"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Timeout -->
+    <div class="setting-row">
+      <div class="setting-info">
+        <span class="setting-label">Timeout</span>
+        <span class="setting-desc">Maximum time to wait for a response</span>
+      </div>
+      <div class="timeout-input">
+        <input
+          type="number"
+          value={timeout}
+          onchange={handleTimeoutChange}
+          min="1"
+          max="300"
+          class="num-input"
+        />
+        <span class="input-suffix">sec</span>
+      </div>
+    </div>
+
+    <!-- Verify SSL -->
+    <div class="setting-row">
+      <div class="setting-info">
+        <span class="setting-label">Verify SSL</span>
+        <span class="setting-desc">Reject invalid or self-signed certificates</span>
+      </div>
+      <Toggle checked={verifySsl} onchange={toggleSsl} />
+    </div>
+
+    <!-- Follow Redirects -->
+    <div class="setting-row last">
+      <div class="setting-info">
+        <span class="setting-label">Follow Redirects</span>
+        <span class="setting-desc">Automatically follow 3xx responses</span>
+      </div>
+      <Toggle checked={followRedirects} onchange={toggleRedirects} />
+    </div>
+  </section>
+
+  <div class="divider"></div>
+
+  <!-- History section -->
+  <section class="section">
+    <div class="section-header">
+      <div class="section-icon history-icon">
+        <svg viewBox="0 0 18 18" fill="none">
+          <path d="M9 5.5V9L11.5 11.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle cx="9" cy="9" r="6.5" stroke="currentColor" stroke-width="1.3"/>
+        </svg>
+      </div>
+      <div>
+        <div class="section-title">History</div>
+        <div class="section-subtitle">Request history retention</div>
+      </div>
+    </div>
+
+    <div class="setting-row last">
+      <div class="setting-info">
+        <span class="setting-label">Keep history for</span>
+        <span class="setting-desc">Older entries are automatically deleted</span>
+      </div>
+      <select
+        value={retentionDays}
+        onchange={handleRetentionChange}
+        class="select-input"
+      >
+        <option value={1}>1 day</option>
+        <option value={7}>7 days</option>
+        <option value={30}>30 days</option>
+        <option value={90}>90 days</option>
+      </select>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+
+  <!-- About -->
+  <section class="about">
+    <div class="about-card">
+      <div class="about-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M13 10V3L4 14h7v7l9-11h-7z" />
+        </svg>
+      </div>
+      <div class="about-info">
+        <span class="about-name">Vaxtly</span>
+        <span class="about-version">Version {appVersion}</span>
+      </div>
+    </div>
+  </section>
 </div>
+
+<style>
+  .general-tab {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  /* Sections */
+  .section {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+  .section-icon {
+    flex-shrink: 0;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .section-icon svg {
+    width: 16px;
+    height: 16px;
+  }
+  .http-icon {
+    background: color-mix(in srgb, var(--color-brand-500) 15%, transparent);
+    color: var(--color-brand-400);
+  }
+  .history-icon {
+    background: color-mix(in srgb, #f59e0b 12%, transparent);
+    color: #fbbf24;
+  }
+  .section-title {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--color-surface-200);
+    line-height: 1.2;
+  }
+  .section-subtitle {
+    font-size: 11px;
+    color: var(--color-surface-500);
+    line-height: 1.3;
+  }
+
+  /* Setting rows */
+  .setting-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--color-surface-700);
+  }
+  .setting-row.last {
+    border-bottom: none;
+  }
+  .setting-info {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+  }
+  .setting-label {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--color-surface-200);
+  }
+  .setting-desc {
+    font-size: 11px;
+    color: var(--color-surface-500);
+  }
+
+  /* Layout picker */
+  .layout-picker {
+    display: flex;
+    gap: 4px;
+  }
+  .layout-option {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 42px;
+    height: 32px;
+    border-radius: 6px;
+    border: 1px solid var(--color-surface-700);
+    background: transparent;
+    color: var(--color-surface-500);
+    cursor: pointer;
+    transition: all 0.12s ease;
+  }
+  .layout-option:hover {
+    border-color: var(--color-surface-600);
+    color: var(--color-surface-300);
+  }
+  .layout-option.is-active {
+    border-color: color-mix(in srgb, var(--color-brand-500) 50%, transparent);
+    background: color-mix(in srgb, var(--color-brand-500) 8%, transparent);
+    color: var(--color-brand-400);
+  }
+  .layout-option svg {
+    width: 24px;
+    height: 18px;
+  }
+
+  /* Inputs */
+  .timeout-input {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .num-input {
+    width: 56px;
+    height: 28px;
+    padding: 0 8px;
+    border-radius: 6px;
+    border: 1px solid var(--color-surface-700);
+    background: var(--color-surface-800);
+    color: var(--color-surface-100);
+    font-size: 12px;
+    text-align: right;
+    outline: none;
+    transition: border-color 0.12s;
+    -moz-appearance: textfield;
+  }
+  .num-input::-webkit-inner-spin-button,
+  .num-input::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  .num-input:focus {
+    border-color: var(--color-brand-500);
+  }
+  .input-suffix {
+    font-size: 11px;
+    color: var(--color-surface-500);
+  }
+  .select-input {
+    height: 28px;
+    padding: 0 8px;
+    border-radius: 6px;
+    border: 1px solid var(--color-surface-700);
+    background: var(--color-surface-800);
+    color: var(--color-surface-100);
+    font-size: 12px;
+    outline: none;
+    transition: border-color 0.12s;
+    cursor: pointer;
+  }
+  .select-input:focus {
+    border-color: var(--color-brand-500);
+  }
+
+  /* Divider */
+  .divider {
+    height: 1px;
+    background: var(--color-surface-700);
+  }
+
+  /* About */
+  .about-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid var(--color-surface-700);
+    background: color-mix(in srgb, var(--color-surface-800) 30%, transparent);
+  }
+  .about-icon {
+    flex-shrink: 0;
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--color-brand-500) 15%, transparent);
+    color: var(--color-brand-400);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .about-icon svg {
+    width: 20px;
+    height: 20px;
+  }
+  .about-info {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+  }
+  .about-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--color-surface-200);
+  }
+  .about-version {
+    font-size: 11px;
+    color: var(--color-surface-500);
+  }
+</style>
