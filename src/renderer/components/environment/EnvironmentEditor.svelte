@@ -1,7 +1,6 @@
 <script lang="ts">
   import { environmentsStore } from '../../lib/stores/environments.svelte'
   import { appStore } from '../../lib/stores/app.svelte'
-  import { settingsStore } from '../../lib/stores/settings.svelte'
   import KeyValueEditor from '../shared/KeyValueEditor.svelte'
   import type { EnvironmentVariable } from '@shared/types/models'
 
@@ -15,6 +14,8 @@
   let environment = $derived(environmentsStore.getById(environmentId))
   let name = $state('')
   let variables = $state<EnvironmentVariable[]>([])
+  let isDirty = $state(false)
+  let saving = $state(false)
   let initialized = $state(false)
   let lastEnvironmentId = $state('')
 
@@ -23,6 +24,7 @@
     if (environmentId !== lastEnvironmentId) {
       lastEnvironmentId = environmentId
       initialized = false
+      isDirty = false
     }
   })
 
@@ -70,14 +72,41 @@
     await environmentsStore.update(environmentId, { name: newName })
   }
 
-  async function handleVariablesChange(entries: { key: string; value: string; enabled: boolean }[]): Promise<void> {
-    const envVars: EnvironmentVariable[] = entries.map((e) => ({
+  function handleVariablesChange(entries: { key: string; value: string; enabled: boolean }[]): void {
+    variables = entries.map((e) => ({
       key: e.key,
       value: e.value,
       enabled: e.enabled,
     }))
-    variables = envVars
-    await environmentsStore.update(environmentId, { variables: JSON.stringify(envVars) })
+    isDirty = true
+  }
+
+  async function save(): Promise<void> {
+    saving = true
+    vaultStatus = null
+    try {
+      await environmentsStore.update(environmentId, { variables: JSON.stringify($state.snapshot(variables)) })
+      isDirty = false
+
+      if (vaultSynced) {
+        const wsId = appStore.activeWorkspaceId ?? undefined
+        const result = await window.api.vault.pushVariables(environmentId, $state.snapshot(variables), wsId)
+        vaultStatus = result.success
+          ? { type: 'success', message: 'Saved and pushed to Vault' }
+          : { type: 'error', message: result.message ?? 'Saved locally, but Vault push failed' }
+      }
+    } catch (err) {
+      vaultStatus = { type: 'error', message: err instanceof Error ? err.message : 'Save failed' }
+    } finally {
+      saving = false
+    }
+  }
+
+  function handleKeydown(e: KeyboardEvent): void {
+    if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+      e.preventDefault()
+      if (isDirty && !saving) save()
+    }
   }
 
   async function toggleActive(): Promise<void> {
@@ -93,7 +122,6 @@
   let vaultConfigured = $state(false)
   let vaultSynced = $derived(environment?.vault_synced === 1)
   let vaultPulling = $state(false)
-  let vaultPushing = $state(false)
   let vaultStatus = $state<{ type: 'success' | 'error'; message: string } | null>(null)
 
   $effect(() => {
@@ -134,25 +162,11 @@
     }
   }
 
-  async function pushToVault(): Promise<void> {
-    vaultPushing = true
-    vaultStatus = null
-    try {
-      const wsId = appStore.activeWorkspaceId ?? undefined
-      const result = await window.api.vault.pushVariables(environmentId, variables, wsId)
-      vaultStatus = result.success
-        ? { type: 'success', message: 'Pushed variables to Vault' }
-        : { type: 'error', message: result.message ?? 'Push failed' }
-    } catch (err) {
-      vaultStatus = { type: 'error', message: err instanceof Error ? err.message : 'Push failed' }
-    } finally {
-      vaultPushing = false
-    }
-  }
 </script>
 
 {#if environment}
-  <div class="flex h-full flex-col">
+  <!-- svelte-ignore a11y_no_static_element_interactions -->
+  <div class="flex h-full flex-col" onkeydown={handleKeydown}>
     <!-- Header -->
     <div class="flex shrink-0 items-center gap-3 border-b border-surface-700 px-4 py-3">
       <!-- Active toggle -->
@@ -175,6 +189,26 @@
         class="h-8 min-w-0 flex-1 rounded border border-surface-700 bg-surface-800/50 px-3 text-sm font-medium text-surface-100 placeholder-surface-500 focus:border-brand-500 focus:outline-none"
         placeholder="Environment name"
       />
+
+      <!-- Save button -->
+      <button
+        onclick={save}
+        disabled={!isDirty || saving}
+        class="flex items-center gap-1.5 rounded px-3 py-1.5 text-xs font-medium transition-colors
+          {isDirty
+            ? 'bg-brand-600 text-white hover:bg-brand-500'
+            : 'bg-surface-800 text-surface-500 cursor-default'}"
+      >
+        {#if saving}
+          <span class="inline-block h-3 w-3 animate-spin rounded-full border-[1.5px] border-white/25 border-t-white"></span>
+          {vaultSynced ? 'Saving & pushing...' : 'Saving...'}
+        {:else}
+          <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          Save{#if isDirty && vaultSynced}&ensp;&middot;&ensp;Vault{/if}
+        {/if}
+      </button>
     </div>
 
     <!-- Variables editor -->
@@ -215,14 +249,8 @@
               >
                 {vaultPulling ? 'Pulling...' : 'Pull from Vault'}
               </button>
-              <button
-                onclick={pushToVault}
-                disabled={vaultPushing}
-                class="rounded border border-surface-600 px-2 py-1 text-[10px] text-surface-300 hover:bg-surface-700 disabled:opacity-50"
-              >
-                {vaultPushing ? 'Pushing...' : 'Push to Vault'}
-              </button>
             </div>
+            <div class="mt-1 text-[10px] text-surface-500">Save will automatically push to Vault.</div>
           {/if}
         </div>
       {/if}

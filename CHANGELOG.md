@@ -23,11 +23,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Vault `testConnection` now verifies the configured mount exists via `/v1/sys/mounts`
 - Vault settings: inline hints for Namespace and Engine Path fields
 - Expanded Vault section in user manual with field-by-field configuration guide
+- Save button in environment editor with Cmd/Ctrl+S support; auto-pushes to Vault when synced
+
+### Changed
+- Environment variables no longer auto-save on every keystroke — requires explicit Save
 
 ### Fixed
 - Vault "fetch failed" errors now show descriptive messages (SSL errors, DNS failures, connection refused, etc.) instead of generic "fetch failed"
 - Vault namespace header (`X-Vault-Namespace`) no longer sent on data operations — only used during AppRole login. Fixes 404 errors when using namespaced Vault engines.
 - Vault `testConnection` no longer swallows errors silently
+- Vault push variables "object could not be cloned" error caused by Svelte 5 `$state` proxy crossing IPC boundary
 
 ## [0.1.0] - 2026-02-19
 
