@@ -1,5 +1,6 @@
 <script lang="ts">
   import { collectionsStore, type TreeNode } from '../../lib/stores/collections.svelte'
+  import { appStore } from '../../lib/stores/app.svelte'
   import { dragStore } from '../../lib/stores/drag.svelte'
   import ContextMenu from '../shared/ContextMenu.svelte'
   import EnvironmentAssociationModal from '../modals/EnvironmentAssociationModal.svelte'
@@ -80,13 +81,27 @@
     dragStore.setDropTarget(null)
     const dragging = dragStore.dragging
     if (dragging?.type === 'request') {
+      const sourceCollectionId = dragging.collectionId
       await window.api.requests.move(dragging.id, node.id, node.collectionId)
-      await collectionsStore.reloadCollection(dragging.collectionId)
-      if (dragging.collectionId !== node.collectionId) {
+      await collectionsStore.reloadCollection(sourceCollectionId)
+      if (sourceCollectionId !== node.collectionId) {
         await collectionsStore.reloadCollection(node.collectionId)
       }
+      syncAfterMove(sourceCollectionId, node.collectionId)
     }
     dragStore.endDrag()
+  }
+
+  function syncAfterMove(sourceId: string, targetId: string): void {
+    const wsId = appStore.activeWorkspaceId ?? undefined
+    const source = collectionsStore.getCollectionById(sourceId)
+    const target = sourceId !== targetId ? collectionsStore.getCollectionById(targetId) : null
+    if (source?.sync_enabled) {
+      window.api.sync.pushCollection(sourceId, false, wsId).catch(() => {})
+    }
+    if (target?.sync_enabled) {
+      window.api.sync.pushCollection(targetId, false, wsId).catch(() => {})
+    }
   }
 
   let contextMenuItems = $derived([
