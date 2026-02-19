@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from 'svelte'
+  import { onMount, untrack } from 'svelte'
   import Sidebar from './components/layout/Sidebar.svelte'
   import TabBar from './components/layout/TabBar.svelte'
   import RequestBuilder from './components/request/RequestBuilder.svelte'
@@ -74,10 +74,14 @@
       appStore.setSidebarMode('collections')
       collectionsStore.revealRequest(tab.entityId)
 
-      // Auto-activate default environment for this request's folder/collection
+      // Auto-activate default environment only on tab switch — read activeEnvironmentId
+      // without tracking it so user selections don't re-trigger this effect
       const defaultEnvId = collectionsStore.resolveDefaultEnvironment(tab.entityId)
-      if (defaultEnvId && defaultEnvId !== environmentsStore.activeEnvironmentId) {
-        environmentsStore.activate(defaultEnvId, appStore.activeWorkspaceId ?? undefined)
+      if (defaultEnvId) {
+        const currentEnvId = untrack(() => environmentsStore.activeEnvironmentId)
+        if (defaultEnvId !== currentEnvId) {
+          environmentsStore.activate(defaultEnvId, appStore.activeWorkspaceId ?? undefined)
+        }
       }
     } else if (tab.type === 'environment') {
       appStore.setSidebarMode('environments')
