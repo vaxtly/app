@@ -68,8 +68,8 @@ describe('export', () => {
   })
 
   it('exports config settings', () => {
-    settingsRepo.setSetting('remote.provider', 'github')
-    settingsRepo.setSetting('remote.repository', 'user/repo')
+    settingsRepo.setSetting('sync.provider', 'github')
+    settingsRepo.setSetting('sync.repository', 'user/repo')
     settingsRepo.setSetting('vault.url', 'https://vault.example.com')
 
     const result = exportConfig()
@@ -126,19 +126,19 @@ describe('import', () => {
   })
 
   it('imports config settings', () => {
-    settingsRepo.setSetting('remote.provider', 'gitlab')
-    settingsRepo.setSetting('remote.repository', 'group/project')
+    settingsRepo.setSetting('sync.provider', 'gitlab')
+    settingsRepo.setSetting('sync.repository', 'group/project')
     const exported = exportConfig()
 
     // Clear settings
-    settingsRepo.setSetting('remote.provider', '')
-    settingsRepo.setSetting('remote.repository', '')
+    settingsRepo.setSetting('sync.provider', '')
+    settingsRepo.setSetting('sync.repository', '')
 
     const result = importData(JSON.stringify(exported))
 
     expect(result.config).toBe(true)
-    expect(settingsRepo.getSetting('remote.provider')).toBe('gitlab')
-    expect(settingsRepo.getSetting('remote.repository')).toBe('group/project')
+    expect(settingsRepo.getSetting('sync.provider')).toBe('gitlab')
+    expect(settingsRepo.getSetting('sync.repository')).toBe('group/project')
   })
 
   it('generates unique names for duplicate collections', () => {

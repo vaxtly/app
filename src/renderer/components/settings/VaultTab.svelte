@@ -1,5 +1,6 @@
 <script lang="ts">
   import { appStore } from '../../lib/stores/app.svelte'
+  import { environmentsStore } from '../../lib/stores/environments.svelte'
 
   let url = $state('')
   let authMethod = $state<'token' | 'approle'>('token')
@@ -49,6 +50,7 @@
     status = null
     try {
       await Promise.all([
+        window.api.settings.set('vault.provider', 'hashicorp'),
         window.api.settings.set('vault.url', url),
         window.api.settings.set('vault.auth_method', authMethod),
         window.api.settings.set('vault.token', token),
@@ -88,9 +90,12 @@
     status = null
     try {
       const result = await window.api.vault.pullAll(appStore.activeWorkspaceId ?? undefined)
-      status = result.success
-        ? { type: 'success', message: `Pulled ${result.created} environments` }
-        : { type: 'error', message: result.errors.join(', ') || 'Pull failed' }
+      if (result.success) {
+        await environmentsStore.loadAll(appStore.activeWorkspaceId ?? undefined)
+        status = { type: 'success', message: `Pulled ${result.created} environments` }
+      } else {
+        status = { type: 'error', message: result.errors.join(', ') || 'Pull failed' }
+      }
     } catch (err) {
       status = { type: 'error', message: err instanceof Error ? err.message : 'Pull failed' }
     } finally {

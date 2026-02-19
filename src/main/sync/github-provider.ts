@@ -76,7 +76,7 @@ export class GitHubProvider implements GitProvider {
   }
 
   async getFile(path: string): Promise<FileContent | null> {
-    const response = await this.request(`/repos/${this.repository}/contents/${encodeURIComponent(path)}?ref=${this.branch}`)
+    const response = await this.request(`/repos/${this.repository}/contents/${path}?ref=${this.branch}`)
 
     if (response.status === 404) return null
     if (!response.ok) throw new Error(`GitHub API error: ${response.status}`)
@@ -90,7 +90,7 @@ export class GitHubProvider implements GitProvider {
   }
 
   async createFile(path: string, content: string, commitMessage: string): Promise<string> {
-    const response = await this.request(`/repos/${this.repository}/contents/${encodeURIComponent(path)}`, {
+    const response = await this.request(`/repos/${this.repository}/contents/${path}`, {
       method: 'PUT',
       body: JSON.stringify({
         message: commitMessage,
@@ -105,7 +105,7 @@ export class GitHubProvider implements GitProvider {
   }
 
   async updateFile(path: string, content: string, sha: string, commitMessage: string): Promise<string> {
-    const response = await this.request(`/repos/${this.repository}/contents/${encodeURIComponent(path)}`, {
+    const response = await this.request(`/repos/${this.repository}/contents/${path}`, {
       method: 'PUT',
       body: JSON.stringify({
         message: commitMessage,
@@ -128,7 +128,7 @@ export class GitHubProvider implements GitProvider {
   }
 
   async deleteFile(path: string, sha: string, commitMessage: string): Promise<void> {
-    const response = await this.request(`/repos/${this.repository}/contents/${encodeURIComponent(path)}`, {
+    const response = await this.request(`/repos/${this.repository}/contents/${path}`, {
       method: 'DELETE',
       body: JSON.stringify({
         message: commitMessage,

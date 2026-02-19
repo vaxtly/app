@@ -27,7 +27,8 @@ export async function getProvider(): Promise<SecretsProvider | null> {
   const secretId = settingsRepo.getSetting('vault.secret_id')
   const namespace = settingsRepo.getSetting('vault.namespace')
   const mount = settingsRepo.getSetting('vault.mount') ?? 'secret'
-  const verifySsl = settingsRepo.getSetting('vault.verify_ssl') !== '0'
+  const verifySslRaw = settingsRepo.getSetting('vault.verify_ssl')
+  const verifySsl = verifySslRaw !== '0' && verifySslRaw !== 'false'
 
   if (!providerType || !url) return null
   if (authMethod === 'token' && !token) return null

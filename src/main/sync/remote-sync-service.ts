@@ -34,10 +34,10 @@ export function getProvider(workspaceId?: string): GitProvider | null {
     return row?.value ?? null
   }
 
-  const providerType = getSetting('remote.provider')
-  const repository = getSetting('remote.repository')
-  const token = getSetting('remote.token')
-  const branch = getSetting('remote.branch') ?? 'main'
+  const providerType = getSetting('sync.provider')
+  const repository = getSetting('sync.repository')
+  const token = getSetting('sync.token')
+  const branch = getSetting('sync.branch') ?? 'main'
 
   if (!providerType || !repository || !token) return null
 
@@ -157,6 +157,8 @@ export async function pull(workspaceId?: string): Promise<SyncResult> {
 
   const processedCollectionIds = new Set<string>()
 
+  const errors: string[] = []
+
   for (const [collectionId, dirPath] of Object.entries(collectionDirs)) {
     try {
       if (processedCollectionIds.has(collectionId)) continue
@@ -225,11 +227,13 @@ export async function pull(workspaceId?: string): Promise<SyncResult> {
       }
     } catch (e) {
       result.success = false
-      result.message += `Error processing collection ${collectionId}: ${(e as Error).message}. `
+      errors.push(`${collectionId}: ${(e as Error).message}`)
     }
   }
 
-  if (result.pulled! > 0 || result.conflicts!.length > 0) {
+  if (errors.length > 0) {
+    result.message = `Failed to process ${errors.length} collection(s): ${errors.join('; ')}`
+  } else if (result.pulled! > 0 || result.conflicts!.length > 0) {
     result.message = `Pulled ${result.pulled} collection(s)` +
       (result.conflicts!.length > 0 ? `, ${result.conflicts!.length} conflict(s)` : '')
   } else {

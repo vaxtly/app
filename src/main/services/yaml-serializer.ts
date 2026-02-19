@@ -478,7 +478,20 @@ function validateEnvironmentIds(
   data: Record<string, unknown>,
   workspaceId?: string,
 ): { environment_ids: string[] | null; default_environment_id: string | null } {
-  const remoteIds = (data.environment_ids ?? []) as string[]
+  let remoteIds: string[]
+  const rawIds = data.environment_ids
+  if (Array.isArray(rawIds)) {
+    remoteIds = rawIds as string[]
+  } else if (typeof rawIds === 'string') {
+    try {
+      const parsed = JSON.parse(rawIds)
+      remoteIds = Array.isArray(parsed) ? parsed : []
+    } catch {
+      remoteIds = rawIds ? [rawIds] : []
+    }
+  } else {
+    remoteIds = []
+  }
   const defaultId = (data.default_environment_id ?? null) as string | null
 
   if (!remoteIds || remoteIds.length === 0) {

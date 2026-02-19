@@ -280,10 +280,10 @@ function importConfig(config: Record<string, Record<string, unknown>>): { succes
   try {
     if (config.remote) {
       const remote = config.remote
-      if (remote.provider) settingsRepo.setSetting('remote.provider', String(remote.provider))
-      if (remote.repository) settingsRepo.setSetting('remote.repository', String(remote.repository))
-      if (remote.branch !== undefined) settingsRepo.setSetting('remote.branch', String(remote.branch))
-      if (remote.auto_sync !== undefined) settingsRepo.setSetting('remote.auto_sync', remote.auto_sync ? '1' : '0')
+      if (remote.provider) settingsRepo.setSetting('sync.provider', String(remote.provider))
+      if (remote.repository) settingsRepo.setSetting('sync.repository', String(remote.repository))
+      if (remote.branch !== undefined) settingsRepo.setSetting('sync.branch', String(remote.branch))
+      if (remote.auto_sync !== undefined) settingsRepo.setSetting('sync.auto_sync', remote.auto_sync ? '1' : '0')
     }
 
     if (config.vault) {
@@ -380,10 +380,10 @@ function buildEnvironmentsData(workspaceId?: string): EnvironmentExport[] {
 function buildConfigData(): { remote: Record<string, unknown>; vault: Record<string, unknown> } {
   return {
     remote: {
-      provider: settingsRepo.getSetting('remote.provider') ?? '',
-      repository: settingsRepo.getSetting('remote.repository') ?? '',
-      branch: settingsRepo.getSetting('remote.branch') ?? 'main',
-      auto_sync: settingsRepo.getSetting('remote.auto_sync') === '1',
+      provider: settingsRepo.getSetting('sync.provider') ?? '',
+      repository: settingsRepo.getSetting('sync.repository') ?? '',
+      branch: settingsRepo.getSetting('sync.branch') ?? 'main',
+      auto_sync: settingsRepo.getSetting('sync.auto_sync') === '1',
     },
     vault: {
       provider: settingsRepo.getSetting('vault.provider') ?? '',

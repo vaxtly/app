@@ -6,10 +6,12 @@
 
 import type { SecretsProvider } from './secrets-provider.interface'
 import { logVault } from '../services/session-log'
+import { Agent, fetch as undiciFetch } from 'undici'
 
 export class HashiCorpVaultProvider implements SecretsProvider {
   private token: string
   private readonly authNamespace: string | null
+  private readonly dispatcher: Agent | undefined
 
   constructor(
     private readonly url: string,
@@ -19,11 +21,15 @@ export class HashiCorpVaultProvider implements SecretsProvider {
     private readonly authMethod: 'token' | 'approle' = 'token',
     private readonly roleId?: string,
     private readonly secretId?: string,
-    private readonly verifySsl = true,
+    verifySsl = true,
   ) {
     this.authNamespace = namespace
     // AppRole login is async — callers must use the static create() method
     this.token = token
+
+    if (!verifySsl) {
+      this.dispatcher = new Agent({ connect: { rejectUnauthorized: false } })
+    }
   }
 
   /**
@@ -63,7 +69,7 @@ export class HashiCorpVaultProvider implements SecretsProvider {
       ? `${this.url}/v1/${this.mount}/metadata/${trimmed}`
       : `${this.url}/v1/${this.mount}/metadata`
 
-    const response = await this.request('LIST', url)
+    const response = await this.request('GET', `${url}?list=true`)
 
     if (response.status === 404) {
       logVault('list', basePath ?? '/', 'No secrets found')
@@ -145,7 +151,7 @@ export class HashiCorpVaultProvider implements SecretsProvider {
       const controller = new AbortController()
       const timeout = setTimeout(() => controller.abort(), 30_000)
 
-      const response = await fetch(`${this.url}/v1/auth/approle/login`, {
+      const response = await this.fetch(`${this.url}/v1/auth/approle/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...headers },
         body: JSON.stringify({
@@ -174,7 +180,7 @@ export class HashiCorpVaultProvider implements SecretsProvider {
     const controller = new AbortController()
     const timeout = setTimeout(() => controller.abort(), 30_000)
 
-    const response = await fetch(`${this.url}/v1/auth/approle/login`, {
+    const response = await this.fetch(`${this.url}/v1/auth/approle/login`, {
       method: 'POST',
       headers,
       body: JSON.stringify({
@@ -214,7 +220,7 @@ export class HashiCorpVaultProvider implements SecretsProvider {
     const controller = new AbortController()
     const timeout = setTimeout(() => controller.abort(), 30_000)
 
-    const response = await fetch(url, {
+    const response = await this.fetch(url, {
       method,
       headers,
       body: body ? JSON.stringify(body) : undefined,
@@ -223,5 +229,13 @@ export class HashiCorpVaultProvider implements SecretsProvider {
 
     clearTimeout(timeout)
     return response
+  }
+
+  /** Wrapper that uses undici's fetch with custom dispatcher when verifySsl is off. */
+  private fetch(url: string, init: RequestInit): Promise<Response> {
+    if (this.dispatcher) {
+      return undiciFetch(url, { ...init, dispatcher: this.dispatcher }) as unknown as Promise<Response>
+    }
+    return fetch(url, init)
   }
 }
