@@ -27,20 +27,27 @@ let requests = $state<Request[]>([])
 let tree = $state<TreeNode[]>([])
 let expandedIds = $state<Set<string>>(new Set())
 
+// Max folder nesting depth to prevent infinite recursion from data cycles
+const MAX_FOLDER_DEPTH = 10
+
 // --- Actions ---
 
 async function loadAll(workspaceId?: string): Promise<void> {
   collections = await window.api.collections.list(workspaceId)
 
-  // Load folders and requests for all collections
+  // Load folders and requests for all collections in parallel
+  const results = await Promise.all(
+    collections.map((col) =>
+      Promise.all([
+        window.api.folders.list(col.id),
+        window.api.requests.list(col.id),
+      ])
+    )
+  )
+
   const allFolders: Folder[] = []
   const allRequests: Request[] = []
-
-  for (const col of collections) {
-    const [f, r] = await Promise.all([
-      window.api.folders.list(col.id),
-      window.api.requests.list(col.id),
-    ])
+  for (const [f, r] of results) {
     allFolders.push(...f)
     allRequests.push(...r)
   }
@@ -61,7 +68,7 @@ function buildCollectionNode(col: Collection): TreeNode {
   const children: TreeNode[] = [
     ...colFolders
       .sort((a, b) => a.order - b.order)
-      .map((f) => buildFolderNode(f, col.id)),
+      .map((f) => buildFolderNode(f, col.id, 0)),
     ...colRequests
       .sort((a, b) => a.order - b.order)
       .map((r) => ({
@@ -89,28 +96,32 @@ function buildCollectionNode(col: Collection): TreeNode {
   }
 }
 
-function buildFolderNode(folder: Folder, collectionId: string): TreeNode {
-  const subFolders = folders.filter((f) => f.parent_id === folder.id)
-  const folderRequests = requests.filter((r) => r.folder_id === folder.id)
+function buildFolderNode(folder: Folder, collectionId: string, depth: number): TreeNode {
+  const children: TreeNode[] = []
 
-  const children: TreeNode[] = [
-    ...subFolders
-      .sort((a, b) => a.order - b.order)
-      .map((f) => buildFolderNode(f, collectionId)),
-    ...folderRequests
-      .sort((a, b) => a.order - b.order)
-      .map((r) => ({
-        type: 'request' as const,
-        id: r.id,
-        name: r.name,
-        order: r.order,
-        method: r.method,
-        children: [],
-        expanded: false,
-        collectionId,
-        parentId: folder.id,
-      })),
-  ]
+  if (depth < MAX_FOLDER_DEPTH) {
+    const subFolders = folders.filter((f) => f.parent_id === folder.id)
+    const folderRequests = requests.filter((r) => r.folder_id === folder.id)
+
+    children.push(
+      ...subFolders
+        .sort((a, b) => a.order - b.order)
+        .map((f) => buildFolderNode(f, collectionId, depth + 1)),
+      ...folderRequests
+        .sort((a, b) => a.order - b.order)
+        .map((r) => ({
+          type: 'request' as const,
+          id: r.id,
+          name: r.name,
+          order: r.order,
+          method: r.method,
+          children: [],
+          expanded: false,
+          collectionId,
+          parentId: folder.id,
+        })),
+    )
+  }
 
   return {
     type: 'folder',
@@ -124,6 +135,7 @@ function buildFolderNode(folder: Folder, collectionId: string): TreeNode {
   }
 }
 
+/** Toggle expanded state — mutates in-place instead of full tree rebuild. */
 function toggleExpanded(id: string): void {
   const newSet = new Set(expandedIds)
   if (newSet.has(id)) {
@@ -132,14 +144,32 @@ function toggleExpanded(id: string): void {
     newSet.add(id)
   }
   expandedIds = newSet
-  rebuildTree()
+
+  // Update the specific node in-place instead of rebuilding the entire tree
+  const node = findNodeById(tree, id)
+  if (node) {
+    node.expanded = expandedIds.has(id)
+  }
+}
+
+function findNodeById(nodes: TreeNode[], id: string): TreeNode | undefined {
+  for (const node of nodes) {
+    if (node.id === id) return node
+    if (node.children.length > 0) {
+      const found = findNodeById(node.children, id)
+      if (found) return found
+    }
+  }
+  return undefined
 }
 
 async function createCollection(name: string, workspaceId?: string): Promise<Collection> {
   const col = await window.api.collections.create({ name, workspace_id: workspaceId })
   await loadAll(workspaceId)
   expandedIds = new Set([...expandedIds, col.id])
-  rebuildTree()
+  // loadAll already called rebuildTree, but expandedIds changed — update the node
+  const node = findNodeById(tree, col.id)
+  if (node) node.expanded = true
   return col
 }
 
@@ -147,7 +177,8 @@ async function createFolder(collectionId: string, name: string, parentId?: strin
   const folder = await window.api.folders.create({ collection_id: collectionId, name, parent_id: parentId })
   await reloadCollection(collectionId)
   expandedIds = new Set([...expandedIds, folder.id])
-  rebuildTree()
+  const node = findNodeById(tree, folder.id)
+  if (node) node.expanded = true
   return folder
 }
 

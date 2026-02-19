@@ -152,18 +152,20 @@
       <!-- Content area -->
       <div class="min-h-0 flex-1 overflow-hidden">
         {#if appStore.activeTab}
-          {#if appStore.activeTab.type === 'request'}
-            <RequestBuilder
-              bind:this={activeBuilder}
-              tabId={appStore.activeTab.id}
-              requestId={appStore.activeTab.entityId}
-            />
-          {:else if appStore.activeTab.type === 'environment'}
-            <EnvironmentEditor
-              tabId={appStore.activeTab.id}
-              environmentId={appStore.activeTab.entityId}
-            />
-          {/if}
+          {#key appStore.activeTabId}
+            {#if appStore.activeTab.type === 'request'}
+              <RequestBuilder
+                bind:this={activeBuilder}
+                tabId={appStore.activeTab.id}
+                requestId={appStore.activeTab.entityId}
+              />
+            {:else if appStore.activeTab.type === 'environment'}
+              <EnvironmentEditor
+                tabId={appStore.activeTab.id}
+                environmentId={appStore.activeTab.entityId}
+              />
+            {/if}
+          {/key}
         {:else}
           <!-- Empty state -->
           <div class="flex h-full items-center justify-center">

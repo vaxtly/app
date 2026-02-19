@@ -18,7 +18,7 @@
 
   let headerCount = $derived(response ? Object.keys(response.headers).length : 0)
   let cookieCount = $derived(response?.cookies?.length ?? 0)
-  let isHtml = $derived(() => {
+  let isHtml = $derived.by(() => {
     if (!response) return false
     const ct = response.headers['content-type'] ?? response.headers['Content-Type'] ?? ''
     return ct.includes('text/html')
@@ -85,7 +85,7 @@
           <span class="ml-1 rounded-full bg-surface-700 px-1.5 text-[10px] text-surface-300">{cookieCount}</span>
         </button>
       {/if}
-      {#if isHtml()}
+      {#if isHtml}
         <button
           class="px-2.5 py-2 text-xs transition-colors {activeTab === 'preview' ? 'border-b-2 border-brand-500 text-brand-400' : 'text-surface-400 hover:text-surface-200'}"
           onclick={() => activeTab = 'preview'}

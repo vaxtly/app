@@ -29,14 +29,16 @@
   let state = $derived(appStore.getTabState(tabId))
 
   // Parsed fields
+  const defaultKV: KeyValueEntry[] = [{ key: '', value: '', enabled: true }]
+
   let headers = $derived.by((): KeyValueEntry[] => {
-    if (!state?.headers) return [{ key: '', value: '', enabled: true }]
-    try { return JSON.parse(state.headers) } catch { return [{ key: '', value: '', enabled: true }] }
+    if (!state?.headers) return defaultKV
+    try { const v = JSON.parse(state.headers); return Array.isArray(v) ? v : defaultKV } catch { return defaultKV }
   })
 
   let queryParams = $derived.by((): KeyValueEntry[] => {
-    if (!state?.query_params) return [{ key: '', value: '', enabled: true }]
-    try { return JSON.parse(state.query_params) } catch { return [{ key: '', value: '', enabled: true }] }
+    if (!state?.query_params) return defaultKV
+    try { const v = JSON.parse(state.query_params); return Array.isArray(v) ? v : defaultKV } catch { return defaultKV }
   })
 
   let auth = $derived.by((): AuthConfig => {
@@ -51,10 +53,12 @@
 
   let currentCollectionId = $derived(collectionsStore.getRequestById(requestId)?.collection_id)
 
+  const defaultFormData: FormDataEntry[] = [{ key: '', value: '', type: 'text', enabled: true }]
+
   let formData = $derived.by((): FormDataEntry[] => {
-    if (!state?.body_type || state.body_type !== 'form-data') return [{ key: '', value: '', type: 'text', enabled: true }]
-    if (!state.body) return [{ key: '', value: '', type: 'text', enabled: true }]
-    try { return JSON.parse(state.body) } catch { return [{ key: '', value: '', type: 'text', enabled: true }] }
+    if (!state?.body_type || state.body_type !== 'form-data') return defaultFormData
+    if (!state.body) return defaultFormData
+    try { const v = JSON.parse(state.body); return Array.isArray(v) ? v : defaultFormData } catch { return defaultFormData }
   })
 
   // Compute implicit headers from body type and auth
