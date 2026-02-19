@@ -204,51 +204,78 @@
       </div>
     {:else if bodyType === 'form-data'}
       <div class="be-formdata">
+        <!-- Header -->
+        <div class="fd-header">
+          <span class="fd-col fd-col--check"></span>
+          <span class="fd-col fd-col--key">Key</span>
+          <span class="fd-col fd-col--type">Type</span>
+          <span class="fd-col fd-col--value">Value</span>
+          <span class="fd-col fd-col--actions"></span>
+        </div>
+
         {#each formData as entry, i}
-          <div class="fd-row">
-            <Checkbox checked={entry.enabled} onchange={(v) => updateFormEntry(i, 'enabled', v)} />
-            <input
-              type="text"
-              value={entry.key}
-              oninput={(e) => updateFormEntry(i, 'key', e.currentTarget.value)}
-              placeholder="Key"
-              class="fd-input fd-input--key"
-            />
-            <select
-              value={entry.type}
-              onchange={(e) => updateFormEntry(i, 'type', e.currentTarget.value)}
-              class="fd-type"
-            >
-              <option value="text">Text</option>
-              <option value="file">File</option>
-            </select>
-            {#if entry.type === 'file'}
-              <button onclick={() => pickFile(i)} class="fd-file">
-                {#if entry.value}
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/>
-                  </svg>
-                  {entry.value}
-                {:else}
-                  Choose file...
-                {/if}
-              </button>
-            {:else}
+          <div class="fd-row" class:fd-row--disabled={!entry.enabled}>
+            <span class="fd-cell fd-cell--check">
+              <Checkbox checked={entry.enabled} onchange={(v) => updateFormEntry(i, 'enabled', v)} />
+            </span>
+            <span class="fd-cell fd-cell--key">
               <input
                 type="text"
-                value={entry.value}
-                oninput={(e) => updateFormEntry(i, 'value', e.currentTarget.value)}
-                placeholder="Value"
-                class="fd-input fd-input--value"
+                value={entry.key}
+                oninput={(e) => updateFormEntry(i, 'key', e.currentTarget.value)}
+                placeholder="Key"
+                class="fd-input"
               />
-            {/if}
-            <button onclick={() => removeFormEntry(i)} aria-label="Remove field" class="fd-remove">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
+            </span>
+            <span class="fd-cell fd-cell--type">
+              <button
+                class="fd-type-btn"
+                title={entry.type === 'text' ? 'Switch to file' : 'Switch to text'}
+                onclick={() => updateFormEntry(i, 'type', entry.type === 'text' ? 'file' : 'text')}
+              >
+                {#if entry.type === 'file'}
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/>
+                  </svg>
+                {:else}
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M4 7V4h16v3"/><path d="M12 4v16"/><path d="M8 20h8"/>
+                  </svg>
+                {/if}
+              </button>
+            </span>
+            <span class="fd-cell fd-cell--value">
+              {#if entry.type === 'file'}
+                <button onclick={() => pickFile(i)} class="fd-file">
+                  {#if entry.value}
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/>
+                    </svg>
+                    {entry.value}
+                  {:else}
+                    Choose file...
+                  {/if}
+                </button>
+              {:else}
+                <input
+                  type="text"
+                  value={entry.value}
+                  oninput={(e) => updateFormEntry(i, 'value', e.currentTarget.value)}
+                  placeholder="Value"
+                  class="fd-input"
+                />
+              {/if}
+            </span>
+            <span class="fd-cell fd-cell--actions">
+              <button onclick={() => removeFormEntry(i)} aria-label="Remove field" class="fd-remove">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </span>
           </div>
         {/each}
+
         <button onclick={addFormEntry} class="fd-add">
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
             <path d="M12 4v16m8-8H4" />
@@ -403,64 +430,122 @@
     flex-shrink: 0;
   }
 
-  /* --- Form Data --- */
+  /* --- Form Data (table layout) --- */
   .be-formdata {
-    padding: 12px;
     display: flex;
     flex-direction: column;
-    gap: 4px;
   }
+
+  .fd-header {
+    display: flex;
+    align-items: center;
+    height: 28px;
+    padding: 0 2px;
+    border-bottom: 1px solid var(--color-surface-700);
+    gap: 1px;
+  }
+
+  .fd-col {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--color-surface-500);
+    font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+    padding: 0 8px;
+  }
+
+  .fd-col--check { width: 36px; flex-shrink: 0; padding: 0; }
+  .fd-col--key { flex: 1; min-width: 0; }
+  .fd-col--type { width: 36px; flex-shrink: 0; text-align: center; }
+  .fd-col--value { flex: 1; min-width: 0; }
+  .fd-col--actions { width: 30px; flex-shrink: 0; }
 
   .fd-row {
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: 1px;
+    padding: 0 2px;
+    border-bottom: 1px solid color-mix(in srgb, var(--color-surface-700) 50%, transparent);
+    transition: background 0.1s;
   }
 
+  .fd-row:hover {
+    background: color-mix(in srgb, var(--color-surface-700) 20%, transparent);
+  }
+
+  .fd-row--disabled .fd-input,
+  .fd-row--disabled .fd-file,
+  .fd-row--disabled .fd-type-select {
+    opacity: 0.35;
+  }
+
+  .fd-cell {
+    display: flex;
+    align-items: center;
+  }
+
+  .fd-cell--check { width: 36px; flex-shrink: 0; justify-content: center; }
+  .fd-cell--key { flex: 1; min-width: 0; }
+  .fd-cell--type { width: 36px; flex-shrink: 0; justify-content: center; }
+  .fd-cell--value { flex: 1; min-width: 0; }
+  .fd-cell--actions { width: 30px; flex-shrink: 0; justify-content: center; }
+
   .fd-input {
-    height: 30px;
+    width: 100%;
+    height: 32px;
     min-width: 0;
     padding: 0 8px;
-    border: 1px solid transparent;
-    border-radius: 4px;
-    background: color-mix(in srgb, var(--color-surface-800) 60%, transparent);
+    border: none;
+    border-left: 1px solid color-mix(in srgb, var(--color-surface-700) 50%, transparent);
+    background: transparent;
     color: var(--color-surface-100);
     font-size: 12px;
     font-family: inherit;
     outline: none;
-    transition: border-color 0.12s, background 0.12s;
+    transition: background 0.12s;
   }
 
-  .fd-input:hover { background: var(--color-surface-800); }
-  .fd-input:focus { border-color: var(--color-brand-500); background: var(--color-surface-800); }
+  .fd-cell--key .fd-input {
+    font-weight: 500;
+    border-left: none;
+  }
+
+  .fd-input:focus {
+    background: color-mix(in srgb, var(--color-brand-500) 5%, transparent);
+  }
+
   .fd-input::placeholder { color: var(--color-surface-600); }
 
-  .fd-input--key { flex: 1; font-weight: 500; }
-  .fd-input--value { flex: 1; }
-
-  .fd-type {
-    height: 30px;
-    padding: 0 4px;
-    border: 1px solid transparent;
+  .fd-type-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border: none;
     border-radius: 4px;
-    background: color-mix(in srgb, var(--color-surface-800) 60%, transparent);
-    color: var(--color-surface-300);
-    font-size: 10px;
-    font-family: inherit;
+    background: transparent;
+    color: var(--color-surface-500);
     cursor: pointer;
-    outline: none;
+    transition: color 0.12s, background 0.12s;
+  }
+
+  .fd-type-btn:hover {
+    color: var(--color-surface-200);
+    background: color-mix(in srgb, var(--color-surface-700) 40%, transparent);
   }
 
   .fd-file {
-    flex: 1;
+    width: 100%;
     min-width: 0;
-    height: 30px;
+    height: 32px;
     display: flex;
     align-items: center;
     gap: 5px;
     padding: 0 8px;
-    border: 1px dashed var(--color-surface-600);
-    border-radius: 4px;
+    border: none;
+    border-left: 1px solid color-mix(in srgb, var(--color-surface-700) 50%, transparent);
     background: transparent;
     color: var(--color-surface-400);
     font-size: 12px;
@@ -470,17 +555,17 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    transition: border-color 0.12s;
+    transition: color 0.12s;
   }
 
-  .fd-file:hover { border-color: var(--color-brand-500); }
+  .fd-file:hover { color: var(--color-brand-400); }
 
   .fd-remove {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 26px;
-    height: 26px;
+    width: 24px;
+    height: 24px;
     flex-shrink: 0;
     border: none;
     border-radius: 4px;
@@ -498,8 +583,8 @@
     display: flex;
     align-items: center;
     gap: 5px;
-    padding: 4px 2px;
-    margin-top: 4px;
+    padding: 6px 8px;
+    margin-left: 36px;
     border: none;
     background: transparent;
     color: var(--color-surface-500);

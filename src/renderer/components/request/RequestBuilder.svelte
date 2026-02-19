@@ -173,11 +173,23 @@
     })
     appStore.markTabSaved(tabId)
     appStore.updateTabLabel(tabId, state.name, state.method)
+
+    // Trigger git sync if collection has sync enabled
+    if (currentCollectionId) {
+      const collection = collectionsStore.getCollectionById(currentCollectionId)
+      if (collection?.sync_enabled) {
+        window.api.sync.pushCollection(currentCollectionId).catch(() => {
+          // Sync failure is non-blocking — silently ignore
+        })
+      }
+    }
   }
 
   // Expose save/send for keyboard shortcut binding from App.svelte
   export function save(): Promise<void> { return saveRequest() }
   export function send(): Promise<void> { return sendRequest() }
+
+  let isUnsaved = $derived(appStore.openTabs.find((t) => t.id === tabId)?.isUnsaved ?? false)
 
   const requestTabs = [
     { key: 'params' as const, label: 'Params', icon: 'params' },
@@ -195,10 +207,12 @@
       method={state.method}
       url={state.url}
       loading={state.loading}
+      unsaved={isUnsaved}
       onmethodchange={(m) => update({ method: m })}
       onurlchange={(u) => update({ url: u })}
       onsend={sendRequest}
       oncancel={cancelRequest}
+      onsave={saveRequest}
     />
 
     <!-- Split: request tabs + response -->
