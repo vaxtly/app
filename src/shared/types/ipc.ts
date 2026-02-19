@@ -116,6 +116,14 @@ export const IPC = {
   MENU_OPEN_SETTINGS: 'menu:open-settings',
   MENU_OPEN_MANUAL: 'menu:open-manual',
   MENU_CHECK_UPDATES: 'menu:check-updates',
+
+  // Auto-update (main→renderer push + renderer→main invoke)
+  UPDATE_AVAILABLE: 'update:available',
+  UPDATE_PROGRESS: 'update:progress',
+  UPDATE_DOWNLOADED: 'update:downloaded',
+  UPDATE_ERROR: 'update:error',
+  UPDATE_CHECK: 'update:check',
+  UPDATE_INSTALL: 'update:install',
 } as const
 
 export type IpcChannel = (typeof IPC)[keyof typeof IPC]

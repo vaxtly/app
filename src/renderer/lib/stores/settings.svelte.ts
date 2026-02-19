@@ -25,7 +25,7 @@ const defaults: SettingsMap = {
   'request.verify_ssl': true,
   'request.follow_redirects': true,
   'history.retention_days': 30,
-  'app.version': '0.1.0',
+  'app.version': '0.0.0',
   'app.welcomed': false,
 }
 

@@ -19,6 +19,8 @@ import { registerHistoryHandlers } from './ipc/histories'
 import { registerSessionLogHandlers } from './ipc/session-log'
 import { registerCodeGeneratorHandlers } from './ipc/code-generator'
 import { registerDataImportExportHandlers } from './ipc/data-import-export'
+import { registerUpdaterHandlers } from './ipc/updater'
+import { initUpdater, checkForUpdates } from './services/updater'
 import * as workspacesRepo from './database/repositories/workspaces'
 import * as historiesRepo from './database/repositories/request-histories'
 import { getSetting, setSetting } from './database/repositories/settings'
@@ -66,6 +68,7 @@ function createWindow(): void {
   mainWindow.on('ready-to-show', () => {
     mainWindow?.show()
     runAutoSync()
+    checkForUpdates()
   })
 
   mainWindow.on('close', () => {
@@ -103,6 +106,7 @@ function registerAllIpcHandlers(): void {
   registerSessionLogHandlers()
   registerCodeGeneratorHandlers()
   registerDataImportExportHandlers()
+  registerUpdaterHandlers()
 }
 
 function ensureDefaultWorkspace(): void {
@@ -235,6 +239,12 @@ app.whenReady().then(() => {
 
   // Build native menu
   buildMenu()
+
+  // Persist current app version so the renderer can read it
+  setSetting('app.version', app.getVersion())
+
+  // Initialize auto-updater
+  initUpdater()
 
   // Create the main window
   createWindow()

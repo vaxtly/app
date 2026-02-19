@@ -174,6 +174,13 @@ const api = {
       ipcRenderer.invoke(IPC.LOG_CLEAR),
   },
 
+  updater: {
+    check: (): Promise<void> =>
+      ipcRenderer.invoke(IPC.UPDATE_CHECK),
+    install: (): Promise<void> =>
+      ipcRenderer.invoke(IPC.UPDATE_INSTALL),
+  },
+
   settings: {
     get: (key: string): Promise<string | undefined> =>
       ipcRenderer.invoke(IPC.SETTINGS_GET, key),
@@ -232,6 +239,34 @@ const api = {
       const handler = (): void => callback()
       ipcRenderer.on(IPC.MENU_CHECK_UPDATES, handler)
       return () => ipcRenderer.removeListener(IPC.MENU_CHECK_UPDATES, handler)
+    },
+    updateAvailable: (callback: (data: { version: string; releaseName: string }) => void): (() => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, data: { version: string; releaseName: string }): void => {
+        callback(data)
+      }
+      ipcRenderer.on(IPC.UPDATE_AVAILABLE, handler)
+      return () => ipcRenderer.removeListener(IPC.UPDATE_AVAILABLE, handler)
+    },
+    updateProgress: (callback: (data: { percent: number }) => void): (() => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, data: { percent: number }): void => {
+        callback(data)
+      }
+      ipcRenderer.on(IPC.UPDATE_PROGRESS, handler)
+      return () => ipcRenderer.removeListener(IPC.UPDATE_PROGRESS, handler)
+    },
+    updateDownloaded: (callback: (data: { version: string }) => void): (() => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, data: { version: string }): void => {
+        callback(data)
+      }
+      ipcRenderer.on(IPC.UPDATE_DOWNLOADED, handler)
+      return () => ipcRenderer.removeListener(IPC.UPDATE_DOWNLOADED, handler)
+    },
+    updateError: (callback: (message: string) => void): (() => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, message: string): void => {
+        callback(message)
+      }
+      ipcRenderer.on(IPC.UPDATE_ERROR, handler)
+      return () => ipcRenderer.removeListener(IPC.UPDATE_ERROR, handler)
     },
   },
 }

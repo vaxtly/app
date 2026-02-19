@@ -14,6 +14,7 @@
 | Editor | CodeMirror | 6 |
 | Database | better-sqlite3 (SQLite WAL) | 12 |
 | HTTP | undici (custom TLS Agent) | 7 |
+| Auto-update | electron-updater | 6 |
 | Encryption | Electron safeStorage + AES-256-CBC | — |
 | Tests | Vitest (unit) | 4 |
 | Types | TypeScript strict | 5.7 |
@@ -61,6 +62,7 @@ vaxtly/
 │   │   │   ├── sync.ts                # Git sync: test, pull, push, resolve, scan
 │   │   │   ├── vault.ts               # Vault: test, pull, push, fetch/push vars, delete, migrate
 │   │   │   ├── data-import-export.ts  # Data export/import + Postman import
+│   │   │   ├── updater.ts            # Auto-update: check + install
 │   │   │   └── settings.ts
 │   │   ├── services/
 │   │   │   ├── encryption.ts           # safeStorage master key + AES-256-CBC
@@ -71,7 +73,8 @@ vaxtly/
 │   │   │   ├── yaml-serializer.ts      # Collection ↔ YAML directory serialization/import
 │   │   │   ├── sensitive-data-scanner.ts # Scan/sanitize sensitive data in requests & variables
 │   │   │   ├── data-export-import.ts  # Export/import collections, environments, config
-│   │   │   └── postman-import.ts      # Import Postman collections/environments (3 formats)
+│   │   │   ├── postman-import.ts      # Import Postman collections/environments (3 formats)
+│   │   │   └── updater.ts            # electron-updater: init, check, quit-and-install
 │   │   ├── vault/
 │   │   │   ├── secrets-provider.interface.ts # SecretsProvider interface
 │   │   │   ├── hashicorp-vault-provider.ts   # HashiCorp Vault KV v2 provider
@@ -383,6 +386,13 @@ Pattern: `ipcMain.handle('domain:action', handler)` in main, `ipcRenderer.invoke
 | `window:get-state` | ipc/settings.ts | `getWindowState()` | `api.window.getState()` |
 | `window:save-state` | ipc/settings.ts | `saveWindowState(s)` | `api.window.saveState(s)` |
 
+| `update:check` | ipc/updater.ts | `checkForUpdates()` | `api.updater.check()` |
+| `update:install` | ipc/updater.ts | `quitAndInstall()` | `api.updater.install()` |
+| `update:available` | — (main→renderer push) | — | `api.on.updateAvailable(cb)` |
+| `update:progress` | — (main→renderer push) | — | `api.on.updateProgress(cb)` |
+| `update:downloaded` | — (main→renderer push) | — | `api.on.updateDownloaded(cb)` |
+| `update:error` | — (main→renderer push) | — | `api.on.updateError(cb)` |
+
 **Menu channels** (main→renderer push via `IPC.*` constants, not request/response):
 `menu:new-request`, `menu:save-request`, `menu:open-settings`, `menu:open-manual`, `menu:check-updates`
 
@@ -631,6 +641,20 @@ All stores use this pattern: module-level `$state` + `$derived` + exported objec
 - Body type mapping: raw→json/xml/raw, urlencoded, formdata→form-data, graphql
 - URL extraction handles both string URLs and Postman URL objects (with host/path arrays)
 
+### Auto-Updater (`services/updater.ts`)
+- Uses `electron-updater` (`autoUpdater`) for update detection across all platforms
+- **Dev guard**: `initUpdater()` and `checkForUpdates()` are no-ops when `!app.isPackaged`
+- **macOS**: `autoDownload = false` — only notifies the user; installation is via Homebrew (`brew upgrade vaxtly`)
+- **Windows/Linux**: `autoDownload = true` — downloads in background, then offers quit-and-install
+- Events pushed to renderer via `BrowserWindow.getAllWindows()`:
+  - `update:available` → `{ version, releaseName }`
+  - `update:progress` → `{ percent }` (Win/Linux only)
+  - `update:downloaded` → `{ version }`
+  - `update:error` → error message string
+- `checkForUpdates()` called automatically on `ready-to-show` and manually via menu/settings
+- **App.svelte banner**: platform-aware top banner — macOS shows brew command + copy button; Win/Linux shows download progress bar → "Restart now" button; dismissible
+- **GeneralTab**: "Check for updates" button in About section with checking/available/up-to-date/error states; 15s timeout assumes up-to-date if no event received
+
 ### CodeMirror Variable Highlighting (`lib/utils/variable-highlight.ts`)
 - `variableHighlight(getResolved)` → CodeMirror `Extension` (decoration + tooltip)
 - Resolved variables: green text + green bg (`cm-var-resolved`)
@@ -700,11 +724,13 @@ Three `$effect` hooks in `App.svelte` drive cross-cutting UX behaviors:
 2. openDatabase(dbPath)          — Open SQLite + run pending migrations
 3. migrateToEncryptedStorage()   — One-time: encrypt existing plaintext sensitive data
 4. ensureDefaultWorkspace()      — Create "Default Workspace" if table is empty
-5. registerAllIpcHandlers()      — Register all domain handlers (incl. workspace-settings, histories, session-log, code-generator)
+5. registerAllIpcHandlers()      — Register all domain handlers (incl. workspace-settings, histories, session-log, code-generator, updater)
 6. pruneHistories()              — Auto-prune old request histories based on retention setting (default 30 days)
 7. buildMenu()                   — Set native application menu (using IPC.MENU_* constants)
-8. createWindow()                — BrowserWindow with preload script
-9. runAutoSync()                 — On ready-to-show: vault pullAll + git pull if auto_sync enabled
+8. initUpdater()                 — Configure electron-updater (no-op in dev; macOS: notify only; Win/Linux: auto-download)
+9. createWindow()                — BrowserWindow with preload script
+10. runAutoSync()                — On ready-to-show: vault pullAll + git pull if auto_sync enabled
+11. checkForUpdates()            — On ready-to-show: check for available updates
 ```
 
 ---

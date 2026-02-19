@@ -18,6 +18,25 @@
   let showWelcome = $state(false)
   let sessionRestored = $state(false)
 
+  // --- Update notification state ---
+  let updateAvailable: { version: string; releaseName: string } | null = $state(null)
+  let updateDownloaded = $state(false)
+  let updateProgress: number | null = $state(null)
+  let updateDismissed = $state(false)
+  const isMac = navigator.userAgent.includes('Macintosh')
+
+  function dismissUpdate(): void {
+    updateDismissed = true
+  }
+
+  function copyBrewCommand(): void {
+    navigator.clipboard.writeText('brew upgrade vaxtly')
+  }
+
+  function restartToUpdate(): void {
+    window.api.updater.install()
+  }
+
   // --- Session persistence ---
 
   interface PersistedSession {
@@ -167,7 +186,21 @@
       window.api.on.menuSaveRequest(handleSave),
       window.api.on.menuOpenSettings(() => appStore.openSettings()),
       window.api.on.menuOpenManual(() => appStore.openManual()),
-      window.api.on.menuCheckUpdates(() => alert('You\'re on the latest version.')),
+      window.api.on.menuCheckUpdates(() => window.api.updater.check()),
+      window.api.on.updateAvailable((data) => {
+        updateAvailable = data
+        updateDismissed = false
+      }),
+      window.api.on.updateProgress((data) => {
+        updateProgress = data.percent
+      }),
+      window.api.on.updateDownloaded(() => {
+        updateDownloaded = true
+        updateProgress = null
+      }),
+      window.api.on.updateError(() => {
+        // Silently ignore update errors — don't disrupt the user
+      }),
     ]
 
     // Global keyboard shortcuts
@@ -220,6 +253,41 @@
 </script>
 
 <div class="flex h-screen flex-col bg-surface-900">
+  <!-- Update notification banner -->
+  {#if updateAvailable && !updateDismissed}
+    <div class="update-banner">
+      {#if isMac}
+        <span class="update-text">
+          Vaxtly v{updateAvailable.version} is available — run
+          <code class="update-code">brew upgrade vaxtly</code>
+          to update
+        </span>
+        <button class="update-btn" onclick={copyBrewCommand}>Copy command</button>
+      {:else if updateDownloaded}
+        <span class="update-text">
+          Vaxtly v{updateAvailable.version} is ready — restart to update
+        </span>
+        <button class="update-btn update-btn-primary" onclick={restartToUpdate}>Restart now</button>
+      {:else if updateProgress !== null}
+        <span class="update-text">
+          Downloading Vaxtly v{updateAvailable.version}… {Math.round(updateProgress)}%
+        </span>
+        <div class="update-progress-track">
+          <div class="update-progress-bar" style="width: {updateProgress}%"></div>
+        </div>
+      {:else}
+        <span class="update-text">
+          Vaxtly v{updateAvailable.version} is available
+        </span>
+      {/if}
+      <button class="update-dismiss" onclick={dismissUpdate} aria-label="Dismiss">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+          <path d="M4 4l8 8M12 4l-8 8"/>
+        </svg>
+      </button>
+    </div>
+  {/if}
+
   <!-- Main content: sidebar + tab area -->
   <div class="flex min-h-0 flex-1">
     <!-- Sidebar -->
@@ -285,3 +353,86 @@
   <SettingsModal open={appStore.showSettings} onclose={() => appStore.closeSettings()} />
   <WelcomeGuide open={showWelcome} onclose={() => { showWelcome = false }} />
 </div>
+
+<style>
+  .update-banner {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 12px;
+    background: color-mix(in srgb, var(--color-brand-500) 12%, var(--color-surface-800));
+    border-bottom: 1px solid color-mix(in srgb, var(--color-brand-500) 25%, transparent);
+    font-size: 12px;
+    color: var(--color-surface-200);
+    flex-shrink: 0;
+  }
+  .update-text {
+    flex: 1;
+    min-width: 0;
+  }
+  .update-code {
+    padding: 1px 5px;
+    border-radius: 3px;
+    background: var(--color-surface-700);
+    font-family: monospace;
+    font-size: 11px;
+    color: var(--color-brand-300);
+  }
+  .update-btn {
+    padding: 3px 10px;
+    border-radius: 4px;
+    border: 1px solid var(--color-surface-600);
+    background: var(--color-surface-700);
+    color: var(--color-surface-200);
+    font-size: 11px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.12s;
+  }
+  .update-btn:hover {
+    background: var(--color-surface-600);
+  }
+  .update-btn-primary {
+    border-color: var(--color-brand-500);
+    background: color-mix(in srgb, var(--color-brand-500) 25%, var(--color-surface-700));
+    color: var(--color-brand-200);
+  }
+  .update-btn-primary:hover {
+    background: color-mix(in srgb, var(--color-brand-500) 40%, var(--color-surface-700));
+  }
+  .update-progress-track {
+    width: 100px;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--color-surface-700);
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+  .update-progress-bar {
+    height: 100%;
+    border-radius: 2px;
+    background: var(--color-brand-400);
+    transition: width 0.3s ease;
+  }
+  .update-dismiss {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border-radius: 4px;
+    border: none;
+    background: transparent;
+    color: var(--color-surface-400);
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: color 0.12s;
+  }
+  .update-dismiss:hover {
+    color: var(--color-surface-200);
+  }
+  .update-dismiss svg {
+    width: 14px;
+    height: 14px;
+  }
+</style>

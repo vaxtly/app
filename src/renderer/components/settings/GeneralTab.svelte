@@ -9,6 +9,38 @@
   let retentionDays = $derived(settingsStore.get('history.retention_days'))
   let appVersion = $derived(settingsStore.get('app.version'))
 
+  let updateStatus: 'idle' | 'checking' | 'available' | 'up-to-date' | 'error' = $state('idle')
+  let availableVersion = $state('')
+
+  async function handleCheckUpdates(): Promise<void> {
+    updateStatus = 'checking'
+    const cleanups = [
+      window.api.on.updateAvailable((data) => {
+        updateStatus = 'available'
+        availableVersion = data.version
+        dispose()
+      }),
+      window.api.on.updateError(() => {
+        updateStatus = 'error'
+        dispose()
+      }),
+    ]
+    function dispose(): void {
+      cleanups.forEach((fn) => fn())
+    }
+
+    // Timeout: if no event within 15s, assume up-to-date
+    const timer = setTimeout(() => {
+      if (updateStatus === 'checking') {
+        updateStatus = 'up-to-date'
+        dispose()
+      }
+    }, 15000)
+    cleanups.push(() => clearTimeout(timer))
+
+    await window.api.updater.check()
+  }
+
   function handleLayoutChange(value: 'rows' | 'columns'): void {
     settingsStore.set('request.layout', value)
   }
@@ -165,6 +197,19 @@
       <div class="about-info">
         <span class="about-name">Vaxtly</span>
         <span class="about-version">Version {appVersion}</span>
+      </div>
+      <div class="about-actions">
+        {#if updateStatus === 'checking'}
+          <span class="update-status">Checking…</span>
+        {:else if updateStatus === 'available'}
+          <span class="update-status update-found">v{availableVersion} available</span>
+        {:else if updateStatus === 'up-to-date'}
+          <span class="update-status update-ok">Up to date</span>
+        {:else if updateStatus === 'error'}
+          <span class="update-status update-err">Check failed</span>
+        {:else}
+          <button class="check-update-btn" onclick={handleCheckUpdates}>Check for updates</button>
+        {/if}
       </div>
     </div>
   </section>
@@ -372,5 +417,37 @@
   .about-version {
     font-size: 11px;
     color: var(--color-surface-500);
+  }
+  .about-actions {
+    margin-left: auto;
+    flex-shrink: 0;
+  }
+  .check-update-btn {
+    padding: 4px 12px;
+    border-radius: 6px;
+    border: 1px solid var(--color-surface-600);
+    background: var(--color-surface-700);
+    color: var(--color-surface-200);
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.12s ease;
+  }
+  .check-update-btn:hover {
+    border-color: var(--color-surface-500);
+    background: var(--color-surface-600);
+  }
+  .update-status {
+    font-size: 11px;
+    color: var(--color-surface-400);
+  }
+  .update-found {
+    color: var(--color-brand-400);
+    font-weight: 500;
+  }
+  .update-ok {
+    color: #34d399;
+  }
+  .update-err {
+    color: #f87171;
   }
 </style>

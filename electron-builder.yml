@@ -52,6 +52,7 @@ linux:
   artifactName: Vaxtly-${version}-${arch}.${ext}
   icon: build/icon.png
   executableName: vaxtly
+  desktopName: Vaxtly
   extraResources:
     - from: build/icon.png
       to: icon.png
