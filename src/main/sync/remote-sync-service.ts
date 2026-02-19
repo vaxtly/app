@@ -14,6 +14,7 @@ import { createHash } from 'crypto'
 import { getDatabase } from '../database/connection'
 import * as collectionsRepo from '../database/repositories/collections'
 import * as settingsRepo from '../database/repositories/settings'
+import * as workspacesRepo from '../database/repositories/workspaces'
 import type { Collection, FileState } from '../../shared/types/models'
 import type { FileContent, SyncResult, SyncConflict } from '../../shared/types/sync'
 import type { GitProvider, DirectoryItem } from './git-provider.interface'
@@ -26,11 +27,19 @@ const COLLECTIONS_PATH = 'collections'
 
 // --- Provider management ---
 
+function getSetting(key: string, workspaceId?: string): string | null {
+  if (workspaceId) {
+    const wsValue = workspacesRepo.getWorkspaceSetting(workspaceId, key)
+    if (wsValue !== undefined) return wsValue
+  }
+  return settingsRepo.getSetting(key) ?? null
+}
+
 export function getProvider(workspaceId?: string): GitProvider | null {
-  const providerType = settingsRepo.getSetting('sync.provider') ?? null
-  const repository = settingsRepo.getSetting('sync.repository') ?? null
-  const token = settingsRepo.getSetting('sync.token') ?? null
-  const branch = settingsRepo.getSetting('sync.branch') ?? 'main'
+  const providerType = getSetting('sync.provider', workspaceId)
+  const repository = getSetting('sync.repository', workspaceId)
+  const token = getSetting('sync.token', workspaceId)
+  const branch = getSetting('sync.branch', workspaceId) ?? 'main'
 
   if (!providerType || !repository || !token) return null
 
@@ -44,12 +53,12 @@ export function getProvider(workspaceId?: string): GitProvider | null {
   }
 }
 
-export function isConfigured(): boolean {
-  return getProvider() !== null
+export function isConfigured(workspaceId?: string): boolean {
+  return getProvider(workspaceId) !== null
 }
 
-export async function testConnection(): Promise<boolean> {
-  const provider = getProvider()
+export async function testConnection(workspaceId?: string): Promise<boolean> {
+  const provider = getProvider(workspaceId)
   if (!provider) return false
   return provider.testConnection()
 }
@@ -125,7 +134,7 @@ export function hasRemoteFileChanges(
 
 export async function pull(workspaceId?: string): Promise<SyncResult> {
   const result: SyncResult = { success: true, message: '', pulled: 0, pushed: 0, conflicts: [] }
-  const provider = getProvider()
+  const provider = getProvider(workspaceId)
 
   if (!provider) {
     return { ...result, success: false, message: 'Remote not configured' }
@@ -241,8 +250,9 @@ export async function pull(workspaceId?: string): Promise<SyncResult> {
 export async function pushCollection(
   collection: Collection,
   sanitize = false,
+  workspaceId?: string,
 ): Promise<void> {
-  const provider = getProvider()
+  const provider = getProvider(workspaceId)
   if (!provider) throw new Error('Remote not configured')
 
   const localFiles = serializeToDirectory(collection, { sanitize })
@@ -342,7 +352,7 @@ export async function pushCollection(
 // --- Pull single collection ---
 
 export async function pullSingleCollection(collection: Collection, workspaceId?: string): Promise<boolean> {
-  const provider = getProvider()
+  const provider = getProvider(workspaceId)
   if (!provider) throw new Error('Remote not configured')
 
   const basePath = `${COLLECTIONS_PATH}/${collection.id}`
@@ -396,7 +406,7 @@ export async function pushAll(workspaceId?: string): Promise<SyncResult> {
 
   for (const collection of collections) {
     try {
-      await pushCollection(collection)
+      await pushCollection(collection, false, workspaceId)
       result.pushed!++
     } catch (e) {
       if (e instanceof SyncConflictError) {
@@ -424,10 +434,10 @@ export async function pushAll(workspaceId?: string): Promise<SyncResult> {
 
 // --- Delete remote collection ---
 
-export async function deleteRemoteCollection(collection: Collection): Promise<void> {
+export async function deleteRemoteCollection(collection: Collection, workspaceId?: string): Promise<void> {
   if (!collection.remote_sha) return
 
-  const provider = getProvider()
+  const provider = getProvider(workspaceId)
   if (!provider) return
 
   const basePath = `${COLLECTIONS_PATH}/${collection.id}`
@@ -441,8 +451,8 @@ export async function deleteRemoteCollection(collection: Collection): Promise<vo
 
 // --- Conflict resolution ---
 
-export async function forceKeepLocal(collection: Collection): Promise<void> {
-  const provider = getProvider()
+export async function forceKeepLocal(collection: Collection, workspaceId?: string): Promise<void> {
+  const provider = getProvider(workspaceId)
   if (!provider) throw new Error('Remote not configured')
 
   const localFiles = serializeToDirectory(collection)
@@ -495,7 +505,7 @@ export async function forceKeepLocal(collection: Collection): Promise<void> {
 }
 
 export async function forceKeepRemote(collection: Collection, workspaceId?: string): Promise<void> {
-  const provider = getProvider()
+  const provider = getProvider(workspaceId)
   if (!provider) throw new Error('Remote not configured')
 
   const remotePath = `${COLLECTIONS_PATH}/${collection.id}`
@@ -523,8 +533,9 @@ export async function pushSingleRequest(
   collection: Collection,
   requestId: string,
   sanitize = false,
+  workspaceId?: string,
 ): Promise<boolean> {
-  const provider = getProvider()
+  const provider = getProvider(workspaceId)
   if (!provider) return false
 
   const db = getDatabase()

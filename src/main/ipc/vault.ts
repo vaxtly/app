@@ -5,19 +5,19 @@ import * as environmentsRepo from '../database/repositories/environments'
 import type { EnvironmentVariable } from '../../shared/types/models'
 
 export function registerVaultHandlers(): void {
-  ipcMain.handle(IPC.VAULT_TEST_CONNECTION, async () => {
+  ipcMain.handle(IPC.VAULT_TEST_CONNECTION, async (_event, workspaceId?: string) => {
     try {
-      const ok = await vaultService.testConnection()
+      const ok = await vaultService.testConnection(workspaceId)
       return { success: ok, message: ok ? 'Connected' : 'Connection failed' }
     } catch (e) {
       return { success: false, message: e instanceof Error ? e.message : String(e) }
     }
   })
 
-  ipcMain.handle(IPC.VAULT_PULL, async () => {
+  ipcMain.handle(IPC.VAULT_PULL, async (_event, workspaceId?: string) => {
     // Legacy pull — same as pull-all
     try {
-      const result = await vaultService.pullAll()
+      const result = await vaultService.pullAll(workspaceId)
       return {
         success: result.errors.length === 0,
         message: `Created ${result.created} environment(s)`,
@@ -29,13 +29,13 @@ export function registerVaultHandlers(): void {
     }
   })
 
-  ipcMain.handle(IPC.VAULT_PUSH, async (_event, environmentId: string) => {
+  ipcMain.handle(IPC.VAULT_PUSH, async (_event, environmentId: string, workspaceId?: string) => {
     try {
       const env = environmentsRepo.findById(environmentId)
       if (!env) return { success: false, message: 'Environment not found' }
 
       const variables: EnvironmentVariable[] = env.variables ? JSON.parse(env.variables) : []
-      await vaultService.pushVariables(environmentId, variables)
+      await vaultService.pushVariables(environmentId, variables, workspaceId)
       return { success: true, message: 'Pushed to Vault' }
     } catch (e) {
       return { success: false, message: e instanceof Error ? e.message : String(e) }
@@ -55,35 +55,35 @@ export function registerVaultHandlers(): void {
     }
   })
 
-  ipcMain.handle(IPC.VAULT_FETCH_VARIABLES, async (_event, environmentId: string) => {
+  ipcMain.handle(IPC.VAULT_FETCH_VARIABLES, async (_event, environmentId: string, workspaceId?: string) => {
     try {
-      return await vaultService.fetchVariables(environmentId)
+      return await vaultService.fetchVariables(environmentId, workspaceId)
     } catch (e) {
       throw new Error(e instanceof Error ? e.message : String(e))
     }
   })
 
-  ipcMain.handle(IPC.VAULT_PUSH_VARIABLES, async (_event, environmentId: string, variables: EnvironmentVariable[]) => {
+  ipcMain.handle(IPC.VAULT_PUSH_VARIABLES, async (_event, environmentId: string, variables: EnvironmentVariable[], workspaceId?: string) => {
     try {
-      await vaultService.pushVariables(environmentId, variables)
+      await vaultService.pushVariables(environmentId, variables, workspaceId)
       return { success: true }
     } catch (e) {
       return { success: false, message: e instanceof Error ? e.message : String(e) }
     }
   })
 
-  ipcMain.handle(IPC.VAULT_DELETE_SECRETS, async (_event, environmentId: string) => {
+  ipcMain.handle(IPC.VAULT_DELETE_SECRETS, async (_event, environmentId: string, workspaceId?: string) => {
     try {
-      await vaultService.deleteSecrets(environmentId)
+      await vaultService.deleteSecrets(environmentId, workspaceId)
       return { success: true }
     } catch (e) {
       return { success: false, message: e instanceof Error ? e.message : String(e) }
     }
   })
 
-  ipcMain.handle(IPC.VAULT_MIGRATE, async (_event, environmentId: string, oldPath: string, newPath: string) => {
+  ipcMain.handle(IPC.VAULT_MIGRATE, async (_event, environmentId: string, oldPath: string, newPath: string, workspaceId?: string) => {
     try {
-      await vaultService.migrateEnvironment(environmentId, oldPath, newPath)
+      await vaultService.migrateEnvironment(environmentId, oldPath, newPath, workspaceId)
       return { success: true }
     } catch (e) {
       return { success: false, message: e instanceof Error ? e.message : String(e) }

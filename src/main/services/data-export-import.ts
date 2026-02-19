@@ -9,6 +9,7 @@ import * as foldersRepo from '../database/repositories/folders'
 import * as requestsRepo from '../database/repositories/requests'
 import * as environmentsRepo from '../database/repositories/environments'
 import * as settingsRepo from '../database/repositories/settings'
+import * as workspacesRepo from '../database/repositories/workspaces'
 import type { Collection, Folder, Request as Req, Environment } from '../../shared/types/models'
 
 // --- Export types ---
@@ -74,7 +75,7 @@ export function exportAll(workspaceId?: string): ExportWrapper {
   return wrap('all', {
     collections: buildCollectionsData(workspaceId),
     environments: buildEnvironmentsData(workspaceId),
-    config: buildConfigData(),
+    config: buildConfigData(workspaceId),
   })
 }
 
@@ -135,7 +136,7 @@ export function importData(json: string, workspaceId?: string): ImportResult {
   }
 
   if (['all', 'config'].includes(type) && exportData.config) {
-    const r = importConfig(exportData.config as Record<string, Record<string, unknown>>)
+    const r = importConfig(exportData.config as Record<string, Record<string, unknown>>, workspaceId)
     result.config = r.success
     result.errors.push(...r.errors)
   }
@@ -274,27 +275,35 @@ function importEnvironments(
   return { count, errors }
 }
 
-function importConfig(config: Record<string, Record<string, unknown>>): { success: boolean; errors: string[] } {
+function importConfig(config: Record<string, Record<string, unknown>>, workspaceId?: string): { success: boolean; errors: string[] } {
   const errors: string[] = []
+
+  function set(key: string, value: string): void {
+    if (workspaceId) {
+      workspacesRepo.setWorkspaceSetting(workspaceId, key, value)
+    } else {
+      settingsRepo.setSetting(key, value)
+    }
+  }
 
   try {
     if (config.remote) {
       const remote = config.remote
-      if (remote.provider) settingsRepo.setSetting('sync.provider', String(remote.provider))
-      if (remote.repository) settingsRepo.setSetting('sync.repository', String(remote.repository))
-      if (remote.branch !== undefined) settingsRepo.setSetting('sync.branch', String(remote.branch))
-      if (remote.auto_sync !== undefined) settingsRepo.setSetting('sync.auto_sync', remote.auto_sync ? '1' : '0')
+      if (remote.provider) set('sync.provider', String(remote.provider))
+      if (remote.repository) set('sync.repository', String(remote.repository))
+      if (remote.branch !== undefined) set('sync.branch', String(remote.branch))
+      if (remote.auto_sync !== undefined) set('sync.auto_sync', remote.auto_sync ? '1' : '0')
     }
 
     if (config.vault) {
       const vault = config.vault
-      if (vault.provider) settingsRepo.setSetting('vault.provider', String(vault.provider))
-      if (vault.url) settingsRepo.setSetting('vault.url', String(vault.url))
-      if (vault.auth_method !== undefined) settingsRepo.setSetting('vault.auth_method', String(vault.auth_method))
-      if (vault.namespace !== undefined) settingsRepo.setSetting('vault.namespace', String(vault.namespace))
-      if (vault.mount !== undefined) settingsRepo.setSetting('vault.mount', String(vault.mount))
-      if (vault.verify_ssl !== undefined) settingsRepo.setSetting('vault.verify_ssl', vault.verify_ssl ? '1' : '0')
-      if (vault.auto_sync !== undefined) settingsRepo.setSetting('vault.auto_sync', vault.auto_sync ? '1' : '0')
+      if (vault.provider) set('vault.provider', String(vault.provider))
+      if (vault.url) set('vault.url', String(vault.url))
+      if (vault.auth_method !== undefined) set('vault.auth_method', String(vault.auth_method))
+      if (vault.namespace !== undefined) set('vault.namespace', String(vault.namespace))
+      if (vault.mount !== undefined) set('vault.mount', String(vault.mount))
+      if (vault.verify_ssl !== undefined) set('vault.verify_ssl', vault.verify_ssl ? '1' : '0')
+      if (vault.auto_sync !== undefined) set('vault.auto_sync', vault.auto_sync ? '1' : '0')
     }
 
     return { success: true, errors }
@@ -377,22 +386,30 @@ function buildEnvironmentsData(workspaceId?: string): EnvironmentExport[] {
   }))
 }
 
-function buildConfigData(): { remote: Record<string, unknown>; vault: Record<string, unknown> } {
+function buildConfigData(workspaceId?: string): { remote: Record<string, unknown>; vault: Record<string, unknown> } {
+  function get(key: string): string | undefined {
+    if (workspaceId) {
+      const wsVal = workspacesRepo.getWorkspaceSetting(workspaceId, key)
+      if (wsVal !== undefined) return wsVal
+    }
+    return settingsRepo.getSetting(key)
+  }
+
   return {
     remote: {
-      provider: settingsRepo.getSetting('sync.provider') ?? '',
-      repository: settingsRepo.getSetting('sync.repository') ?? '',
-      branch: settingsRepo.getSetting('sync.branch') ?? 'main',
-      auto_sync: settingsRepo.getSetting('sync.auto_sync') === '1',
+      provider: get('sync.provider') ?? '',
+      repository: get('sync.repository') ?? '',
+      branch: get('sync.branch') ?? 'main',
+      auto_sync: get('sync.auto_sync') === '1',
     },
     vault: {
-      provider: settingsRepo.getSetting('vault.provider') ?? '',
-      url: settingsRepo.getSetting('vault.url') ?? '',
-      auth_method: settingsRepo.getSetting('vault.auth_method') ?? 'token',
-      namespace: settingsRepo.getSetting('vault.namespace') ?? '',
-      mount: settingsRepo.getSetting('vault.mount') ?? 'secret',
-      verify_ssl: settingsRepo.getSetting('vault.verify_ssl') !== '0',
-      auto_sync: settingsRepo.getSetting('vault.auto_sync') !== '0',
+      provider: get('vault.provider') ?? '',
+      url: get('vault.url') ?? '',
+      auth_method: get('vault.auth_method') ?? 'token',
+      namespace: get('vault.namespace') ?? '',
+      mount: get('vault.mount') ?? 'secret',
+      verify_ssl: get('vault.verify_ssl') !== '0',
+      auto_sync: get('vault.auto_sync') !== '0',
     },
   }
 }

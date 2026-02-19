@@ -18,22 +18,56 @@
   let status = $state<{ type: 'success' | 'error'; message: string } | null>(null)
   let activeConflict = $state<SyncConflict | null>(null)
 
+  const wsId = $derived(appStore.activeWorkspaceId)
+
   $effect(() => {
+    // Re-load config when active workspace changes
+    const _ws = appStore.activeWorkspaceId
     loadConfig()
   })
 
+  let hasWorkspaceConfig = $state(false)
+
+  async function getSetting(key: string): Promise<string | undefined> {
+    if (wsId) {
+      const val = await window.api.workspaceSettings.get(wsId, key)
+      if (val !== undefined) return val
+      // Fall back to global only if workspace has no sync config at all
+      if (!hasWorkspaceConfig) return window.api.settings.get(key)
+      return undefined
+    }
+    return window.api.settings.get(key)
+  }
+
+  async function setSetting(key: string, value: string): Promise<void> {
+    if (wsId) {
+      await window.api.workspaceSettings.set(wsId, key, value)
+    } else {
+      await window.api.settings.set(key, value)
+    }
+  }
+
   async function loadConfig(): Promise<void> {
+    // Check if workspace has its own sync config
+    if (wsId) {
+      const all = await window.api.workspaceSettings.getAll(wsId)
+      hasWorkspaceConfig = !!all.sync && Object.keys(all.sync).length > 0
+    } else {
+      hasWorkspaceConfig = false
+    }
+
     const [p, r, t, b, a] = await Promise.all([
-      window.api.settings.get('sync.provider'),
-      window.api.settings.get('sync.repository'),
-      window.api.settings.get('sync.token'),
-      window.api.settings.get('sync.branch'),
-      window.api.settings.get('sync.auto_sync'),
+      getSetting('sync.provider'),
+      getSetting('sync.repository'),
+      getSetting('sync.token'),
+      getSetting('sync.branch'),
+      getSetting('sync.auto_sync'),
     ])
     if (p === 'github' || p === 'gitlab') provider = p
-    if (r) repository = r
-    if (t) token = t
-    if (b) branch = b
+    else provider = 'github'
+    repository = r ?? ''
+    token = t ?? ''
+    branch = b ?? 'main'
     autoSync = a === 'true' || a === '1'
   }
 
@@ -42,12 +76,13 @@
     status = null
     try {
       await Promise.all([
-        window.api.settings.set('sync.provider', provider),
-        window.api.settings.set('sync.repository', repository),
-        window.api.settings.set('sync.token', token),
-        window.api.settings.set('sync.branch', branch),
-        window.api.settings.set('sync.auto_sync', String(autoSync)),
+        setSetting('sync.provider', provider),
+        setSetting('sync.repository', repository),
+        setSetting('sync.token', token),
+        setSetting('sync.branch', branch),
+        setSetting('sync.auto_sync', String(autoSync)),
       ])
+      if (wsId) hasWorkspaceConfig = true
       status = { type: 'success', message: 'Sync configuration saved' }
     } catch (err) {
       status = { type: 'error', message: err instanceof Error ? err.message : 'Failed to save' }
@@ -61,7 +96,7 @@
     status = null
     try {
       await saveConfig()
-      const ok = await window.api.sync.testConnection()
+      const ok = await window.api.sync.testConnection(wsId ?? undefined)
       status = ok
         ? { type: 'success', message: 'Connection successful' }
         : { type: 'error', message: 'Connection failed — check your credentials and repository' }
@@ -157,6 +192,18 @@
     </button>
   {/if}
 
+  <!-- Inherited config hint -->
+  {#if wsId && !hasWorkspaceConfig}
+    <div class="inherited-banner">
+      <svg viewBox="0 0 16 16" fill="none" class="inherited-icon">
+        <circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1"/>
+        <path d="M8 7V11" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+        <circle cx="8" cy="5.2" r="0.7" fill="currentColor"/>
+      </svg>
+      <span>Showing global defaults. Save to set config for this workspace.</span>
+    </div>
+  {/if}
+
   <!-- Connection section -->
   <section class="section">
     <div class="section-header">
@@ -167,7 +214,7 @@
       </div>
       <div>
         <div class="section-title">Connection</div>
-        <div class="section-subtitle">Git repository for remote sync</div>
+        <div class="section-subtitle">Git repository for remote sync{#if appStore.activeWorkspace} — {appStore.activeWorkspace.name}{/if}</div>
       </div>
     </div>
 
@@ -347,6 +394,27 @@
   .status-text { flex: 1; min-width: 0; }
   .status-dismiss { flex-shrink: 0; width: 12px; height: 12px; opacity: 0.4; }
   .status-banner:hover .status-dismiss { opacity: 0.8; }
+
+  /* Inherited config banner */
+  .inherited-banner {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border-radius: 6px;
+    border: 1px solid color-mix(in srgb, #60a5fa 20%, transparent);
+    background: color-mix(in srgb, #60a5fa 6%, transparent);
+    color: #93bbfd;
+    font-size: 11px;
+    line-height: 1.4;
+    animation: slideIn 0.2s ease-out;
+  }
+  .inherited-icon {
+    flex-shrink: 0;
+    width: 15px;
+    height: 15px;
+    opacity: 0.8;
+  }
 
   /* Sections */
   .section {

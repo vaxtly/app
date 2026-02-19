@@ -114,41 +114,41 @@ const api = {
   },
 
   sync: {
-    testConnection: (): Promise<boolean> =>
-      ipcRenderer.invoke(IPC.SYNC_TEST_CONNECTION),
+    testConnection: (workspaceId?: string): Promise<boolean> =>
+      ipcRenderer.invoke(IPC.SYNC_TEST_CONNECTION, workspaceId),
     pull: (workspaceId?: string): Promise<SyncResult> =>
       ipcRenderer.invoke(IPC.SYNC_PULL, workspaceId),
-    pushCollection: (collectionId: string, sanitize?: boolean): Promise<SyncResult> =>
-      ipcRenderer.invoke(IPC.SYNC_PUSH_COLLECTION, collectionId, sanitize),
+    pushCollection: (collectionId: string, sanitize?: boolean, workspaceId?: string): Promise<SyncResult> =>
+      ipcRenderer.invoke(IPC.SYNC_PUSH_COLLECTION, collectionId, sanitize, workspaceId),
     pushAll: (workspaceId?: string): Promise<SyncResult> =>
       ipcRenderer.invoke(IPC.SYNC_PUSH_ALL, workspaceId),
     resolveConflict: (collectionId: string, resolution: 'keep-local' | 'keep-remote', workspaceId?: string): Promise<SyncResult> =>
       ipcRenderer.invoke(IPC.SYNC_RESOLVE_CONFLICT, collectionId, resolution, workspaceId),
-    deleteRemote: (collectionId: string): Promise<SyncResult> =>
-      ipcRenderer.invoke(IPC.SYNC_DELETE_REMOTE, collectionId),
+    deleteRemote: (collectionId: string, workspaceId?: string): Promise<SyncResult> =>
+      ipcRenderer.invoke(IPC.SYNC_DELETE_REMOTE, collectionId, workspaceId),
     scanSensitive: (collectionId: string): Promise<SensitiveFinding[]> =>
       ipcRenderer.invoke(IPC.SYNC_SCAN_SENSITIVE, collectionId),
-    pushRequest: (collectionId: string, requestId: string, sanitize?: boolean): Promise<boolean> =>
-      ipcRenderer.invoke(IPC.SYNC_PUSH_REQUEST, collectionId, requestId, sanitize),
+    pushRequest: (collectionId: string, requestId: string, sanitize?: boolean, workspaceId?: string): Promise<boolean> =>
+      ipcRenderer.invoke(IPC.SYNC_PUSH_REQUEST, collectionId, requestId, sanitize, workspaceId),
   },
 
   vault: {
-    testConnection: (): Promise<{ success: boolean; message: string }> =>
-      ipcRenderer.invoke(IPC.VAULT_TEST_CONNECTION),
-    pull: (): Promise<{ success: boolean; message: string; pulled?: number; errors?: string[] }> =>
-      ipcRenderer.invoke(IPC.VAULT_PULL),
-    push: (environmentId: string): Promise<{ success: boolean; message: string }> =>
-      ipcRenderer.invoke(IPC.VAULT_PUSH, environmentId),
+    testConnection: (workspaceId?: string): Promise<{ success: boolean; message: string }> =>
+      ipcRenderer.invoke(IPC.VAULT_TEST_CONNECTION, workspaceId),
+    pull: (workspaceId?: string): Promise<{ success: boolean; message: string; pulled?: number; errors?: string[] }> =>
+      ipcRenderer.invoke(IPC.VAULT_PULL, workspaceId),
+    push: (environmentId: string, workspaceId?: string): Promise<{ success: boolean; message: string }> =>
+      ipcRenderer.invoke(IPC.VAULT_PUSH, environmentId, workspaceId),
     pullAll: (workspaceId?: string): Promise<{ success: boolean; created: number; errors: string[] }> =>
       ipcRenderer.invoke(IPC.VAULT_PULL_ALL, workspaceId),
-    fetchVariables: (environmentId: string): Promise<EnvironmentVariable[]> =>
-      ipcRenderer.invoke(IPC.VAULT_FETCH_VARIABLES, environmentId),
-    pushVariables: (environmentId: string, variables: EnvironmentVariable[]): Promise<{ success: boolean; message?: string }> =>
-      ipcRenderer.invoke(IPC.VAULT_PUSH_VARIABLES, environmentId, variables),
-    deleteSecrets: (environmentId: string): Promise<{ success: boolean; message?: string }> =>
-      ipcRenderer.invoke(IPC.VAULT_DELETE_SECRETS, environmentId),
-    migrate: (environmentId: string, oldPath: string, newPath: string): Promise<{ success: boolean; message?: string }> =>
-      ipcRenderer.invoke(IPC.VAULT_MIGRATE, environmentId, oldPath, newPath),
+    fetchVariables: (environmentId: string, workspaceId?: string): Promise<EnvironmentVariable[]> =>
+      ipcRenderer.invoke(IPC.VAULT_FETCH_VARIABLES, environmentId, workspaceId),
+    pushVariables: (environmentId: string, variables: EnvironmentVariable[], workspaceId?: string): Promise<{ success: boolean; message?: string }> =>
+      ipcRenderer.invoke(IPC.VAULT_PUSH_VARIABLES, environmentId, variables, workspaceId),
+    deleteSecrets: (environmentId: string, workspaceId?: string): Promise<{ success: boolean; message?: string }> =>
+      ipcRenderer.invoke(IPC.VAULT_DELETE_SECRETS, environmentId, workspaceId),
+    migrate: (environmentId: string, oldPath: string, newPath: string, workspaceId?: string): Promise<{ success: boolean; message?: string }> =>
+      ipcRenderer.invoke(IPC.VAULT_MIGRATE, environmentId, oldPath, newPath, workspaceId),
   },
 
   data: {
@@ -181,6 +181,15 @@ const api = {
       ipcRenderer.invoke(IPC.SETTINGS_SET, key, value),
     getAll: (): Promise<AppSetting[]> =>
       ipcRenderer.invoke(IPC.SETTINGS_GET_ALL),
+  },
+
+  workspaceSettings: {
+    get: (workspaceId: string, key: string): Promise<string | undefined> =>
+      ipcRenderer.invoke(IPC.WORKSPACE_SETTINGS_GET, workspaceId, key),
+    set: (workspaceId: string, key: string, value: string): Promise<void> =>
+      ipcRenderer.invoke(IPC.WORKSPACE_SETTINGS_SET, workspaceId, key, value),
+    getAll: (workspaceId: string): Promise<Record<string, Record<string, unknown>>> =>
+      ipcRenderer.invoke(IPC.WORKSPACE_SETTINGS_GET_ALL, workspaceId),
   },
 
   window: {

@@ -93,6 +93,11 @@ export const IPC = {
   SETTINGS_SET: 'settings:set',
   SETTINGS_GET_ALL: 'settings:get-all',
 
+  // Workspace Settings
+  WORKSPACE_SETTINGS_GET: 'workspace-settings:get',
+  WORKSPACE_SETTINGS_SET: 'workspace-settings:set',
+  WORKSPACE_SETTINGS_GET_ALL: 'workspace-settings:get-all',
+
   // Window
   WINDOW_GET_STATE: 'window:get-state',
   WINDOW_SAVE_STATE: 'window:save-state',

@@ -6,6 +6,7 @@
 import type { SecretsProvider } from './secrets-provider.interface'
 import { HashiCorpVaultProvider } from './hashicorp-vault-provider'
 import * as settingsRepo from '../database/repositories/settings'
+import * as workspacesRepo from '../database/repositories/workspaces'
 import * as environmentsRepo from '../database/repositories/environments'
 import type { EnvironmentVariable } from '../../shared/types/models'
 import { logVault } from '../services/session-log'
@@ -14,20 +15,31 @@ import { logVault } from '../services/session-log'
 const secretsCache = new Map<string, { data: EnvironmentVariable[]; expiresAt: number }>()
 const CACHE_TTL_MS = 60_000 // 60 seconds
 
-let cachedProvider: SecretsProvider | null = null
+// Provider cache keyed by workspaceId (or '__global__' for no workspace)
+const providerCache = new Map<string, SecretsProvider>()
 
-export async function getProvider(): Promise<SecretsProvider | null> {
-  if (cachedProvider) return cachedProvider
+function getVaultSetting(key: string, workspaceId?: string): string | undefined {
+  if (workspaceId) {
+    const wsValue = workspacesRepo.getWorkspaceSetting(workspaceId, key)
+    if (wsValue !== undefined) return wsValue
+  }
+  return settingsRepo.getSetting(key)
+}
 
-  const providerType = settingsRepo.getSetting('vault.provider')
-  const url = settingsRepo.getSetting('vault.url')
-  const authMethod = (settingsRepo.getSetting('vault.auth_method') ?? 'token') as 'token' | 'approle'
-  const token = settingsRepo.getSetting('vault.token') ?? ''
-  const roleId = settingsRepo.getSetting('vault.role_id')
-  const secretId = settingsRepo.getSetting('vault.secret_id')
-  const namespace = settingsRepo.getSetting('vault.namespace')
-  const mount = settingsRepo.getSetting('vault.mount') ?? 'secret'
-  const verifySslRaw = settingsRepo.getSetting('vault.verify_ssl')
+export async function getProvider(workspaceId?: string): Promise<SecretsProvider | null> {
+  const cacheKey = workspaceId ?? '__global__'
+  const cached = providerCache.get(cacheKey)
+  if (cached) return cached
+
+  const providerType = getVaultSetting('vault.provider', workspaceId)
+  const url = getVaultSetting('vault.url', workspaceId)
+  const authMethod = (getVaultSetting('vault.auth_method', workspaceId) ?? 'token') as 'token' | 'approle'
+  const token = getVaultSetting('vault.token', workspaceId) ?? ''
+  const roleId = getVaultSetting('vault.role_id', workspaceId)
+  const secretId = getVaultSetting('vault.secret_id', workspaceId)
+  const namespace = getVaultSetting('vault.namespace', workspaceId)
+  const mount = getVaultSetting('vault.mount', workspaceId) ?? 'secret'
+  const verifySslRaw = getVaultSetting('vault.verify_ssl', workspaceId)
   const verifySsl = verifySslRaw !== '0' && verifySslRaw !== 'false'
 
   if (!providerType || !url) return null
@@ -35,7 +47,7 @@ export async function getProvider(): Promise<SecretsProvider | null> {
   if (authMethod === 'approle' && (!roleId || !secretId)) return null
 
   if (providerType === 'hashicorp') {
-    cachedProvider = await HashiCorpVaultProvider.create({
+    const provider = await HashiCorpVaultProvider.create({
       url: url.replace(/\/+$/, ''),
       token,
       namespace: namespace || null,
@@ -45,27 +57,34 @@ export async function getProvider(): Promise<SecretsProvider | null> {
       secretId: secretId ?? undefined,
       verifySsl,
     })
+    providerCache.set(cacheKey, provider)
+    return provider
   }
 
-  return cachedProvider
+  return null
 }
 
 /** Reset cached provider (call when settings change). */
-export function resetProvider(): void {
-  cachedProvider = null
+export function resetProvider(workspaceId?: string): void {
+  if (workspaceId) {
+    providerCache.delete(workspaceId)
+  } else {
+    providerCache.clear()
+  }
   secretsCache.clear()
 }
 
-export function isConfigured(): boolean {
-  const providerType = settingsRepo.getSetting('vault.provider')
-  const url = settingsRepo.getSetting('vault.url')
+export function isConfigured(workspaceId?: string): boolean {
+  const providerType = getVaultSetting('vault.provider', workspaceId)
+  const url = getVaultSetting('vault.url', workspaceId)
   return !!providerType && !!url
 }
 
-export async function testConnection(): Promise<boolean> {
+export async function testConnection(workspaceId?: string): Promise<boolean> {
   // Force fresh provider for connection test
-  cachedProvider = null
-  const provider = await getProvider()
+  const cacheKey = workspaceId ?? '__global__'
+  providerCache.delete(cacheKey)
+  const provider = await getProvider(workspaceId)
   if (!provider) return false
   return provider.testConnection()
 }
@@ -85,14 +104,14 @@ export function buildPath(env: { name: string; vault_path: string | null }): str
 /**
  * Fetch variables from Vault for an environment.
  */
-export async function fetchVariables(environmentId: string): Promise<EnvironmentVariable[]> {
+export async function fetchVariables(environmentId: string, workspaceId?: string): Promise<EnvironmentVariable[]> {
   // Check cache
   const cached = secretsCache.get(environmentId)
   if (cached && Date.now() < cached.expiresAt) {
     return cached.data
   }
 
-  const provider = await getProvider()
+  const provider = await getProvider(workspaceId)
   if (!provider) throw new Error('Vault not configured')
 
   const env = environmentsRepo.findById(environmentId)
@@ -120,8 +139,8 @@ export async function fetchVariables(environmentId: string): Promise<Environment
 /**
  * Push variables to Vault for an environment.
  */
-export async function pushVariables(environmentId: string, variables: EnvironmentVariable[]): Promise<void> {
-  const provider = await getProvider()
+export async function pushVariables(environmentId: string, variables: EnvironmentVariable[], workspaceId?: string): Promise<void> {
+  const provider = await getProvider(workspaceId)
   if (!provider) throw new Error('Vault not configured')
 
   const env = environmentsRepo.findById(environmentId)
@@ -142,8 +161,8 @@ export async function pushVariables(environmentId: string, variables: Environmen
 /**
  * Delete secrets from Vault for an environment.
  */
-export async function deleteSecrets(environmentId: string): Promise<void> {
-  const provider = await getProvider()
+export async function deleteSecrets(environmentId: string, workspaceId?: string): Promise<void> {
+  const provider = await getProvider(workspaceId)
   if (!provider) return
 
   const env = environmentsRepo.findById(environmentId)
@@ -165,7 +184,7 @@ export async function deleteSecrets(environmentId: string): Promise<void> {
 export async function pullAll(workspaceId?: string): Promise<{ created: number; errors: string[] }> {
   const result = { created: 0, errors: [] as string[] }
 
-  const provider = await getProvider()
+  const provider = await getProvider(workspaceId)
   if (!provider) {
     result.errors.push('Vault not configured')
     return result
@@ -233,10 +252,11 @@ export async function migrateEnvironment(
   environmentId: string,
   oldPath: string,
   newPath: string,
+  workspaceId?: string,
 ): Promise<void> {
   if (oldPath === newPath) return
 
-  const provider = await getProvider()
+  const provider = await getProvider(workspaceId)
   if (!provider) return
 
   const secrets = await provider.getSecrets(oldPath)

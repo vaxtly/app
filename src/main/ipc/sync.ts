@@ -9,8 +9,8 @@ import { getDatabase } from '../database/connection'
 import type { Request, KeyValueEntry } from '../../shared/types/models'
 
 export function registerSyncHandlers(): void {
-  ipcMain.handle(IPC.SYNC_TEST_CONNECTION, async (): Promise<boolean> => {
-    return syncService.testConnection()
+  ipcMain.handle(IPC.SYNC_TEST_CONNECTION, async (_event, workspaceId?: string): Promise<boolean> => {
+    return syncService.testConnection(workspaceId)
   })
 
   ipcMain.handle(IPC.SYNC_PULL, async (_event, workspaceId?: string): Promise<SyncResult> => {
@@ -19,14 +19,14 @@ export function registerSyncHandlers(): void {
 
   ipcMain.handle(
     IPC.SYNC_PUSH_COLLECTION,
-    async (_event, collectionId: string, sanitize?: boolean): Promise<SyncResult> => {
+    async (_event, collectionId: string, sanitize?: boolean, workspaceId?: string): Promise<SyncResult> => {
       const collection = collectionsRepo.findById(collectionId)
       if (!collection) {
         return { success: false, message: 'Collection not found', pulled: 0, pushed: 0 }
       }
 
       try {
-        await syncService.pushCollection(collection, sanitize ?? false)
+        await syncService.pushCollection(collection, sanitize ?? false, workspaceId)
         return { success: true, message: 'Pushed successfully', pulled: 0, pushed: 1 }
       } catch (e) {
         if (e instanceof syncService.SyncConflictError) {
@@ -61,7 +61,7 @@ export function registerSyncHandlers(): void {
 
       try {
         if (resolution === 'keep-local') {
-          await syncService.forceKeepLocal(collection)
+          await syncService.forceKeepLocal(collection, workspaceId)
         } else {
           await syncService.forceKeepRemote(collection, workspaceId)
         }
@@ -74,14 +74,14 @@ export function registerSyncHandlers(): void {
 
   ipcMain.handle(
     IPC.SYNC_DELETE_REMOTE,
-    async (_event, collectionId: string): Promise<SyncResult> => {
+    async (_event, collectionId: string, workspaceId?: string): Promise<SyncResult> => {
       const collection = collectionsRepo.findById(collectionId)
       if (!collection) {
         return { success: false, message: 'Collection not found', pulled: 0, pushed: 0 }
       }
 
       try {
-        await syncService.deleteRemoteCollection(collection)
+        await syncService.deleteRemoteCollection(collection, workspaceId)
         return { success: true, message: 'Deleted from remote', pulled: 0, pushed: 0 }
       } catch (e) {
         return { success: false, message: (e as Error).message, pulled: 0, pushed: 0 }
@@ -120,11 +120,11 @@ export function registerSyncHandlers(): void {
 
   ipcMain.handle(
     IPC.SYNC_PUSH_REQUEST,
-    async (_event, collectionId: string, requestId: string, sanitize?: boolean): Promise<boolean> => {
+    async (_event, collectionId: string, requestId: string, sanitize?: boolean, workspaceId?: string): Promise<boolean> => {
       const collection = collectionsRepo.findById(collectionId)
       if (!collection) return false
 
-      return syncService.pushSingleRequest(collection, requestId, sanitize ?? false)
+      return syncService.pushSingleRequest(collection, requestId, sanitize ?? false, workspaceId)
     },
   )
 }

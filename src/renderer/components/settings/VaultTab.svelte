@@ -18,29 +18,61 @@
   let saving = $state(false)
   let status = $state<{ type: 'success' | 'error'; message: string } | null>(null)
 
+  const wsId = $derived(appStore.activeWorkspaceId)
+
   $effect(() => {
+    // Re-load config when active workspace changes
+    const _ws = appStore.activeWorkspaceId
     loadConfig()
   })
 
+  let hasWorkspaceConfig = $state(false)
+
+  async function getSetting(key: string): Promise<string | undefined> {
+    if (wsId) {
+      const val = await window.api.workspaceSettings.get(wsId, key)
+      if (val !== undefined) return val
+      if (!hasWorkspaceConfig) return window.api.settings.get(key)
+      return undefined
+    }
+    return window.api.settings.get(key)
+  }
+
+  async function setSetting(key: string, value: string): Promise<void> {
+    if (wsId) {
+      await window.api.workspaceSettings.set(wsId, key, value)
+    } else {
+      await window.api.settings.set(key, value)
+    }
+  }
+
   async function loadConfig(): Promise<void> {
+    if (wsId) {
+      const all = await window.api.workspaceSettings.getAll(wsId)
+      hasWorkspaceConfig = !!all.vault && Object.keys(all.vault).length > 0
+    } else {
+      hasWorkspaceConfig = false
+    }
+
     const [u, am, t, ri, si, ns, ep, vs, as_] = await Promise.all([
-      window.api.settings.get('vault.url'),
-      window.api.settings.get('vault.auth_method'),
-      window.api.settings.get('vault.token'),
-      window.api.settings.get('vault.role_id'),
-      window.api.settings.get('vault.secret_id'),
-      window.api.settings.get('vault.namespace'),
-      window.api.settings.get('vault.mount'),
-      window.api.settings.get('vault.verify_ssl'),
-      window.api.settings.get('vault.auto_sync'),
+      getSetting('vault.url'),
+      getSetting('vault.auth_method'),
+      getSetting('vault.token'),
+      getSetting('vault.role_id'),
+      getSetting('vault.secret_id'),
+      getSetting('vault.namespace'),
+      getSetting('vault.mount'),
+      getSetting('vault.verify_ssl'),
+      getSetting('vault.auto_sync'),
     ])
-    if (u) url = u
+    url = u ?? ''
     if (am === 'token' || am === 'approle') authMethod = am
-    if (t) token = t
-    if (ri) roleId = ri
-    if (si) secretId = si
-    if (ns) namespace = ns
-    if (ep) enginePath = ep
+    else authMethod = 'token'
+    token = t ?? ''
+    roleId = ri ?? ''
+    secretId = si ?? ''
+    namespace = ns ?? ''
+    enginePath = ep ?? 'secret'
     verifySsl = vs !== 'false' && vs !== '0'
     autoSync = as_ === 'true' || as_ === '1'
   }
@@ -50,17 +82,18 @@
     status = null
     try {
       await Promise.all([
-        window.api.settings.set('vault.provider', 'hashicorp'),
-        window.api.settings.set('vault.url', url),
-        window.api.settings.set('vault.auth_method', authMethod),
-        window.api.settings.set('vault.token', token),
-        window.api.settings.set('vault.role_id', roleId),
-        window.api.settings.set('vault.secret_id', secretId),
-        window.api.settings.set('vault.namespace', namespace),
-        window.api.settings.set('vault.mount', enginePath),
-        window.api.settings.set('vault.verify_ssl', String(verifySsl)),
-        window.api.settings.set('vault.auto_sync', String(autoSync)),
+        setSetting('vault.provider', 'hashicorp'),
+        setSetting('vault.url', url),
+        setSetting('vault.auth_method', authMethod),
+        setSetting('vault.token', token),
+        setSetting('vault.role_id', roleId),
+        setSetting('vault.secret_id', secretId),
+        setSetting('vault.namespace', namespace),
+        setSetting('vault.mount', enginePath),
+        setSetting('vault.verify_ssl', String(verifySsl)),
+        setSetting('vault.auto_sync', String(autoSync)),
       ])
+      if (wsId) hasWorkspaceConfig = true
       status = { type: 'success', message: 'Vault configuration saved' }
     } catch (err) {
       status = { type: 'error', message: err instanceof Error ? err.message : 'Failed to save' }
@@ -74,7 +107,7 @@
     status = null
     try {
       await saveConfig()
-      const result = await window.api.vault.testConnection()
+      const result = await window.api.vault.testConnection(wsId ?? undefined)
       status = result.success
         ? { type: 'success', message: result.message || 'Connection successful' }
         : { type: 'error', message: result.message || 'Connection failed' }
@@ -89,9 +122,9 @@
     pulling = true
     status = null
     try {
-      const result = await window.api.vault.pullAll(appStore.activeWorkspaceId ?? undefined)
+      const result = await window.api.vault.pullAll(wsId ?? undefined)
       if (result.success) {
-        await environmentsStore.loadAll(appStore.activeWorkspaceId ?? undefined)
+        await environmentsStore.loadAll(wsId ?? undefined)
         status = { type: 'success', message: `Pulled ${result.created} environments` }
       } else {
         status = { type: 'error', message: result.errors.join(', ') || 'Pull failed' }
@@ -138,6 +171,18 @@
     </button>
   {/if}
 
+  <!-- Inherited config hint -->
+  {#if wsId && !hasWorkspaceConfig}
+    <div class="inherited-banner">
+      <svg viewBox="0 0 16 16" fill="none" class="inherited-icon">
+        <circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1"/>
+        <path d="M8 7V11" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+        <circle cx="8" cy="5.2" r="0.7" fill="currentColor"/>
+      </svg>
+      <span>Showing global defaults. Save to set config for this workspace.</span>
+    </div>
+  {/if}
+
   <!-- Server section -->
   <section class="section">
     <div class="section-header">
@@ -149,7 +194,7 @@
       </div>
       <div>
         <div class="section-title">HashiCorp Vault</div>
-        <div class="section-subtitle">Secrets management for environment variables</div>
+        <div class="section-subtitle">Secrets management for environment variables{#if appStore.activeWorkspace} — {appStore.activeWorkspace.name}{/if}</div>
       </div>
     </div>
 
@@ -321,6 +366,27 @@
   .status-text { flex: 1; min-width: 0; }
   .status-dismiss { flex-shrink: 0; width: 12px; height: 12px; opacity: 0.4; }
   .status-banner:hover .status-dismiss { opacity: 0.8; }
+
+  /* Inherited config banner */
+  .inherited-banner {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border-radius: 6px;
+    border: 1px solid color-mix(in srgb, #60a5fa 20%, transparent);
+    background: color-mix(in srgb, #60a5fa 6%, transparent);
+    color: #93bbfd;
+    font-size: 11px;
+    line-height: 1.4;
+    animation: slideIn 0.2s ease-out;
+  }
+  .inherited-icon {
+    flex-shrink: 0;
+    width: 15px;
+    height: 15px;
+    opacity: 0.8;
+  }
 
   /* Sections */
   .section {
