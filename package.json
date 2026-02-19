@@ -1,7 +1,7 @@
 {
-  "name": "vaxtly-next",
+  "name": "vaxtly",
   "version": "0.1.0",
-  "description": "Vaxtly API Tester - Electron Prototype",
+  "description": "Vaxtly API Client",
   "author": {
     "name": "Vaxtly",
     "email": "vaxtly.app@gmail.com"

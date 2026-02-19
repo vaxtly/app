@@ -21,7 +21,7 @@
 ## Project Structure
 
 ```
-vaxtly-next/
+vaxtly/
 ├── src/
 │   ├── shared/                          # Types shared main↔renderer
 │   │   ├── types/
