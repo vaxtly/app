@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { openTestDatabase, closeDatabase } from '../../src/main/database/connection'
+import { initEncryptionForTesting } from '../../src/main/services/encryption'
 import * as workspacesRepo from '../../src/main/database/repositories/workspaces'
 import * as collectionsRepo from '../../src/main/database/repositories/collections'
 import * as environmentsRepo from '../../src/main/database/repositories/environments'
@@ -12,6 +13,7 @@ import {
 
 beforeEach(() => {
   openTestDatabase()
+  initEncryptionForTesting()
 })
 
 afterEach(() => {

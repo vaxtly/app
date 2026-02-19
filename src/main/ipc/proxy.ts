@@ -206,7 +206,7 @@ export function registerProxyHandlers(): void {
   })
 }
 
-function setDefaultHeader(headers: Record<string, string>, name: string, value: string): void {
+export function setDefaultHeader(headers: Record<string, string>, name: string, value: string): void {
   const lower = name.toLowerCase()
   const exists = Object.keys(headers).some((k) => k.toLowerCase() === lower)
   if (!exists) {
@@ -214,7 +214,7 @@ function setDefaultHeader(headers: Record<string, string>, name: string, value: 
   }
 }
 
-function deleteHeader(headers: Record<string, string>, name: string): void {
+export function deleteHeader(headers: Record<string, string>, name: string): void {
   const lower = name.toLowerCase()
   for (const key of Object.keys(headers)) {
     if (key.toLowerCase() === lower) {
@@ -224,7 +224,7 @@ function deleteHeader(headers: Record<string, string>, name: string): void {
 }
 
 
-function parseCookies(headers: Headers): ResponseCookie[] {
+export function parseCookies(headers: Headers): ResponseCookie[] {
   const cookies: ResponseCookie[] = []
   const setCookie = headers.getSetCookie?.()
   if (!setCookie) return cookies

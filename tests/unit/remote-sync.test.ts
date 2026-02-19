@@ -1,10 +1,21 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { openTestDatabase, closeDatabase } from '../../src/main/database/connection'
+import { initEncryptionForTesting } from '../../src/main/services/encryption'
 import {
   buildFileStateFromRemote,
   normalizeFileState,
   hasRemoteFileChanges,
+  isConfigured,
+  getProvider,
 } from '../../src/main/sync/remote-sync-service'
+import * as settingsRepo from '../../src/main/database/repositories/settings'
 import type { FileContent } from '../../src/shared/types/sync'
+
+beforeEach(() => {
+  openTestDatabase()
+  initEncryptionForTesting()
+})
+afterEach(() => closeDatabase())
 
 describe('buildFileStateFromRemote', () => {
   it('builds state from file contents', () => {
@@ -176,5 +187,61 @@ describe('hasRemoteFileChanges', () => {
     ]
 
     expect(hasRemoteFileChanges(stored, remoteItems)).toBe(false)
+  })
+})
+
+describe('SyncConflictError', () => {
+  it('has correct properties', async () => {
+    const { SyncConflictError } = await import('../../src/main/sync/remote-sync-service')
+    const err = new SyncConflictError(['file-a.yaml', 'file-b.yaml'])
+    expect(err).toBeInstanceOf(Error)
+    expect(err.name).toBe('SyncConflictError')
+    expect(err.conflictedFiles).toEqual(['file-a.yaml', 'file-b.yaml'])
+    expect(err.message).toContain('file-a.yaml')
+  })
+})
+
+describe('isConfigured', () => {
+  it('returns false when no sync settings configured', () => {
+    expect(isConfigured()).toBe(false)
+  })
+
+  it('returns true when provider, repository, and token are set', () => {
+    settingsRepo.setSetting('sync.provider', 'github')
+    settingsRepo.setSetting('sync.repository', 'user/repo')
+    settingsRepo.setSetting('sync.token', 'ghp_test123')
+    expect(isConfigured()).toBe(true)
+  })
+})
+
+describe('getProvider', () => {
+  it('returns null with incomplete settings', () => {
+    settingsRepo.setSetting('sync.provider', 'github')
+    expect(getProvider()).toBeNull()
+  })
+
+  it('returns GitHubProvider with complete github settings', () => {
+    settingsRepo.setSetting('sync.provider', 'github')
+    settingsRepo.setSetting('sync.repository', 'user/repo')
+    settingsRepo.setSetting('sync.token', 'ghp_test123')
+    const provider = getProvider()
+    expect(provider).not.toBeNull()
+    expect(provider!.constructor.name).toBe('GitHubProvider')
+  })
+
+  it('returns GitLabProvider with gitlab settings', () => {
+    settingsRepo.setSetting('sync.provider', 'gitlab')
+    settingsRepo.setSetting('sync.repository', 'group/project')
+    settingsRepo.setSetting('sync.token', 'glpat_test123')
+    const provider = getProvider()
+    expect(provider).not.toBeNull()
+    expect(provider!.constructor.name).toBe('GitLabProvider')
+  })
+
+  it('returns null when token is missing', () => {
+    settingsRepo.setSetting('sync.provider', 'github')
+    settingsRepo.setSetting('sync.repository', 'user/repo')
+    // No token
+    expect(getProvider()).toBeNull()
   })
 })

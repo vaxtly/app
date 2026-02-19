@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+- 4 new unit test suites: encryption round-trip, fetch-error formatting, session-log ring buffer, proxy helper functions
+- 77 new tests across 14 files (212 total, up from 135), covering encryption at rest, all auth/body types, workspace-scoped settings, code generator edge cases, and remote sync provider resolution
+- 3 new E2E tests: HTTP 404/500 status codes, custom header verification (23 total, up from 20)
+
+### Changed
+- Exported `parseCookies`, `setDefaultHeader`, `deleteHeader` from `ipc/proxy.ts` for testability
+
 ## [0.1.1] - 2026-02-19
 
 ### Added

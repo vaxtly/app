@@ -1,12 +1,16 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { openTestDatabase, closeDatabase } from '../../src/main/database/connection'
+import { initEncryptionForTesting } from '../../src/main/services/encryption'
 import { serializeToDirectory, importFromDirectory, serializeRequest } from '../../src/main/services/yaml-serializer'
 import * as collectionsRepo from '../../src/main/database/repositories/collections'
 import * as foldersRepo from '../../src/main/database/repositories/folders'
 import * as requestsRepo from '../../src/main/database/repositories/requests'
 import type { FileContent } from '../../src/shared/types/sync'
 
-beforeEach(() => openTestDatabase())
+beforeEach(() => {
+  openTestDatabase()
+  initEncryptionForTesting()
+})
 afterEach(() => closeDatabase())
 
 describe('serializeToDirectory', () => {
@@ -224,5 +228,61 @@ describe('importFromDirectory', () => {
     const requests = requestsRepo.findByFolder(folders[0].id, newId)
     expect(requests).toHaveLength(1)
     expect(requests[0].name).toBe('Nested Request')
+  })
+})
+
+describe('serializeRequest — auth and scripts', () => {
+  it('serializes request with auth config', () => {
+    const col = collectionsRepo.create({ name: 'Test' })
+    const req = requestsRepo.create({ collection_id: col.id, name: 'Auth Req', method: 'GET', url: 'https://api.com' })
+    requestsRepo.update(req.id, {
+      auth: JSON.stringify({ type: 'bearer', bearer_token: '{{token}}' }),
+    })
+
+    const updated = requestsRepo.findById(req.id)!
+    const yaml = serializeRequest(updated)
+    expect(yaml).toContain('auth')
+    expect(yaml).toContain('bearer')
+  })
+
+  it('serializes request with scripts config', () => {
+    const col = collectionsRepo.create({ name: 'Test' })
+    const req = requestsRepo.create({ collection_id: col.id, name: 'Script Req' })
+    requestsRepo.update(req.id, {
+      scripts: JSON.stringify({
+        post_response: [{ action: 'set_variable', source: 'body.token', target: 'auth_token' }],
+      }),
+    })
+
+    const updated = requestsRepo.findById(req.id)!
+    const yaml = serializeRequest(updated)
+    expect(yaml).toContain('scripts')
+    expect(yaml).toContain('set_variable')
+  })
+
+  it('sanitize option strips sensitive auth data', () => {
+    const col = collectionsRepo.create({ name: 'Test' })
+    const req = requestsRepo.create({ collection_id: col.id, name: 'Sensitive' })
+    requestsRepo.update(req.id, {
+      auth: JSON.stringify({ type: 'bearer', bearer_token: 'real-secret-token' }),
+    })
+
+    const updated = requestsRepo.findById(req.id)!
+    const yaml = serializeRequest(updated, { sanitize: true })
+    expect(yaml).not.toContain('real-secret-token')
+  })
+
+  it('serializes graphql body type', () => {
+    const col = collectionsRepo.create({ name: 'Test' })
+    const req = requestsRepo.create({ collection_id: col.id, name: 'GQL', method: 'POST' })
+    requestsRepo.update(req.id, {
+      body_type: 'graphql',
+      body: '{ users { id name } }',
+    })
+
+    const updated = requestsRepo.findById(req.id)!
+    const yaml = serializeRequest(updated)
+    expect(yaml).toContain('graphql')
+    expect(yaml).toContain('users')
   })
 })

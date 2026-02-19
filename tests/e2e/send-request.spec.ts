@@ -55,3 +55,44 @@ test('request to unreachable URL shows error', async ({ page, mod }) => {
 
   await expect(page.locator('.rv-status-code')).toContainText('ERR', { timeout: 15_000 })
 })
+
+test('GET /status/404 shows 404 status code', async ({ page, mod }) => {
+  await page.keyboard.press(`${mod}+n`)
+  await expect(page.locator('input.url-input')).toBeVisible({ timeout: 5_000 })
+
+  await page.locator('input.url-input').fill(`${server.url}/status/404`)
+  await page.locator('button.btn-send').click()
+
+  await expect(page.locator('.rv-status-code')).toContainText('404', { timeout: 10_000 })
+})
+
+test('GET /status/500 shows 500 status code', async ({ page, mod }) => {
+  await page.keyboard.press(`${mod}+n`)
+  await expect(page.locator('input.url-input')).toBeVisible({ timeout: 5_000 })
+
+  await page.locator('input.url-input').fill(`${server.url}/status/500`)
+  await page.locator('button.btn-send').click()
+
+  await expect(page.locator('.rv-status-code')).toContainText('500', { timeout: 10_000 })
+})
+
+test('custom header is sent and verified via /check-header', async ({ page, mod }) => {
+  await page.keyboard.press(`${mod}+n`)
+  await expect(page.locator('input.url-input')).toBeVisible({ timeout: 5_000 })
+
+  await page.locator('input.url-input').fill(`${server.url}/check-header?name=X-Custom-Test`)
+
+  // Switch to Headers tab and add a custom header
+  await page.getByRole('button', { name: 'Headers' }).click()
+  // The KeyValueEditor should have an empty row — fill it
+  const keyInputs = page.locator('.kv-row input.kv-key')
+  await keyInputs.first().fill('X-Custom-Test')
+  const valueInputs = page.locator('.kv-row input.kv-value')
+  await valueInputs.first().fill('hello-vaxtly')
+
+  await page.locator('button.btn-send').click()
+
+  await expect(page.locator('.rv-status-code')).toContainText('200', { timeout: 10_000 })
+  // The response body should contain our header value
+  await expect(page.locator('.rv-body')).toContainText('hello-vaxtly', { timeout: 10_000 })
+})

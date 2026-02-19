@@ -1,10 +1,12 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { openTestDatabase, closeDatabase } from '../../src/main/database/connection'
+import { initEncryptionForTesting } from '../../src/main/services/encryption'
 import * as collectionsRepo from '../../src/main/database/repositories/collections'
 import * as foldersRepo from '../../src/main/database/repositories/folders'
 import * as requestsRepo from '../../src/main/database/repositories/requests'
 import * as environmentsRepo from '../../src/main/database/repositories/environments'
 import * as settingsRepo from '../../src/main/database/repositories/settings'
+import * as workspacesRepo from '../../src/main/database/repositories/workspaces'
 import {
   exportAll,
   exportCollections,
@@ -13,7 +15,10 @@ import {
   importData,
 } from '../../src/main/services/data-export-import'
 
-beforeEach(() => openTestDatabase())
+beforeEach(() => {
+  openTestDatabase()
+  initEncryptionForTesting()
+})
 afterEach(() => closeDatabase())
 
 describe('export', () => {
@@ -182,5 +187,93 @@ describe('import', () => {
     }))
     expect(result.errors).toHaveLength(1)
     expect(result.errors[0]).toContain('Unsupported export version')
+  })
+
+  it('exports nested folder children correctly', () => {
+    const collection = collectionsRepo.create({ name: 'Nested' })
+    const parent = foldersRepo.create({ collection_id: collection.id, name: 'Parent' })
+    const child = foldersRepo.create({ collection_id: collection.id, name: 'Child', parent_id: parent.id })
+    requestsRepo.create({ collection_id: collection.id, name: 'Nested Req', folder_id: child.id })
+
+    const exported = exportCollections()
+    const cols = exported.data.collections as any[]
+    const parentFolder = cols[0].folders.find((f: any) => f.name === 'Parent')
+    expect(parentFolder).toBeTruthy()
+    expect(parentFolder.children).toHaveLength(1)
+    expect(parentFolder.children[0].name).toBe('Child')
+    expect(parentFolder.children[0].requests).toHaveLength(1)
+  })
+
+  it('imports collection with auth and scripts fields', () => {
+    const exported = {
+      vaxtly_export: true,
+      version: 1,
+      type: 'collections',
+      exported_at: new Date().toISOString(),
+      data: {
+        collections: [{
+          name: 'With Auth',
+          folders: [],
+          requests: [{
+            name: 'Bearer Req',
+            method: 'GET',
+            url: 'https://api.com',
+            headers: [],
+            query_params: [],
+            body: null,
+            body_type: 'none',
+            auth: { type: 'bearer', bearer_token: '{{token}}' },
+            scripts: { post_response: [{ action: 'set_variable', source: 'body.token', target: 'auth' }] },
+          }],
+        }],
+      },
+    }
+
+    const result = importData(JSON.stringify(exported))
+    expect(result.collections).toBe(1)
+
+    const collections = collectionsRepo.findAll()
+    const requests = requestsRepo.findByCollection(collections[0].id)
+    expect(requests).toHaveLength(1)
+    const auth = JSON.parse(requests[0].auth!)
+    expect(auth.type).toBe('bearer')
+    const scripts = JSON.parse(requests[0].scripts!)
+    expect(scripts.post_response).toHaveLength(1)
+  })
+
+  it('export preserves request auth and scripts', () => {
+    const col = collectionsRepo.create({ name: 'AuthCol' })
+    const req = requestsRepo.create({ collection_id: col.id, name: 'R', method: 'POST' })
+    requestsRepo.update(req.id, {
+      auth: JSON.stringify({ type: 'basic', basic_username: 'admin', basic_password: 'pass' }),
+      scripts: JSON.stringify({ pre_request: { action: 'send_request', request_id: 'some-id' } }),
+    })
+
+    const exported = exportCollections()
+    const requests = (exported.data.collections as any[])[0].requests
+    const auth = typeof requests[0].auth === 'string' ? JSON.parse(requests[0].auth) : requests[0].auth
+    expect(auth.type).toBe('basic')
+    const scripts = typeof requests[0].scripts === 'string' ? JSON.parse(requests[0].scripts) : requests[0].scripts
+    expect(scripts.pre_request).toBeTruthy()
+  })
+
+  it('workspace-scoped import assigns workspace_id', () => {
+    const ws = workspacesRepo.create({ name: 'My WS' })
+    const exported = {
+      vaxtly_export: true,
+      version: 1,
+      type: 'collections',
+      exported_at: new Date().toISOString(),
+      data: {
+        collections: [{ name: 'WS Col', folders: [], requests: [] }],
+      },
+    }
+
+    const result = importData(JSON.stringify(exported), ws.id)
+    expect(result.collections).toBe(1)
+
+    const cols = collectionsRepo.findByWorkspace(ws.id)
+    expect(cols).toHaveLength(1)
+    expect(cols[0].workspace_id).toBe(ws.id)
   })
 })

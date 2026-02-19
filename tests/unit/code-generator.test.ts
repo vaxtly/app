@@ -135,4 +135,64 @@ describe('generateCode', () => {
     expect(code).toContain('active=1')
     expect(code).not.toContain('hidden=2')
   })
+
+  describe('curl — auth types', () => {
+    it('generates basic auth header', () => {
+      const code = generateCode('curl', makeRequest({
+        authType: 'basic',
+        authUsername: 'admin',
+        authPassword: 'secret',
+      }))
+      expect(code).toContain('Authorization: Basic')
+      // Base64 of admin:secret
+      expect(code).toContain(btoa('admin:secret'))
+    })
+
+    it('generates api-key as custom header', () => {
+      const code = generateCode('curl', makeRequest({
+        authType: 'api-key',
+        apiKeyName: 'X-Api-Key',
+        apiKeyValue: 'my-key-123',
+      }))
+      expect(code).toContain('X-Api-Key: my-key-123')
+    })
+  })
+
+  describe('curl — body types', () => {
+    it('generates XML body with content-type', () => {
+      const code = generateCode('curl', makeRequest({
+        method: 'POST',
+        body: '<root><item>1</item></root>',
+        bodyType: 'xml',
+      }))
+      expect(code).toContain('Content-Type: application/xml')
+      expect(code).toContain('-d')
+    })
+
+    it('generates form-data with -F flags', () => {
+      const code = generateCode('curl', makeRequest({
+        method: 'POST',
+        bodyType: 'form-data',
+        formData: [
+          { key: 'name', value: 'test', enabled: true },
+          { key: 'file', value: 'data.txt', enabled: true },
+        ],
+      }))
+      expect(code).toContain('-F')
+      expect(code).toContain('name=test')
+    })
+
+    it('generates urlencoded with --data-urlencode', () => {
+      const code = generateCode('curl', makeRequest({
+        method: 'POST',
+        bodyType: 'urlencoded',
+        formData: [
+          { key: 'username', value: 'admin', enabled: true },
+          { key: 'password', value: 'secret', enabled: true },
+        ],
+      }))
+      expect(code).toContain('--data-urlencode')
+      expect(code).toContain('username=admin')
+    })
+  })
 })

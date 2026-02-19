@@ -219,3 +219,55 @@ describe('sanitizeCollectionData', () => {
     expect(data.variables![1].value).toBe('https://api.com')
   })
 })
+
+describe('scanRequest — api-key auth', () => {
+  it('detects api-key auth value', () => {
+    const findings = scanRequest(makeRequest({
+      auth: { type: 'api-key', api_key_header: 'X-Api-Key', api_key_value: 'sk-live-123' },
+    }))
+    expect(findings).toHaveLength(1)
+    expect(findings[0].key).toBe('api-key value')
+    expect(findings[0].source).toBe('auth')
+  })
+
+  it('detects sensitive keys in urlencoded body (JSON array format)', () => {
+    const findings = scanRequest(makeRequest({
+      body: JSON.stringify([
+        { key: 'password', value: 'secret123', enabled: true },
+        { key: 'name', value: 'test', enabled: true },
+      ]),
+      body_type: 'urlencoded',
+    }))
+    expect(findings).toHaveLength(1)
+    expect(findings[0].key).toBe('password')
+  })
+})
+
+describe('sanitizeRequestData — additional types', () => {
+  it('sanitizes api-key auth', () => {
+    const data = sanitizeRequestData({
+      auth: { type: 'api-key', api_key_header: 'X-Key', api_key_value: 'real-secret' },
+      headers: [],
+      query_params: [],
+      body: null,
+      body_type: 'none',
+    })
+    expect((data.auth as any).api_key_value).toBe('')
+  })
+
+  it('sanitizes urlencoded body (JSON array format)', () => {
+    const data = sanitizeRequestData({
+      auth: null,
+      headers: [],
+      query_params: [],
+      body: JSON.stringify([
+        { key: 'password', value: 'secret', enabled: true },
+        { key: 'name', value: 'test', enabled: true },
+      ]),
+      body_type: 'urlencoded',
+    })
+    const parsed = JSON.parse(data.body as string)
+    expect(parsed.find((e: any) => e.key === 'password').value).toBe('')
+    expect(parsed.find((e: any) => e.key === 'name').value).toBe('test')
+  })
+})

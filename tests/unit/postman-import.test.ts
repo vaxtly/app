@@ -1,12 +1,17 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { openTestDatabase, closeDatabase } from '../../src/main/database/connection'
+import { initEncryptionForTesting } from '../../src/main/services/encryption'
 import * as collectionsRepo from '../../src/main/database/repositories/collections'
 import * as foldersRepo from '../../src/main/database/repositories/folders'
 import * as requestsRepo from '../../src/main/database/repositories/requests'
 import * as environmentsRepo from '../../src/main/database/repositories/environments'
+import * as workspacesRepo from '../../src/main/database/repositories/workspaces'
 import { importPostman } from '../../src/main/services/postman-import'
 
-beforeEach(() => openTestDatabase())
+beforeEach(() => {
+  openTestDatabase()
+  initEncryptionForTesting()
+})
 afterEach(() => closeDatabase())
 
 describe('collection v2.1 format', () => {
@@ -296,5 +301,102 @@ describe('error handling', () => {
     const collections = collectionsRepo.findAll()
     expect(collections).toHaveLength(2)
     expect(collections.map((c) => c.name).sort()).toEqual(['My API', 'My API (2)'])
+  })
+})
+
+describe('additional body types and formats', () => {
+  it('imports form-data body from v2.1 format', () => {
+    const postman = {
+      info: { _postman_id: 'abc', name: 'FormData' },
+      item: [{
+        name: 'Upload',
+        request: {
+          method: 'POST',
+          url: 'https://api.com/upload',
+          body: {
+            mode: 'formdata',
+            formdata: [
+              { key: 'field1', value: 'value1', type: 'text' },
+              { key: 'field2', value: 'value2', type: 'text' },
+            ],
+          },
+        },
+      }],
+    }
+
+    const result = importPostman(JSON.stringify(postman))
+    expect(result.requests).toBe(1)
+
+    const collections = collectionsRepo.findAll()
+    const requests = requestsRepo.findByCollection(collections[0].id)
+    expect(requests[0].body_type).toBe('form-data')
+    const body = JSON.parse(requests[0].body!)
+    expect(body).toHaveLength(2)
+    expect(body[0].key).toBe('field1')
+  })
+
+  it('imports URL-as-object format (protocol/host/path arrays)', () => {
+    const postman = {
+      info: { _postman_id: 'abc', name: 'URL Object' },
+      item: [{
+        name: 'Object URL',
+        request: {
+          method: 'GET',
+          url: {
+            protocol: 'https',
+            host: ['api', 'example', 'com'],
+            path: ['v1', 'users'],
+            port: '',
+          },
+        },
+      }],
+    }
+
+    const result = importPostman(JSON.stringify(postman))
+    expect(result.requests).toBe(1)
+
+    const collections = collectionsRepo.findAll()
+    const requests = requestsRepo.findByCollection(collections[0].id)
+    expect(requests[0].url).toBe('https://api.example.com/v1/users')
+  })
+
+  it('imports raw XML body', () => {
+    const postman = {
+      info: { _postman_id: 'abc', name: 'XML' },
+      item: [{
+        name: 'XML Req',
+        request: {
+          method: 'POST',
+          url: 'https://api.com',
+          body: {
+            mode: 'raw',
+            raw: '<root><item>1</item></root>',
+            options: { raw: { language: 'xml' } },
+          },
+        },
+      }],
+    }
+
+    const result = importPostman(JSON.stringify(postman))
+    expect(result.requests).toBe(1)
+
+    const collections = collectionsRepo.findAll()
+    const requests = requestsRepo.findByCollection(collections[0].id)
+    expect(requests[0].body_type).toBe('xml')
+    expect(requests[0].body).toContain('<root>')
+  })
+
+  it('workspace-scoped import assigns workspace_id', () => {
+    const ws = workspacesRepo.create({ name: 'Test WS' })
+    const postman = {
+      info: { _postman_id: 'abc', name: 'WS Import' },
+      item: [{ name: 'R', request: { method: 'GET', url: 'https://api.com' } }],
+    }
+
+    const result = importPostman(JSON.stringify(postman), ws.id)
+    expect(result.collections).toBe(1)
+
+    const cols = collectionsRepo.findAll()
+    expect(cols.find((c) => c.name === 'WS Import')!.workspace_id).toBe(ws.id)
   })
 })

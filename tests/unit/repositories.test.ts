@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { openTestDatabase, closeDatabase } from '../../src/main/database/connection'
+import { openTestDatabase, closeDatabase, getDatabase } from '../../src/main/database/connection'
+import { initEncryptionForTesting } from '../../src/main/services/encryption'
 import * as workspacesRepo from '../../src/main/database/repositories/workspaces'
 import * as collectionsRepo from '../../src/main/database/repositories/collections'
 import * as foldersRepo from '../../src/main/database/repositories/folders'
@@ -10,6 +11,7 @@ import * as settingsRepo from '../../src/main/database/repositories/settings'
 
 beforeEach(() => {
   openTestDatabase()
+  initEncryptionForTesting()
 })
 
 afterEach(() => {
@@ -321,5 +323,97 @@ describe('settings repository', () => {
     expect(state.width).toBe(1200)
     expect(state.height).toBe(800)
     expect(state.is_maximized).toBe(0)
+  })
+
+  it('round-trips sensitive key (vault.token)', () => {
+    settingsRepo.setSetting('vault.token', 'hvs.my-secret-token')
+    expect(settingsRepo.getSetting('vault.token')).toBe('hvs.my-secret-token')
+  })
+
+  it('removes a setting', () => {
+    settingsRepo.setSetting('foo', 'bar')
+    expect(settingsRepo.removeSetting('foo')).toBe(true)
+    expect(settingsRepo.getSetting('foo')).toBeUndefined()
+    expect(settingsRepo.removeSetting('nonexistent')).toBe(false)
+  })
+
+  it('sensitive key is actually encrypted in raw DB', () => {
+    settingsRepo.setSetting('sync.token', 'ghp_plaintext123')
+    const db = getDatabase()
+    const row = db.prepare('SELECT value FROM app_settings WHERE key = ?').get('sync.token') as { value: string }
+    expect(row.value).not.toBe('ghp_plaintext123')
+    // Decrypted value should still match
+    expect(settingsRepo.getSetting('sync.token')).toBe('ghp_plaintext123')
+  })
+})
+
+// --- Workspace-scoped settings ---
+
+describe('workspace-scoped settings', () => {
+  it('sets and gets workspace-scoped settings', () => {
+    const ws = workspacesRepo.create({ name: 'WS' })
+    workspacesRepo.setWorkspaceSetting(ws.id, 'sync.provider', 'github')
+    expect(workspacesRepo.getWorkspaceSetting(ws.id, 'sync.provider')).toBe('github')
+  })
+
+  it('encrypts sensitive workspace-scoped keys', () => {
+    const ws = workspacesRepo.create({ name: 'WS' })
+    workspacesRepo.setWorkspaceSetting(ws.id, 'sync.token', 'ghp_secret')
+    // Round-trip should work
+    expect(workspacesRepo.getWorkspaceSetting(ws.id, 'sync.token')).toBe('ghp_secret')
+    // Raw DB should be encrypted
+    const raw = workspacesRepo.findById(ws.id)!
+    const settings = JSON.parse(raw.settings!)
+    expect(settings.sync.token).not.toBe('ghp_secret')
+  })
+})
+
+// --- Collections reorder ---
+
+describe('collections repository — reorder', () => {
+  it('reorders collections', () => {
+    const a = collectionsRepo.create({ name: 'A' })
+    const b = collectionsRepo.create({ name: 'B' })
+    const c = collectionsRepo.create({ name: 'C' })
+
+    collectionsRepo.reorder([c.id, a.id, b.id])
+    const all = collectionsRepo.findAll()
+    expect(all[0].id).toBe(c.id)
+    expect(all[1].id).toBe(a.id)
+    expect(all[2].id).toBe(b.id)
+  })
+})
+
+// --- Requests cross-collection move ---
+
+describe('requests repository — cross-collection move', () => {
+  it('moves a request to a different collection', () => {
+    const col1 = collectionsRepo.create({ name: 'Col1' })
+    const col2 = collectionsRepo.create({ name: 'Col2' })
+    const req = requestsRepo.create({ collection_id: col1.id, name: 'R' })
+
+    const moved = requestsRepo.move(req.id, null, col2.id)
+    expect(moved!.collection_id).toBe(col2.id)
+    expect(moved!.folder_id).toBeNull()
+
+    expect(requestsRepo.findByCollection(col1.id)).toHaveLength(0)
+    expect(requestsRepo.findByCollection(col2.id)).toHaveLength(1)
+  })
+})
+
+// --- Environments encryption ---
+
+describe('environments repository — encryption', () => {
+  it('round-trips encrypted variable values', () => {
+    const ws = workspacesRepo.create({ name: 'WS' })
+    const vars = JSON.stringify([
+      { key: 'API_KEY', value: 'sk-secret-123', enabled: true },
+      { key: 'BASE_URL', value: 'https://api.com', enabled: true },
+    ])
+    const env = environmentsRepo.create({ name: 'Prod', workspace_id: ws.id, variables: vars })
+    const found = environmentsRepo.findById(env.id)!
+    const parsed = JSON.parse(found.variables)
+    expect(parsed[0].value).toBe('sk-secret-123')
+    expect(parsed[1].value).toBe('https://api.com')
   })
 })

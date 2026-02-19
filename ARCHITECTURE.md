@@ -156,16 +156,20 @@ vaxtly/
 │               └── Checkbox.svelte        # Square checkbox with checkmark animation
 ├── tests/
 │   ├── unit/
-│   │   ├── repositories.test.ts        # 26 tests covering all repositories
+│   │   ├── repositories.test.ts        # 34 tests: all repos + encryption + workspace settings
 │   │   ├── variable-substitution.test.ts # 12 tests for variable resolution
-│   │   ├── script-execution.test.ts    # 17 tests for extractValue + extractJsonPath
-│   │   ├── code-generator.test.ts      # 12 tests for 5 language generators
-│   │   ├── sensitive-data-scanner.test.ts # 20 tests for scan + sanitize
-│   │   ├── yaml-serializer.test.ts     # 8 tests for serialize + import
-│   │   ├── remote-sync.test.ts         # 12 tests for file state helpers
-│   │   ├── vault-sync.test.ts          # 7 tests for buildPath + isConfigured
-│   │   ├── data-export-import.test.ts  # 11 tests for export + import
-│   │   └── postman-import.test.ts      # 10 tests for 3 Postman formats
+│   │   ├── script-execution.test.ts    # 23 tests: extractValue + extractJsonPath + executePostResponseScripts
+│   │   ├── code-generator.test.ts      # 17 tests: 5 languages + all auth/body types
+│   │   ├── sensitive-data-scanner.test.ts # 24 tests: scan + sanitize + api-key + urlencoded
+│   │   ├── yaml-serializer.test.ts     # 12 tests: serialize + import + auth/scripts + sanitize
+│   │   ├── remote-sync.test.ts         # 18 tests: file state + isConfigured + getProvider
+│   │   ├── vault-sync.test.ts          # 9 tests: buildPath + isConfigured + resetProvider
+│   │   ├── data-export-import.test.ts  # 15 tests: export + import + nested + workspace
+│   │   ├── postman-import.test.ts      # 14 tests: 3 formats + form-data + URL objects + XML
+│   │   ├── encryption.test.ts          # 6 tests: round-trip, random IV, wrong key
+│   │   ├── fetch-error.test.ts         # 13 tests: all error branches (SSL, DNS, timeout, etc.)
+│   │   ├── session-log.test.ts         # 6 tests: ring buffer, categories, copy safety
+│   │   └── proxy-helpers.test.ts       # 8 tests: parseCookies + setDefaultHeader + deleteHeader
 │   └── e2e/
 │       ├── fixtures/
 │       │   ├── electron-app.ts         # Shared fixture: temp userData, app launch, cleanup
@@ -173,7 +177,7 @@ vaxtly/
 │       ├── smoke.spec.ts              # 3 tests: boot, sidebar, empty state
 │       ├── keyboard-shortcuts.spec.ts # 4 tests: Ctrl+N/W/B/,
 │       ├── collection-crud.spec.ts    # 4 tests: create/rename/add-request/delete
-│       ├── send-request.spec.ts       # 3 tests: GET, POST+JSON, error
+│       ├── send-request.spec.ts       # 6 tests: GET, POST+JSON, error, 404, 500, custom headers
 │       ├── settings.spec.ts           # 3 tests: tabs, Escape, close button
 │       ├── environment-vars.spec.ts   # 2 tests: create env+var, use {{var}}
 │       └── session-persistence.spec.ts # 1 test: tabs survive restart
