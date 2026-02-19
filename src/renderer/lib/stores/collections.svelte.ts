@@ -250,6 +250,40 @@ function getRequestById(id: string): Request | undefined {
   return requests.find((r) => r.id === id)
 }
 
+/** Expand the collection and all ancestor folders so a request is visible in the sidebar. */
+function revealRequest(requestId: string): void {
+  const req = requests.find((r) => r.id === requestId)
+  if (!req) return
+
+  const idsToExpand: string[] = [req.collection_id]
+
+  // Walk up the folder chain
+  let folderId = req.folder_id
+  while (folderId) {
+    idsToExpand.push(folderId)
+    const parent = folders.find((f) => f.id === folderId)
+    folderId = parent?.parent_id ?? null
+  }
+
+  // Merge into expandedIds
+  const newSet = new Set(expandedIds)
+  let changed = false
+  for (const id of idsToExpand) {
+    if (!newSet.has(id)) {
+      newSet.add(id)
+      changed = true
+    }
+  }
+  if (!changed) return
+
+  expandedIds = newSet
+  // Update nodes in-place
+  for (const id of idsToExpand) {
+    const node = findNodeById(tree, id)
+    if (node) node.expanded = true
+  }
+}
+
 function getCollectionById(id: string): Collection | undefined {
   return collections.find((c) => c.id === id)
 }
@@ -276,4 +310,5 @@ export const collectionsStore = {
   reloadCollection,
   getRequestById,
   getCollectionById,
+  revealRequest,
 }

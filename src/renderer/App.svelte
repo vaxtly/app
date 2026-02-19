@@ -44,6 +44,18 @@
     if (sessionRestored) saveSession()
   })
 
+  // Auto-reveal active tab's entity in the sidebar
+  $effect(() => {
+    const tab = appStore.activeTab
+    if (!tab) return
+    if (tab.type === 'request') {
+      collectionsStore.revealRequest(tab.entityId)
+      if (appStore.sidebarMode !== 'collections') appStore.setSidebarMode('collections')
+    } else if (tab.type === 'environment') {
+      if (appStore.sidebarMode !== 'environments') appStore.setSidebarMode('environments')
+    }
+  })
+
   async function restoreSession(): Promise<void> {
     try {
       const raw = await window.api.settings.get('session.tabs')
