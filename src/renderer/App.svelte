@@ -82,6 +82,7 @@
     const cleanups = [
       window.api.on.menuNewRequest(handleNewRequest),
       window.api.on.menuSaveRequest(handleSave),
+      window.api.on.menuOpenSettings(() => appStore.openSettings()),
     ]
 
     // Global keyboard shortcuts

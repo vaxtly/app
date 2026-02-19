@@ -53,6 +53,12 @@ export function buildMenu(): void {
           click: (): void => sendToFocused('menu:close-tab'),
         },
         { type: 'separator' },
+        {
+          label: 'Settings',
+          accelerator: 'CmdOrCtrl+,',
+          click: (): void => sendToFocused('menu:open-settings'),
+        },
+        { type: 'separator' },
         isMac ? { role: 'close' } : { role: 'quit' },
       ],
     },

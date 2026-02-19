@@ -5,11 +5,17 @@
 
   interface Props {
     onenvironmentclick: (environmentId: string) => void
+    searchFilter?: string
   }
 
-  let { onenvironmentclick }: Props = $props()
-
+  let { onenvironmentclick, searchFilter = '' }: Props = $props()
   let contextMenu = $state<{ x: number; y: number; envId: string } | null>(null)
+
+  let filteredEnvironments = $derived(
+    searchFilter.trim()
+      ? environmentsStore.environments.filter((e) => e.name.toLowerCase().includes(searchFilter.trim().toLowerCase()))
+      : environmentsStore.environments
+  )
 
   async function createEnvironment(): Promise<void> {
     const env = await environmentsStore.create('New Environment', appStore.activeWorkspaceId ?? undefined)
@@ -44,26 +50,12 @@
   }
 </script>
 
-<div class="flex flex-col gap-1 p-2">
-  <!-- Header -->
-  <div class="flex items-center justify-between px-2 py-1">
-    <span class="text-[10px] font-medium uppercase tracking-wider text-surface-500">Environments</span>
-    <button
-      onclick={createEnvironment}
-      aria-label="Create environment"
-      class="flex h-5 w-5 items-center justify-center rounded text-surface-400 hover:bg-surface-700 hover:text-brand-400"
-    >
-      <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-        <path d="M12 4v16m8-8H4" />
-      </svg>
-    </button>
-  </div>
-
+<div class="flex flex-col px-1 pb-2">
   <!-- Environment list -->
-  {#if environmentsStore.environments.length === 0}
-    <p class="px-2 py-4 text-center text-xs text-surface-500">No environments yet.</p>
+  {#if filteredEnvironments.length === 0}
+    <p class="px-2 py-4 text-center text-xs text-surface-500">{searchFilter.trim() ? 'No matches' : 'No environments yet.'}</p>
   {:else}
-    {#each environmentsStore.environments as env (env.id)}
+    {#each filteredEnvironments as env (env.id)}
       <!-- svelte-ignore a11y_no_static_element_interactions -->
       <div
         class="group flex items-center gap-2 rounded px-2 py-1 hover:bg-surface-800"
@@ -83,7 +75,7 @@
         <!-- Name (clickable) -->
         <button
           onclick={() => onenvironmentclick(env.id)}
-          class="min-w-0 flex-1 truncate text-left text-xs {env.is_active ? 'font-medium text-green-300' : 'text-surface-300'}"
+          class="min-w-0 flex-1 truncate text-left text-[13px] {env.is_active ? 'font-medium text-green-300' : 'text-surface-300'}"
         >
           {env.name}
         </button>

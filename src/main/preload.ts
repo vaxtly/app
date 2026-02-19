@@ -207,6 +207,11 @@ const api = {
       ipcRenderer.on('menu:save-request', handler)
       return () => ipcRenderer.removeListener('menu:save-request', handler)
     },
+    menuOpenSettings: (callback: () => void): (() => void) => {
+      const handler = (): void => callback()
+      ipcRenderer.on('menu:open-settings', handler)
+      return () => ipcRenderer.removeListener('menu:open-settings', handler)
+    },
   },
 }
 
