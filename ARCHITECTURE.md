@@ -727,11 +727,5 @@ Three `$effect` hooks in `App.svelte` drive cross-cutting UX behaviors:
 | `npm run test` | Vitest single run |
 | `npm run test:watch` | Vitest watch mode |
 
----
 
-## Known Issues / TODOs
 
-- No E2E tests (Playwright planned)
-- SQLCipher not yet integrated (requires `libcrypto` — using plain better-sqlite3 + field-level AES-256-CBC encryption at the repository layer)
-- `better-sqlite3` native module must be rebuilt when switching between Electron (`npx electron-rebuild -f -w better-sqlite3`) and system Node.js (`npm rebuild better-sqlite3`) for tests
-- `contextIsolation: false` in BrowserWindow — should evaluate enabling sandbox for hardened security (deferred: requires preload refactor)
