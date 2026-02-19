@@ -178,52 +178,54 @@
   // Expose save/send for keyboard shortcut binding from App.svelte
   export function save(): Promise<void> { return saveRequest() }
   export function send(): Promise<void> { return sendRequest() }
+
+  const requestTabs = [
+    { key: 'params' as const, label: 'Params', icon: 'params' },
+    { key: 'headers' as const, label: 'Headers', icon: 'headers' },
+    { key: 'body' as const, label: 'Body', icon: 'body' },
+    { key: 'auth' as const, label: 'Auth', icon: 'auth' },
+    { key: 'scripts' as const, label: 'Scripts', icon: 'scripts' },
+  ] as const
 </script>
 
 {#if state}
-  <div class="flex h-full flex-col">
+  <div class="rb-root">
     <!-- URL Bar -->
-    <div class="shrink-0 border-b border-surface-700 px-3 py-2">
-      <UrlBar
-        method={state.method}
-        url={state.url}
-        loading={state.loading}
-        onmethodchange={(m) => update({ method: m })}
-        onurlchange={(u) => update({ url: u })}
-        onsend={sendRequest}
-        oncancel={cancelRequest}
-      />
-    </div>
+    <UrlBar
+      method={state.method}
+      url={state.url}
+      loading={state.loading}
+      onmethodchange={(m) => update({ method: m })}
+      onurlchange={(u) => update({ url: u })}
+      onsend={sendRequest}
+      oncancel={cancelRequest}
+    />
 
     <!-- Split: request tabs + response -->
-    <div class="flex min-h-0 flex-1">
+    <div class="rb-split">
       <!-- Request section -->
-      <div class="flex w-1/2 flex-col border-r border-surface-700">
+      <div class="rb-request">
         <!-- Sub-tabs -->
-        <div class="flex shrink-0 items-center gap-0.5 border-b border-surface-700 px-2">
-          {#each [
-            { key: 'params', label: 'Params', count: paramCount },
-            { key: 'headers', label: 'Headers', count: headerCount },
-            { key: 'body', label: 'Body' },
-            { key: 'auth', label: 'Auth' },
-            { key: 'scripts', label: 'Scripts' },
-          ] as tab}
+        <div class="rb-tabs">
+          {#each requestTabs as tab}
+            {@const count = tab.key === 'params' ? paramCount : tab.key === 'headers' ? headerCount : 0}
             <button
-              onclick={() => activeRequestTab = tab.key as RequestTab}
-              class="px-2.5 py-2 text-xs transition-colors {activeRequestTab === tab.key
-                ? 'border-b-2 border-brand-500 text-brand-400'
-                : 'text-surface-400 hover:text-surface-200'}"
+              onclick={() => activeRequestTab = tab.key}
+              class="rb-tab"
+              class:rb-tab--active={activeRequestTab === tab.key}
             >
-              {tab.label}
-              {#if tab.count}
-                <span class="ml-1 rounded-full bg-surface-700 px-1.5 text-[10px] text-surface-300">{tab.count}</span>
+              <span class="rb-tab-label">{tab.label}</span>
+              {#if count}
+                <span class="rb-tab-badge">{count}</span>
               {/if}
             </button>
           {/each}
-          <div class="flex-1"></div>
+
+          <span class="rb-tabs-spacer"></span>
+
           <button
             onclick={() => showCodeSnippet = true}
-            class="px-2 py-2 text-[11px] text-surface-500 hover:text-surface-300"
+            class="rb-tab rb-tab--code"
             title="Generate code snippet"
           >
             &lt;/&gt;
@@ -231,7 +233,7 @@
         </div>
 
         <!-- Sub-tab content -->
-        <div class="flex-1 overflow-auto">
+        <div class="rb-content">
           {#if activeRequestTab === 'params'}
             <ParamsEditor
               params={queryParams}
@@ -270,8 +272,11 @@
         </div>
       </div>
 
+      <!-- Divider -->
+      <div class="rb-divider"></div>
+
       <!-- Response section -->
-      <div class="flex w-1/2 flex-col">
+      <div class="rb-response">
         <ResponseViewer response={state.response} loading={state.loading} />
       </div>
     </div>
@@ -292,7 +297,146 @@
     onclose={() => showCodeSnippet = false}
   />
 {:else}
-  <div class="flex h-full items-center justify-center">
-    <p class="text-sm text-surface-500">Select a request to get started</p>
+  <div class="rb-empty">
+    <p>Select a request to get started</p>
   </div>
 {/if}
+
+<style>
+  .rb-root {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+  }
+
+  /* --- Split layout --- */
+  .rb-split {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+  }
+
+  .rb-request {
+    display: flex;
+    flex-direction: column;
+    width: 50%;
+    min-width: 0;
+  }
+
+  .rb-divider {
+    width: 1px;
+    background: var(--color-surface-700);
+    flex-shrink: 0;
+  }
+
+  .rb-response {
+    display: flex;
+    flex-direction: column;
+    width: 50%;
+    min-width: 0;
+  }
+
+  /* --- Sub-tabs --- */
+  .rb-tabs {
+    display: flex;
+    align-items: stretch;
+    flex-shrink: 0;
+    height: 36px;
+    border-bottom: 1px solid var(--color-surface-700);
+    padding: 0 4px;
+    gap: 1px;
+  }
+
+  .rb-tab {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 0 10px;
+    border: none;
+    background: transparent;
+    color: var(--color-surface-400);
+    font-size: 12px;
+    font-family: inherit;
+    cursor: pointer;
+    position: relative;
+    transition: color 0.12s, background 0.12s;
+    white-space: nowrap;
+  }
+
+  .rb-tab:hover {
+    color: var(--color-surface-200);
+    background: color-mix(in srgb, var(--color-surface-700) 30%, transparent);
+  }
+
+  .rb-tab--active {
+    color: var(--color-brand-400);
+  }
+
+  .rb-tab--active:hover {
+    color: var(--color-brand-400);
+  }
+
+  .rb-tab--active::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 6px;
+    right: 6px;
+    height: 2px;
+    background: var(--color-brand-500);
+    border-radius: 1px 1px 0 0;
+  }
+
+  .rb-tab--code {
+    font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+    font-size: 11px;
+    color: var(--color-surface-500);
+    letter-spacing: -0.02em;
+  }
+
+  .rb-tab--code:hover {
+    color: var(--color-surface-200);
+  }
+
+  .rb-tabs-spacer {
+    flex: 1;
+  }
+
+  .rb-tab-label {
+    font-weight: 500;
+  }
+
+  .rb-tab-badge {
+    font-size: 10px;
+    line-height: 1;
+    padding: 2px 5px;
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--color-surface-600) 60%, transparent);
+    color: var(--color-surface-300);
+    font-weight: 500;
+  }
+
+  .rb-tab--active .rb-tab-badge {
+    background: color-mix(in srgb, var(--color-brand-500) 15%, transparent);
+    color: var(--color-brand-400);
+  }
+
+  /* --- Content --- */
+  .rb-content {
+    flex: 1;
+    overflow: auto;
+  }
+
+  /* --- Empty state --- */
+  .rb-empty {
+    display: flex;
+    height: 100%;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .rb-empty p {
+    font-size: 13px;
+    color: var(--color-surface-500);
+  }
+</style>

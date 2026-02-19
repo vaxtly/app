@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Toggle from '../shared/Toggle.svelte'
   import type { SyncConflict } from '../../lib/types'
   import { collectionsStore } from '../../lib/stores/collections.svelte'
   import { appStore } from '../../lib/stores/app.svelte'
@@ -110,8 +111,8 @@
     }
   }
 
-  function toggleAutoSync(): void {
-    autoSync = !autoSync
+  function toggleAutoSync(value: boolean): void {
+    autoSync = value
   }
 
   async function handleConflictResolve(resolution: 'keep-local' | 'keep-remote'): Promise<void> {
@@ -201,16 +202,7 @@
       <div class="text-sm text-surface-200">Auto Sync</div>
       <div class="text-xs text-surface-500">Automatically pull changes on startup and push on save</div>
     </div>
-    <button
-      type="button"
-      role="switch"
-      aria-checked={autoSync}
-      aria-label="Auto Sync"
-      onclick={toggleAutoSync}
-      class="relative h-5 w-9 rounded-full transition-colors {autoSync ? 'bg-brand-600' : 'bg-surface-600'}"
-    >
-      <span class="absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white transition-transform {autoSync ? 'translate-x-4' : 'translate-x-0'}"></span>
-    </button>
+    <Toggle checked={autoSync} onchange={toggleAutoSync} />
   </div>
 
   <!-- Actions -->

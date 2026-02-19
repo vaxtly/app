@@ -2,6 +2,7 @@
   import { appStore } from '../../lib/stores/app.svelte'
   import { METHOD_COLORS } from '../../lib/utils/http-colors'
   import ContextMenu from '../shared/ContextMenu.svelte'
+  import EnvironmentSelector from './EnvironmentSelector.svelte'
   import type { Tab } from '../../lib/stores/app.svelte'
 
   let contextMenu = $state<{ x: number; y: number; tabId: string } | null>(null)
@@ -93,6 +94,10 @@
       {/if}
     </div>
   {/each}
+
+  <div class="flex-1 min-w-0"></div>
+
+  <EnvironmentSelector />
 </div>
 
 {#if contextMenu}

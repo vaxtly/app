@@ -6,13 +6,49 @@
   let { headers }: Props = $props()
 </script>
 
-<div class="overflow-auto p-3">
-  <div class="space-y-0.5 font-mono text-xs">
-    {#each Object.entries(headers) as [key, value]}
-      <div class="flex gap-2 rounded px-2 py-1 hover:bg-surface-800/50">
-        <span class="shrink-0 font-semibold text-brand-400">{key}</span>
-        <span class="min-w-0 break-all text-surface-300">{value}</span>
-      </div>
-    {/each}
-  </div>
+<div class="rh-root">
+  {#each Object.entries(headers) as [key, value]}
+    <div class="rh-row">
+      <span class="rh-key">{key}</span>
+      <span class="rh-value">{value}</span>
+    </div>
+  {/each}
 </div>
+
+<style>
+  .rh-root {
+    overflow: auto;
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+  }
+
+  .rh-row {
+    display: flex;
+    gap: 8px;
+    padding: 4px 8px;
+    border-radius: 4px;
+    transition: background 0.1s;
+  }
+
+  .rh-row:hover {
+    background: color-mix(in srgb, var(--color-surface-700) 30%, transparent);
+  }
+
+  .rh-key {
+    flex-shrink: 0;
+    font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--color-brand-400);
+  }
+
+  .rh-value {
+    min-width: 0;
+    word-break: break-all;
+    font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+    font-size: 12px;
+    color: var(--color-surface-300);
+  }
+</style>

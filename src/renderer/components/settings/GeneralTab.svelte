@@ -1,5 +1,6 @@
 <script lang="ts">
   import { settingsStore } from '../../lib/stores/settings.svelte'
+  import Toggle from '../shared/Toggle.svelte'
 
   // Local state mirrors store for immediate UI feedback
   let layout = $derived(settingsStore.get('request.layout'))
@@ -24,12 +25,12 @@
     settingsStore.set('history.retention_days', value)
   }
 
-  function toggleSsl(): void {
-    settingsStore.set('request.verify_ssl', !verifySsl)
+  function toggleSsl(value: boolean): void {
+    settingsStore.set('request.verify_ssl', value)
   }
 
-  function toggleRedirects(): void {
-    settingsStore.set('request.follow_redirects', !followRedirects)
+  function toggleRedirects(value: boolean): void {
+    settingsStore.set('request.follow_redirects', value)
   }
 </script>
 
@@ -75,16 +76,7 @@
       <div class="text-sm text-surface-200">Verify SSL Certificates</div>
       <div class="text-xs text-surface-500">Reject requests with invalid or self-signed certificates</div>
     </div>
-    <button
-      type="button"
-      role="switch"
-      aria-checked={verifySsl}
-      aria-label="Verify SSL Certificates"
-      onclick={toggleSsl}
-      class="relative h-5 w-9 rounded-full transition-colors {verifySsl ? 'bg-brand-600' : 'bg-surface-600'}"
-    >
-      <span class="absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white transition-transform {verifySsl ? 'translate-x-4' : 'translate-x-0'}"></span>
-    </button>
+    <Toggle checked={verifySsl} onchange={toggleSsl} />
   </div>
 
   <!-- Follow Redirects -->
@@ -93,16 +85,7 @@
       <div class="text-sm text-surface-200">Follow Redirects</div>
       <div class="text-xs text-surface-500">Automatically follow HTTP redirects (3xx responses)</div>
     </div>
-    <button
-      type="button"
-      role="switch"
-      aria-checked={followRedirects}
-      aria-label="Follow Redirects"
-      onclick={toggleRedirects}
-      class="relative h-5 w-9 rounded-full transition-colors {followRedirects ? 'bg-brand-600' : 'bg-surface-600'}"
-    >
-      <span class="absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white transition-transform {followRedirects ? 'translate-x-4' : 'translate-x-0'}"></span>
-    </button>
+    <Toggle checked={followRedirects} onchange={toggleRedirects} />
   </div>
 
   <!-- History Retention -->
