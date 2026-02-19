@@ -616,17 +616,17 @@ All stores use this pattern: module-level `$state` + `$derived` + exported objec
 
 ### HashiCorp Vault Provider (`vault/hashicorp-vault-provider.ts`)
 - Implements `SecretsProvider` interface from `vault/secrets-provider.interface.ts`
-- KV v2 API: `listSecrets()` (GET with `?list=true`), `getSecrets()`, `putSecrets()`, `deleteSecrets()`
+- KV v2 + v1 API: `listSecrets()` tries 4 strategies (v2 LIST, v2 GET?list=true, v1 LIST, v1 GET?list=true), `getSecrets()`, `putSecrets()`, `deleteSecrets()`
 - Auth methods: token (direct) or AppRole (login to get token)
-- `X-Vault-Namespace` header sent on ALL operations (auth and data) when configured — required for Vault Enterprise
-- `testConnection()` — token: lookup-self, AppRole: login attempt
+- `X-Vault-Namespace` header sent only during AppRole login — NOT on data operations. For namespaced engines, include the full namespace path in the `mount` (engine path) setting instead.
+- `testConnection()` — token: lookup-self, AppRole: login attempt; also queries `/v1/sys/mounts` to verify the configured mount exists
 - AppRole login validates response: guards against null `json.auth` with explicit error
 - **AppRole token auto-refresh**: on 403 responses, automatically re-authenticates via AppRole login and retries the request once
 - Static factory: `HashiCorpVaultProvider.create(opts)` handles async AppRole login
 - SSL bypass: when `verifySsl` is false, uses undici `Agent({ connect: { rejectUnauthorized: false } })` — all HTTP calls route through `this.fetch()` wrapper which dispatches via undici when the custom Agent is present
 
 ### Vault Sync Service (`vault/vault-sync-service.ts`)
-- Settings keys: `vault.provider`, `vault.url`, `vault.auth_method`, `vault.token`, `vault.role_id`, `vault.secret_id`, `vault.namespace`, `vault.mount`, `vault.verify_ssl` — read from workspace settings with global fallback
+- Settings keys: `vault.provider`, `vault.url`, `vault.auth_method`, `vault.token`, `vault.role_id`, `vault.secret_id`, `vault.namespace` (AppRole login only), `vault.mount` (full engine path incl. namespaces), `vault.verify_ssl` — read from workspace settings with global fallback
 - `vault.verify_ssl` parsed as boolean: `'0'` and `'false'` both mean SSL verification off (UI stores `String(boolean)`)
 - `getProvider(workspaceId?)` → reads vault config from workspace settings (with global fallback), returns cached `SecretsProvider` (cache keyed by `workspaceId ?? '__global__'`)
 - `fetchVariables(envId, workspaceId?)` → get secrets from Vault, return as `EnvironmentVariable[]` (cached 60s)

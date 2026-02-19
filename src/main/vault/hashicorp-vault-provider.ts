@@ -65,25 +65,62 @@ export class HashiCorpVaultProvider implements SecretsProvider {
 
   async listSecrets(basePath?: string): Promise<string[]> {
     const trimmed = basePath ? basePath.replace(/^\/|\/$/g, '') : null
-    const url = trimmed
-      ? `${this.url}/v1/${this.mount}/metadata/${trimmed}`
-      : `${this.url}/v1/${this.mount}/metadata`
 
-    const response = await this.request('GET', `${url}?list=true`)
+    // Try KV v2 first (metadata/ prefix), then fall back to KV v1 (no prefix).
+    // For each, try LIST method first, then GET ?list=true (for proxies that
+    // reject non-standard HTTP methods).
+    const attempts = [
+      { label: 'KV v2 LIST', method: 'LIST', url: this.metadataUrl(trimmed) },
+      { label: 'KV v2 GET',  method: 'GET',  url: `${this.metadataUrl(trimmed)}?list=true` },
+      { label: 'KV v1 LIST', method: 'LIST', url: this.v1Url(trimmed) },
+      { label: 'KV v1 GET',  method: 'GET',  url: `${this.v1Url(trimmed)}?list=true` },
+    ]
 
-    if (response.status === 404) {
-      logVault('list', basePath ?? '/', 'No secrets found')
-      return []
+    for (const attempt of attempts) {
+      logVault('list', basePath ?? '/', `Trying ${attempt.label}: ${attempt.method} ${attempt.url}`)
+
+      let response: Response
+      try {
+        response = await this.request(attempt.method, attempt.url)
+      } catch (e) {
+        logVault('list', basePath ?? '/', `${attempt.label} failed: ${e instanceof Error ? e.message : String(e)}`, false)
+        continue
+      }
+
+      if (response.status === 404 || response.status === 405) {
+        logVault('list', basePath ?? '/', `${attempt.label} → ${response.status}`, false)
+        continue
+      }
+
+      if (!response.ok) {
+        const body = await response.text().catch(() => '')
+        logVault('list', basePath ?? '/', `${attempt.label} → ${response.status}: ${body}`, false)
+        continue
+      }
+
+      const json = await response.json()
+      const keys: string[] = json?.data?.keys ?? []
+      logVault('list', basePath ?? '/', `${attempt.label} succeeded — ${keys.length} key(s): ${keys.slice(0, 10).join(', ')}${keys.length > 10 ? '...' : ''}`)
+      return keys
     }
 
-    if (!response.ok) {
-      throw new Error(`Vault LIST failed: ${response.status} ${response.statusText}`)
-    }
+    // All attempts failed
+    logVault('list', basePath ?? '/', `All list attempts failed (mount="${this.mount}", url="${this.url}")`, false)
+    return []
+  }
 
-    const json = await response.json()
-    const keys: string[] = json?.data?.keys ?? []
-    logVault('list', basePath ?? '/', `Listed ${keys.length} secret(s)`)
-    return keys
+  /** KV v2 metadata URL */
+  private metadataUrl(path: string | null): string {
+    return path
+      ? `${this.url}/v1/${this.mount}/metadata/${path}`
+      : `${this.url}/v1/${this.mount}/metadata/`
+  }
+
+  /** KV v1 URL (no metadata prefix) */
+  private v1Url(path: string | null): string {
+    return path
+      ? `${this.url}/v1/${this.mount}/${path}`
+      : `${this.url}/v1/${this.mount}/`
   }
 
   async getSecrets(path: string): Promise<Record<string, string> | null> {
@@ -132,17 +169,13 @@ export class HashiCorpVaultProvider implements SecretsProvider {
   }
 
   async testConnection(): Promise<boolean> {
-    if (this.authMethod === 'token') {
-      try {
-        const response = await this.request('GET', `${this.url}/v1/auth/token/lookup-self`)
-        return response.ok
-      } catch {
-        return false
-      }
-    }
+    let authOk: boolean
 
-    // For AppRole, test the login endpoint
-    try {
+    if (this.authMethod === 'token') {
+      const response = await this.request('GET', `${this.url}/v1/auth/token/lookup-self`)
+      authOk = response.ok
+    } else {
+      // For AppRole, test the login endpoint
       const headers: Record<string, string> = { 'Content-Type': 'application/json' }
       if (this.namespace) {
         headers['X-Vault-Namespace'] = this.namespace
@@ -161,13 +194,37 @@ export class HashiCorpVaultProvider implements SecretsProvider {
           }),
           signal: controller.signal,
         })
-        return response.ok
+        authOk = response.ok
       } finally {
         clearTimeout(timeout)
       }
-    } catch {
-      return false
     }
+
+    if (!authOk) return false
+
+    // Verify the mount exists by checking sys/mounts
+    try {
+      const mountsRes = await this.request('GET', `${this.url}/v1/sys/mounts`)
+      if (mountsRes.ok) {
+        const mountsJson = await mountsRes.json()
+        const mounts = Object.keys(mountsJson?.data ?? mountsJson ?? {})
+        const kvMounts = mounts.filter((m) => m !== 'request_headers' && m !== 'request_id' && m !== 'lease_id' && m !== 'renewable' && m !== 'lease_duration' && m !== 'wrap_info' && m !== 'warnings' && m !== 'auth')
+        logVault('test', '/', `Available mounts: ${kvMounts.join(', ')}`)
+
+        // Check if configured mount exists (Vault returns mount keys with trailing /)
+        const mountKey = this.mount.endsWith('/') ? this.mount : `${this.mount}/`
+        if (!mounts.includes(mountKey)) {
+          logVault('test', '/', `WARNING: mount "${this.mount}" not found. Available: ${kvMounts.join(', ')}`, false)
+        } else {
+          logVault('test', '/', `Mount "${this.mount}" verified OK`)
+        }
+      }
+    } catch {
+      // sys/mounts may be forbidden by policy — not critical
+      logVault('test', '/', 'Could not verify mounts (insufficient permissions)')
+    }
+
+    return true
   }
 
   private async loginWithAppRole(): Promise<string> {
@@ -243,10 +300,6 @@ export class HashiCorpVaultProvider implements SecretsProvider {
   ): Promise<Response> {
     const headers: Record<string, string> = {
       'X-Vault-Token': this.token,
-    }
-
-    if (this.namespace) {
-      headers['X-Vault-Namespace'] = this.namespace
     }
 
     if (body) {

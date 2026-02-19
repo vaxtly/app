@@ -198,6 +198,8 @@ export async function pullAll(workspaceId?: string): Promise<{ created: number; 
     return result
   }
 
+  logVault('pull-all', '/', `Found ${secretNames.length} secret(s) in Vault`)
+
   // Get existing vault-synced environments
   const allEnvs = workspaceId
     ? environmentsRepo.findByWorkspace(workspaceId)
@@ -210,9 +212,14 @@ export async function pullAll(workspaceId?: string): Promise<{ created: number; 
     }
   }
 
+  logVault('pull-all', '/', `${existingPaths.size} existing vault-synced env(s), ${secretNames.length - existingPaths.size} new`)
+
   for (const rawName of secretNames) {
     const name = rawName.replace(/\/+$/, '')
-    if (existingPaths.has(name)) continue
+    if (existingPaths.has(name)) {
+      logVault('pull-all', name, 'Skipped — already exists locally')
+      continue
+    }
 
     try {
       // Create a friendly name from the slug

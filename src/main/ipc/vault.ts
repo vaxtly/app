@@ -2,7 +2,12 @@ import { ipcMain } from 'electron'
 import { IPC } from '../../shared/types/ipc'
 import * as vaultService from '../vault/vault-sync-service'
 import * as environmentsRepo from '../database/repositories/environments'
+import { formatFetchError } from '../services/fetch-error'
 import type { EnvironmentVariable } from '../../shared/types/models'
+
+function errorMessage(e: unknown): string {
+  return formatFetchError(e)
+}
 
 export function registerVaultHandlers(): void {
   ipcMain.handle(IPC.VAULT_TEST_CONNECTION, async (_event, workspaceId?: string) => {
@@ -10,7 +15,7 @@ export function registerVaultHandlers(): void {
       const ok = await vaultService.testConnection(workspaceId)
       return { success: ok, message: ok ? 'Connected' : 'Connection failed' }
     } catch (e) {
-      return { success: false, message: e instanceof Error ? e.message : String(e) }
+      return { success: false, message: errorMessage(e) }
     }
   })
 
@@ -25,7 +30,7 @@ export function registerVaultHandlers(): void {
         errors: result.errors,
       }
     } catch (e) {
-      return { success: false, message: e instanceof Error ? e.message : String(e) }
+      return { success: false, message: errorMessage(e) }
     }
   })
 
@@ -38,7 +43,7 @@ export function registerVaultHandlers(): void {
       await vaultService.pushVariables(environmentId, variables, workspaceId)
       return { success: true, message: 'Pushed to Vault' }
     } catch (e) {
-      return { success: false, message: e instanceof Error ? e.message : String(e) }
+      return { success: false, message: errorMessage(e) }
     }
   })
 
@@ -51,7 +56,7 @@ export function registerVaultHandlers(): void {
         errors: result.errors,
       }
     } catch (e) {
-      return { success: false, created: 0, errors: [e instanceof Error ? e.message : String(e)] }
+      return { success: false, created: 0, errors: [errorMessage(e)] }
     }
   })
 
@@ -59,7 +64,7 @@ export function registerVaultHandlers(): void {
     try {
       return await vaultService.fetchVariables(environmentId, workspaceId)
     } catch (e) {
-      throw new Error(e instanceof Error ? e.message : String(e))
+      throw new Error(errorMessage(e))
     }
   })
 
@@ -68,7 +73,7 @@ export function registerVaultHandlers(): void {
       await vaultService.pushVariables(environmentId, variables, workspaceId)
       return { success: true }
     } catch (e) {
-      return { success: false, message: e instanceof Error ? e.message : String(e) }
+      return { success: false, message: errorMessage(e) }
     }
   })
 
@@ -77,7 +82,7 @@ export function registerVaultHandlers(): void {
       await vaultService.deleteSecrets(environmentId, workspaceId)
       return { success: true }
     } catch (e) {
-      return { success: false, message: e instanceof Error ? e.message : String(e) }
+      return { success: false, message: errorMessage(e) }
     }
   })
 
@@ -86,7 +91,7 @@ export function registerVaultHandlers(): void {
       await vaultService.migrateEnvironment(environmentId, oldPath, newPath, workspaceId)
       return { success: true }
     } catch (e) {
-      return { success: false, message: e instanceof Error ? e.message : String(e) }
+      return { success: false, message: errorMessage(e) }
     }
   })
 }

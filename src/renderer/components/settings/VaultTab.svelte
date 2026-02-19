@@ -272,9 +272,10 @@
           type="text"
           value={namespace}
           oninput={(e) => { namespace = (e.target as HTMLInputElement).value }}
-          placeholder="Optional"
+          placeholder="Optional — AppRole auth only"
           class="text-input"
         />
+        <span class="field-hint">Only used during AppRole login. Leave empty for token auth.</span>
       </div>
       <div class="field-group">
         <span class="field-label">Engine Path</span>
@@ -282,9 +283,10 @@
           type="text"
           value={enginePath}
           oninput={(e) => { enginePath = (e.target as HTMLInputElement).value }}
-          placeholder="secret"
+          placeholder="org/ns/kv-engine"
           class="text-input"
         />
+        <span class="field-hint">Full path to the KV engine, including namespaces if applicable.</span>
       </div>
     </div>
 
@@ -494,6 +496,11 @@
     font-size: 12px;
     font-weight: 500;
     color: var(--color-surface-200);
+  }
+  .field-hint {
+    font-size: 10px;
+    color: var(--color-surface-500);
+    line-height: 1.3;
   }
   .text-input {
     height: 32px;

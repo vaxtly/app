@@ -418,31 +418,64 @@
           <div data-section="vault" class="section">
             <h3 class="section-title">Vault Integration</h3>
             <p class="prose">
-              Integrate with <strong>HashiCorp Vault</strong> (KV v2 secrets engine) to manage
-              sensitive environment variables externally.
+              Integrate with <strong>HashiCorp Vault</strong> (KV v1 and v2 secrets engines) to manage
+              sensitive environment variables externally. Works with open-source Vault, Vault Enterprise,
+              and HCP Vault.
             </p>
-            <h4 class="subsection-title">Configuration</h4>
+            <h4 class="subsection-title">Configuration Fields</h4>
             <p class="prose">
-              In <strong>Settings &rarr; Vault</strong>, configure your Vault server URL, authentication
-              method (<strong>Token</strong> or <strong>AppRole</strong>), optional namespace, and SSL
-              settings. Test the connection before saving.
+              Open <strong>Settings &rarr; Vault</strong> and fill in the following fields:
+            </p>
+            <ul class="list">
+              <li><strong>Vault URL</strong> — The base URL of your Vault server, e.g. <code>https://vault.example.com</code> or <code>https://vault-cluster.vault.xxxxx.aws.hashicorp.cloud:8200</code>. Do not include a trailing slash or any path.</li>
+              <li><strong>Authentication</strong> — Choose <strong>Token</strong> (direct Vault token) or <strong>AppRole</strong> (Role ID + Secret ID). AppRole is recommended for automated or shared environments.</li>
+              <li><strong>Token</strong> — Your Vault token (for Token auth). Starts with <code>hvs.</code> for service tokens.</li>
+              <li><strong>Role ID / Secret ID</strong> — Your AppRole credentials (for AppRole auth).</li>
+              <li><strong>Namespace</strong> — <em>Optional, AppRole only.</em> The Vault namespace used during AppRole login (sent as <code>X-Vault-Namespace</code> header). Only needed if your AppRole is in a specific namespace. Leave empty for token auth or if the AppRole is in the root namespace.</li>
+              <li><strong>Engine Path</strong> — The <strong>full mount path</strong> to the KV secrets engine. This is the complete path as it appears in the Vault URL, including any namespace prefixes. For example: <code>secret</code>, <code>admin/kv</code>, or <code>organization/team/kv-engine</code>. For HCP Vault and Vault Enterprise with namespaces, include the full path from the root (e.g. <code>admin/my-namespace/secret</code>).</li>
+              <li><strong>Verify SSL</strong> — Validate the server's TLS certificate. Disable only for self-signed certificates in development.</li>
+              <li><strong>Auto Sync</strong> — When enabled, automatically pulls secrets from Vault on application startup.</li>
+            </ul>
+            <div class="note">
+              <strong>Important:</strong> The <strong>Namespace</strong> field is only used during AppRole authentication.
+              For all data operations (list, read, write, delete), Vaxtly uses the <strong>Engine Path</strong> directly.
+              If your KV engine is nested inside Vault namespaces, include the full namespace path in the Engine Path
+              field, not in the Namespace field.
+            </div>
+            <h4 class="subsection-title">Testing the Connection</h4>
+            <p class="prose">
+              Click <strong>Test Connection</strong> to verify your configuration. This checks that
+              authentication succeeds and that the configured engine path exists. The test will show
+              descriptive error messages for common issues like SSL errors, DNS failures, or
+              authentication problems.
             </p>
             <h4 class="subsection-title">Pull & Push Secrets</h4>
             <p class="prose">
-              <strong>Pull</strong> fetches secrets from Vault and creates or updates local environments
-              with those values. <strong>Push</strong> sends your local environment variables to Vault
-              as secrets.
+              <strong>Pull All</strong> lists all secrets at the engine root and creates local
+              environments for each one that doesn't already exist locally. Use this for initial
+              setup or to discover new secrets added by teammates.
+            </p>
+            <p class="prose">
+              <strong>Push</strong> sends your local environment variables to Vault. You can push from
+              individual environment editors (for vault-synced environments) or use the Vault settings
+              tab for bulk operations.
             </p>
             <h4 class="subsection-title">Vault-Synced Environments</h4>
             <p class="prose">
               When editing an environment, you can enable <strong>Vault sync</strong> to link it with a
-              specific Vault path. This allows granular pull/push of individual environments.
+              specific Vault path. This allows granular pull/push of individual environments. The Vault
+              path defaults to a slugified version of the environment name, but you can customize it.
             </p>
             <h4 class="subsection-title">Migrate Path</h4>
             <p class="prose">
-              If you need to move secrets between Vault paths, use the <strong>Migrate</strong> feature
-              to copy secrets from one path to another without manual re-entry.
+              If you need to move secrets between Vault paths (e.g., after renaming an environment),
+              use the <strong>Migrate</strong> feature to copy secrets from the old path to the new one
+              and delete the old path, without manual re-entry.
             </p>
+            <div class="tip">
+              <strong>Tip:</strong> Vaxtly automatically tries both KV v2 and KV v1 API formats when listing
+              secrets, so it works with either engine version without extra configuration.
+            </div>
           </div>
 
           <!-- Data Management -->

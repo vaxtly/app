@@ -18,6 +18,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   - Session persistence: tabs survive app restart
 - Shared test fixtures: isolated temp userData per worker, local HTTP echo server
 - `test:e2e` and `test:e2e:headed` npm scripts
+- Shared `formatFetchError` utility with descriptive messages for SSL, DNS, connection, and timeout errors
+- Vault `listSecrets` fallback strategy: tries KV v2 LIST, KV v2 GET, KV v1 LIST, KV v1 GET (works with both engine versions)
+- Vault `testConnection` now verifies the configured mount exists via `/v1/sys/mounts`
+- Vault settings: inline hints for Namespace and Engine Path fields
+- Expanded Vault section in user manual with field-by-field configuration guide
+
+### Fixed
+- Vault "fetch failed" errors now show descriptive messages (SSL errors, DNS failures, connection refused, etc.) instead of generic "fetch failed"
+- Vault namespace header (`X-Vault-Namespace`) no longer sent on data operations — only used during AppRole login. Fixes 404 errors when using namespaced Vault engines.
+- Vault `testConnection` no longer swallows errors silently
 
 ## [0.1.0] - 2026-02-19
 
