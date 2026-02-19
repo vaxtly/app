@@ -133,7 +133,7 @@
           {#each logs as entry}
             <div class="flex items-start gap-2 border-b border-surface-800 px-3 py-1 hover:bg-surface-800/50">
               <span class="shrink-0 text-surface-600">{formatTime(entry.timestamp)}</span>
-              <span class="shrink-0 w-12 {getCategoryColor(entry.category)}">{entry.category}</span>
+              <span class="shrink-0 w-12 {getCategoryColor(entry.category)}">{entry.category === 'sync' ? 'git' : entry.category}</span>
               <span class="shrink-0 text-surface-500">{entry.type}</span>
               <span class="{entry.success ? 'text-surface-300' : 'text-red-400'} min-w-0 truncate">
                 {entry.message}

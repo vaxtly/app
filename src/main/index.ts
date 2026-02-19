@@ -23,6 +23,9 @@ import * as workspacesRepo from './database/repositories/workspaces'
 import * as historiesRepo from './database/repositories/request-histories'
 import { getSetting } from './database/repositories/settings'
 import { DEFAULTS } from '../shared/constants'
+import * as vaultSyncService from './vault/vault-sync-service'
+import * as remoteSyncService from './sync/remote-sync-service'
+import { logVault, logSync } from './services/session-log'
 
 let mainWindow: BrowserWindow | null = null
 
@@ -54,6 +57,7 @@ function createWindow(): void {
 
   mainWindow.on('ready-to-show', () => {
     mainWindow?.show()
+    runAutoSync()
   })
 
   mainWindow.on('close', () => {
@@ -97,6 +101,35 @@ function ensureDefaultWorkspace(): void {
   const workspaces = workspacesRepo.findAll()
   if (workspaces.length === 0) {
     workspacesRepo.create({ name: 'Default Workspace' })
+  }
+}
+
+async function runAutoSync(): Promise<void> {
+  const vaultAutoSync = getSetting('vault.auto_sync')
+  const syncAutoSync = getSetting('sync.auto_sync')
+
+  if (vaultAutoSync === '1' || vaultAutoSync === 'true') {
+    logVault('auto-sync', 'vault', 'Starting vault auto-sync...')
+    try {
+      const result = await vaultSyncService.pullAll()
+      if (result.errors.length > 0) {
+        logVault('auto-sync', '/', `Completed with errors: ${result.errors.join('; ')}`, false)
+      } else {
+        logVault('auto-sync', '/', `Pulled ${result.created} new environment(s)`)
+      }
+    } catch (e) {
+      logVault('auto-sync', '/', `Failed: ${e instanceof Error ? e.message : String(e)}`, false)
+    }
+  }
+
+  if (syncAutoSync === '1' || syncAutoSync === 'true') {
+    logSync('auto-sync', 'git', 'Starting git auto-sync...')
+    try {
+      const result = await remoteSyncService.pull()
+      logSync('auto-sync', '/', result.message ?? `Pulled ${result.pulled ?? 0} collection(s)`, result.success)
+    } catch (e) {
+      logSync('auto-sync', '/', `Failed: ${e instanceof Error ? e.message : String(e)}`, false)
+    }
   }
 }
 

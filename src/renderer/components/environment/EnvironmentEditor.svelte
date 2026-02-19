@@ -16,22 +16,52 @@
   let name = $state('')
   let variables = $state<EnvironmentVariable[]>([])
   let initialized = $state(false)
+  let lastEnvironmentId = $state('')
 
-  // Initialize from DB when environment changes
+  // Reset when switching to a different environment
+  $effect(() => {
+    if (environmentId !== lastEnvironmentId) {
+      lastEnvironmentId = environmentId
+      initialized = false
+    }
+  })
+
+  // Initialize from DB when environment changes, auto-fetch from Vault if synced and empty
   $effect(() => {
     if (environment && !initialized) {
       name = environment.name
+      let parsed: EnvironmentVariable[] = []
       try {
-        variables = JSON.parse(environment.variables)
+        parsed = JSON.parse(environment.variables)
       } catch {
-        variables = []
+        parsed = []
       }
-      if (variables.length === 0) {
-        variables = [{ key: '', value: '', enabled: true }]
+
+      if (parsed.length === 0 && environment.vault_synced === 1) {
+        // Vault-synced but no local variables — fetch from Vault
+        initialized = true
+        fetchVaultVariablesOnLoad()
+      } else {
+        variables = parsed.length > 0 ? parsed : [{ key: '', value: '', enabled: true }]
+        initialized = true
       }
-      initialized = true
     }
   })
+
+  async function fetchVaultVariablesOnLoad(): Promise<void> {
+    vaultPulling = true
+    try {
+      const vars = await window.api.vault.fetchVariables(environmentId)
+      variables = vars.length > 0 ? vars : [{ key: '', value: '', enabled: true }]
+      if (vars.length > 0) {
+        await environmentsStore.update(environmentId, { variables: JSON.stringify(vars) })
+      }
+    } catch {
+      variables = [{ key: '', value: '', enabled: true }]
+    } finally {
+      vaultPulling = false
+    }
+  }
 
   async function handleNameChange(newName: string): Promise<void> {
     name = newName
@@ -139,17 +169,9 @@
 
     <!-- Variables editor -->
     <div class="flex-1 overflow-auto p-4">
-      <div class="mb-2 text-xs font-medium uppercase text-surface-500">Variables</div>
-      <KeyValueEditor
-        entries={variables.map((v) => ({ key: v.key, value: v.value, enabled: v.enabled }))}
-        onchange={handleVariablesChange}
-        keyPlaceholder="Variable name"
-        valuePlaceholder="Variable value"
-      />
-
       <!-- Vault sync section -->
       {#if vaultConfigured}
-        <div class="mt-6 rounded border border-surface-700 bg-surface-800/30 p-3">
+        <div class="mb-4 rounded border border-surface-700 bg-surface-800/30 p-3">
           <div class="mb-3 flex items-center justify-between">
             <div>
               <div class="text-xs font-medium text-surface-300">Vault Sync</div>
@@ -194,6 +216,14 @@
           {/if}
         </div>
       {/if}
+
+      <div class="mb-2 text-xs font-medium uppercase text-surface-500">Variables</div>
+      <KeyValueEditor
+        entries={variables.map((v) => ({ key: v.key, value: v.value, enabled: v.enabled }))}
+        onchange={handleVariablesChange}
+        keyPlaceholder="Variable name"
+        valuePlaceholder="Variable value"
+      />
     </div>
   </div>
 {:else}

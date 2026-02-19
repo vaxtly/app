@@ -511,7 +511,7 @@ All stores use this pattern: module-level `$state` + `$derived` + exported objec
 ### Session Log (`services/session-log.ts`)
 - In-memory ring buffer, max `DEFAULTS.SESSION_LOG_MAX_ENTRIES` (100) entries
 - Entry: `{ id, category, type, target, message, success, timestamp }`
-- Categories: `http`, `sync`, `vault`, `system`
+- Categories: `http`, `sync` (displayed as "git"), `vault`, `system`
 - Pushes new entries to renderer via `BrowserWindow.webContents.send(IPC.LOG_PUSH)`
 - Convenience helpers: `logSync()`, `logVault()`, `logHttp()`, `logSystem()`
 
@@ -650,6 +650,7 @@ All stores use this pattern: module-level `$state` + `$derived` + exported objec
 5. pruneHistories()          — Auto-prune old request histories based on retention setting
 6. buildMenu()               — Set native application menu
 7. createWindow()            — BrowserWindow with preload script
+8. runAutoSync()             — On ready-to-show: vault pullAll + git pull if auto_sync enabled
 ```
 
 ---
