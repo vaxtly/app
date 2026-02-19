@@ -43,8 +43,29 @@
     logs = []
   }
 
-  function toggleExpanded(): void {
-    expanded = !expanded
+  let dragging = $state(false)
+  let dragStartY = 0
+  let dragStartHeight = 0
+
+  function onDragStart(e: MouseEvent): void {
+    if (!expanded) return
+    e.preventDefault()
+    dragging = true
+    dragStartY = e.clientY
+    dragStartHeight = panelHeight
+    document.addEventListener('mousemove', onDragMove)
+    document.addEventListener('mouseup', onDragEnd)
+  }
+
+  function onDragMove(e: MouseEvent): void {
+    const delta = dragStartY - e.clientY
+    panelHeight = Math.max(100, Math.min(600, dragStartHeight + delta))
+  }
+
+  function onDragEnd(): void {
+    dragging = false
+    document.removeEventListener('mousemove', onDragMove)
+    document.removeEventListener('mouseup', onDragEnd)
   }
 
   function formatTime(timestamp: string): string {
@@ -71,58 +92,65 @@
 </script>
 
 <!-- Collapsible bottom panel -->
+<!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
-  class="flex shrink-0 flex-col border-t border-surface-700 bg-surface-900"
+  class="flex shrink-0 flex-col bg-surface-900"
+  class:select-none={dragging}
   style="height: {expanded ? panelHeight : 28}px"
 >
+  <!-- Drag handle -->
+  {#if expanded}
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <div
+      class="h-1 shrink-0 cursor-ns-resize border-t border-surface-700 hover:bg-brand-500/20 active:bg-brand-500/30 transition-colors"
+      onmousedown={onDragStart}
+    ></div>
+  {:else}
+    <div class="h-0 shrink-0 border-t border-surface-700"></div>
+  {/if}
+
   <!-- Header bar (always visible) -->
-  <button
-    onclick={toggleExpanded}
-    class="flex h-7 shrink-0 items-center gap-2 border-b border-surface-700 px-3 text-xs text-surface-400 hover:text-surface-200"
-  >
-    <svg
-      class="h-3 w-3 transition-transform {expanded ? 'rotate-180' : ''}"
-      fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"
+  <div class="flex h-7 shrink-0 items-center border-b border-surface-700 px-1">
+    <button
+      onclick={() => { if (expanded && activeLogTab === 'logs') { expanded = false } else { expanded = true; activeLogTab = 'logs' } }}
+      class="flex items-center gap-1.5 px-2 h-full text-[11px] font-medium transition-colors {activeLogTab === 'logs' && expanded
+        ? 'text-brand-400'
+        : 'text-surface-400 hover:text-surface-200'}"
     >
-      <path d="M5 15l7-7 7 7" />
-    </svg>
-    <span class="font-medium">Console</span>
-    {#if logs.length > 0}
-      <span class="rounded-full bg-surface-700 px-1.5 text-[10px] text-surface-300">{logs.length}</span>
+      <svg
+        class="h-3 w-3 transition-transform {expanded ? 'rotate-180' : ''}"
+        fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"
+      >
+        <path d="M5 15l7-7 7 7" />
+      </svg>
+      Logs
+      {#if logs.length > 0}
+        <span class="rounded-full bg-surface-700 px-1.5 text-[10px] text-surface-300">{logs.length}</span>
+      {/if}
+    </button>
+
+    <button
+      onclick={() => { if (expanded && activeLogTab === 'history') { expanded = false } else { expanded = true; activeLogTab = 'history' } }}
+      class="flex items-center px-2 h-full text-[11px] font-medium transition-colors {activeLogTab === 'history' && expanded
+        ? 'text-brand-400'
+        : 'text-surface-500 hover:text-surface-300'}"
+    >
+      History
+    </button>
+
+    <div class="flex-1"></div>
+
+    {#if expanded && activeLogTab === 'logs'}
+      <button
+        onclick={clearLogs}
+        class="px-2 text-[11px] text-surface-500 hover:text-surface-300 transition-colors"
+      >
+        Clear
+      </button>
     {/if}
-  </button>
+  </div>
 
   {#if expanded}
-    <!-- Tabs -->
-    <div class="flex shrink-0 items-center gap-3 border-b border-surface-700 px-3">
-      <button
-        onclick={() => activeLogTab = 'logs'}
-        class="py-1.5 text-[11px] transition-colors {activeLogTab === 'logs'
-          ? 'border-b border-brand-500 text-brand-400'
-          : 'text-surface-500 hover:text-surface-300'}"
-      >
-        Logs
-      </button>
-      <button
-        onclick={() => activeLogTab = 'history'}
-        class="py-1.5 text-[11px] transition-colors {activeLogTab === 'history'
-          ? 'border-b border-brand-500 text-brand-400'
-          : 'text-surface-500 hover:text-surface-300'}"
-      >
-        History
-      </button>
-
-      <div class="flex-1"></div>
-
-      {#if activeLogTab === 'logs'}
-        <button
-          onclick={clearLogs}
-          class="text-[11px] text-surface-500 hover:text-surface-300"
-        >
-          Clear
-        </button>
-      {/if}
-    </div>
 
     <!-- Content -->
     <div class="flex-1 overflow-auto font-mono text-[11px]">

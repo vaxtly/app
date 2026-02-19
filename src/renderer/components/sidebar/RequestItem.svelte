@@ -106,11 +106,11 @@
   ondragend={handleDragEnd}
 >
   <button
-    class="flex w-full items-center gap-1.5 rounded px-2 py-0.5 text-left {isActive ? 'bg-brand-500/10 text-brand-300' : 'hover:bg-surface-800'}"
+    class="flex w-full items-center gap-1.5 rounded px-2 py-1 text-left {isActive ? 'bg-brand-500/10 text-brand-300' : 'hover:bg-surface-800'}"
     onclick={handleClick}
   >
     <!-- Method badge -->
-    <span class="w-8 shrink-0 text-right font-mono text-[9px] font-bold {METHOD_COLORS[node.method ?? 'GET'] ?? 'text-surface-400'}">
+    <span class="w-9 shrink-0 text-right font-mono text-[10px] font-bold {METHOD_COLORS[node.method ?? 'GET'] ?? 'text-surface-400'}">
       {(node.method ?? 'GET').slice(0, 4)}
     </span>
 
@@ -124,7 +124,7 @@
         class="h-5 min-w-0 flex-1 rounded border border-brand-500 bg-surface-800 px-1 text-xs text-surface-100 outline-none"
       />
     {:else}
-      <span class="min-w-0 flex-1 truncate text-xs {isActive ? 'text-brand-200' : 'text-surface-300'}">
+      <span class="min-w-0 flex-1 truncate text-[13px] {isActive ? 'text-brand-200' : 'text-surface-300'}">
         {node.name}
       </span>
     {/if}

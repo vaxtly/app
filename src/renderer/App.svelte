@@ -142,7 +142,9 @@
     <!-- Main area -->
     <div class="flex min-w-0 flex-1 flex-col">
       <!-- Drag region (non-Mac or when sidebar collapsed) -->
-      {#if appStore.sidebarCollapsed || navigator.platform.includes('Mac')}
+      {#if navigator.platform.includes('Mac')}
+        <div class="drag-region shrink-0" style="height: 2rem"></div>
+      {:else if appStore.sidebarCollapsed}
         <div class="drag-region h-2 shrink-0"></div>
       {/if}
 

@@ -103,7 +103,7 @@
 <div class="group" oncontextmenu={handleContextMenu} ondragover={handleDragOver} ondragleave={handleDragLeave} ondrop={handleDrop}>
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div
-    class="flex w-full cursor-pointer items-center gap-1 rounded px-2 py-0.5 text-left transition-colors {isDropTarget ? 'border border-brand-500 bg-brand-500/10' : 'hover:bg-surface-800'}"
+    class="flex w-full cursor-pointer items-center gap-1 rounded px-2 py-1 text-left transition-colors {isDropTarget ? 'border border-brand-500 bg-brand-500/10' : 'hover:bg-surface-800'}"
     role="button"
     tabindex="0"
     aria-expanded={node.expanded}
@@ -130,7 +130,7 @@
         class="h-5 min-w-0 flex-1 rounded border border-brand-500 bg-surface-800 px-1 text-xs text-surface-100 outline-none"
       />
     {:else}
-      <span class="min-w-0 flex-1 truncate text-xs text-surface-300">
+      <span class="min-w-0 flex-1 truncate text-[13px] text-surface-300">
         {node.name}
       </span>
     {/if}

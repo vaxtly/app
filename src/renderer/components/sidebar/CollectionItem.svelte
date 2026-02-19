@@ -193,7 +193,7 @@
         class="h-5 min-w-0 flex-1 rounded border border-brand-500 bg-surface-800 px-1 text-xs text-surface-100 outline-none"
       />
     {:else}
-      <span class="min-w-0 flex-1 truncate text-xs font-semibold text-surface-200">
+      <span class="min-w-0 flex-1 truncate text-[13px] font-semibold text-surface-200">
         {node.name}
       </span>
     {/if}
