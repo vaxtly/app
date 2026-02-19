@@ -234,12 +234,19 @@
     appStore.markTabSaved(tabId)
     appStore.updateTabLabel(tabId, state.name, state.method)
 
-    // Trigger git sync if collection has sync enabled
+    // Trigger git sync if collection has sync enabled (scan for sensitive data first)
     if (currentCollectionId) {
       const collection = collectionsStore.getCollectionById(currentCollectionId)
       if (collection?.sync_enabled) {
-        window.api.sync.pushCollection(currentCollectionId).catch(() => {
-          // Sync failure is non-blocking — silently ignore
+        window.api.sync.scanSensitive(currentCollectionId).then((findings) => {
+          if (findings.length === 0) {
+            window.api.sync.pushCollection(currentCollectionId!).catch(() => {
+              // Sync failure is non-blocking
+            })
+          }
+          // If sensitive data found, skip auto-push — user can push manually via context menu
+        }).catch(() => {
+          // Scan failure is non-blocking
         })
       }
     }

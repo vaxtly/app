@@ -4,6 +4,7 @@
   import { collectionsStore } from '../../lib/stores/collections.svelte'
   import { appStore } from '../../lib/stores/app.svelte'
   import ConflictModal from '../modals/ConflictModal.svelte'
+  import SensitiveDataModal from '../modals/SensitiveDataModal.svelte'
 
   let provider = $state<'github' | 'gitlab'>('github')
   let repository = $state('')
@@ -17,6 +18,8 @@
   let saving = $state(false)
   let status = $state<{ type: 'success' | 'error'; message: string } | null>(null)
   let activeConflict = $state<SyncConflict | null>(null)
+  let sensitiveFindings = $state<{ source: string; requestName: string | null; requestId: string | null; field: string; key: string; maskedValue: string }[]>([])
+  let showSensitiveModal = $state(false)
 
   const wsId = $derived(appStore.activeWorkspaceId)
 
@@ -131,18 +134,72 @@
     pushing = true
     status = null
     try {
-      const result = await window.api.sync.pushAll(appStore.activeWorkspaceId ?? undefined)
-      if (result.success) {
-        status = { type: 'success', message: result.message || `Pushed ${result.pushed ?? 0} collections` }
-        await collectionsStore.loadAll(appStore.activeWorkspaceId ?? undefined)
-      } else {
-        status = { type: 'error', message: result.message || 'Push failed' }
+      // Scan all sync-enabled collections for sensitive data
+      const syncCollections = collectionsStore.collections.filter((c) => c.sync_enabled)
+      const allFindings: typeof sensitiveFindings = []
+      for (const col of syncCollections) {
+        const findings = await window.api.sync.scanSensitive(col.id)
+        allFindings.push(...findings)
       }
+
+      if (allFindings.length > 0) {
+        sensitiveFindings = allFindings
+        showSensitiveModal = true
+        pushing = false
+        return
+      }
+
+      await doPushAll(false)
+    } catch (err) {
+      status = { type: 'error', message: err instanceof Error ? err.message : 'Push failed' }
+      pushing = false
+    }
+  }
+
+  async function doPushAll(sanitize: boolean): Promise<void> {
+    pushing = true
+    status = null
+    try {
+      // Push each sync-enabled collection individually so we can pass sanitize
+      const syncCollections = collectionsStore.collections.filter(
+        (c) => c.sync_enabled && (c.is_dirty || !c.remote_sha),
+      )
+      let pushed = 0
+      const errors: string[] = []
+
+      for (const col of syncCollections) {
+        try {
+          const result = await window.api.sync.pushCollection(col.id, sanitize, wsId ?? undefined)
+          if (result.success) pushed += (result.pushed ?? 0)
+          else if (result.message) errors.push(result.message)
+        } catch (err) {
+          errors.push(err instanceof Error ? err.message : String(err))
+        }
+      }
+
+      if (errors.length > 0) {
+        status = { type: 'error', message: errors.join('; ') }
+      } else if (pushed > 0) {
+        status = { type: 'success', message: `Pushed ${pushed} collection(s)` }
+      } else {
+        status = { type: 'success', message: 'Everything up to date' }
+      }
+      await collectionsStore.loadAll(wsId ?? undefined)
     } catch (err) {
       status = { type: 'error', message: err instanceof Error ? err.message : 'Push failed' }
     } finally {
       pushing = false
     }
+  }
+
+  function handleSensitivePushAnyway(): void {
+    showSensitiveModal = false
+    doPushAll(false)
+  }
+
+  function handleSensitivePushSanitized(): void {
+    showSensitiveModal = false
+    doPushAll(true)
   }
 
   function toggleAutoSync(value: boolean): void {
@@ -352,6 +409,15 @@
     collection={{ id: activeConflict.collectionId, name: activeConflict.collectionName }}
     onresolve={handleConflictResolve}
     onclose={() => { activeConflict = null }}
+  />
+{/if}
+
+{#if showSensitiveModal}
+  <SensitiveDataModal
+    findings={sensitiveFindings}
+    onclose={() => { showSensitiveModal = false }}
+    onsyncanyway={handleSensitivePushAnyway}
+    onsyncwithout={handleSensitivePushSanitized}
   />
 {/if}
 
