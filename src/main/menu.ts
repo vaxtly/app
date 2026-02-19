@@ -1,4 +1,5 @@
 import { Menu, BrowserWindow, app } from 'electron'
+import { IPC } from '../shared/types/ipc'
 
 export function buildMenu(): void {
   const isMac = process.platform === 'darwin'
@@ -33,12 +34,12 @@ export function buildMenu(): void {
         {
           label: 'New Request',
           accelerator: 'CmdOrCtrl+N',
-          click: (): void => sendToFocused('menu:new-request'),
+          click: (): void => sendToFocused(IPC.MENU_NEW_REQUEST),
         },
         {
           label: 'Save Request',
           accelerator: 'CmdOrCtrl+S',
-          click: (): void => sendToFocused('menu:save-request'),
+          click: (): void => sendToFocused(IPC.MENU_SAVE_REQUEST),
         },
         { type: 'separator' },
         {
@@ -56,7 +57,7 @@ export function buildMenu(): void {
         {
           label: 'Settings',
           accelerator: 'CmdOrCtrl+,',
-          click: (): void => sendToFocused('menu:open-settings'),
+          click: (): void => sendToFocused(IPC.MENU_OPEN_SETTINGS),
         },
         { type: 'separator' },
         isMac ? { role: 'close' } : { role: 'quit' },
@@ -121,12 +122,12 @@ export function buildMenu(): void {
         {
           label: 'User Manual',
           accelerator: 'F1',
-          click: (): void => sendToFocused('menu:open-manual'),
+          click: (): void => sendToFocused(IPC.MENU_OPEN_MANUAL),
         },
         { type: 'separator' },
         {
           label: 'Check for Updates...',
-          click: (): void => sendToFocused('menu:check-updates'),
+          click: (): void => sendToFocused(IPC.MENU_CHECK_UPDATES),
         },
       ],
     },

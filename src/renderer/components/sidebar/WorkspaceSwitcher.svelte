@@ -18,10 +18,10 @@
       dropdownOpen = false
       return
     }
+    appStore.closeAllTabs()
     appStore.setActiveWorkspace(id)
     await collectionsStore.loadAll(id)
     await environmentsStore.loadAll(id)
-    appStore.closeAllTabs()
     dropdownOpen = false
   }
 

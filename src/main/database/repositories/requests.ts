@@ -16,7 +16,7 @@ function encryptAuth(json: string | null): string | null {
   const auth: AuthConfig = JSON.parse(json)
   for (const field of AUTH_SENSITIVE_FIELDS) {
     const val = auth[field]
-    if (typeof val === 'string' && val) {
+    if (typeof val === 'string' && val && !val.startsWith(ENC_PREFIX)) {
       ;(auth as Record<string, string>)[field] = ENC_PREFIX + encryptValue(val)
     }
   }

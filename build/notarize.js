@@ -1,6 +1,6 @@
-import { notarize } from '@electron/notarize';
+const { notarize } = require('@electron/notarize');
 
-export default async (context) => {
+module.exports = async (context) => {
     if (process.platform !== 'darwin') return;
     if (context.packager.platform.name !== 'mac') return;
 
@@ -14,18 +14,14 @@ export default async (context) => {
 
     console.log(`Notarizing ${appName}...`);
 
-    try {
-        await notarize({
-            appBundleId: 'com.vaxtly.app',
-            appPath: `${appOutDir}/${appName}.app`,
-            appleId: process.env.APPLE_ID,
-            appleIdPassword: process.env.APPLE_ID_PASS,
-            teamId: process.env.APPLE_TEAM_ID,
-            tool: 'notarytool',
-        });
-    } catch (error) {
-        console.error('Notarization failed:', error);
-    }
+    await notarize({
+        appBundleId: 'com.vaxtly.app',
+        appPath: `${appOutDir}/${appName}.app`,
+        appleId: process.env.APPLE_ID,
+        appleIdPassword: process.env.APPLE_ID_PASS,
+        teamId: process.env.APPLE_TEAM_ID,
+        tool: 'notarytool',
+    });
 
     console.log('Notarization complete.');
 };

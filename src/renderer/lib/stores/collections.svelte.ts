@@ -207,6 +207,7 @@ async function renameRequest(id: string, name: string): Promise<void> {
   await window.api.requests.update(id, { name })
   requests = requests.map((r) => (r.id === id ? { ...r, name } : r))
   rebuildTree()
+  // Tab label update is handled by the caller (e.g., CollectionItem context menu)
 }
 
 async function deleteCollection(id: string): Promise<void> {

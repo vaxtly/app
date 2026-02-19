@@ -109,6 +109,13 @@ export const IPC = {
   LOG_PUSH: 'log:push',
   LOG_LIST: 'log:list',
   LOG_CLEAR: 'log:clear',
+
+  // Menu events (main→renderer push)
+  MENU_NEW_REQUEST: 'menu:new-request',
+  MENU_SAVE_REQUEST: 'menu:save-request',
+  MENU_OPEN_SETTINGS: 'menu:open-settings',
+  MENU_OPEN_MANUAL: 'menu:open-manual',
+  MENU_CHECK_UPDATES: 'menu:check-updates',
 } as const
 
 export type IpcChannel = (typeof IPC)[keyof typeof IPC]

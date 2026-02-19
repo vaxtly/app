@@ -51,7 +51,11 @@ function toYaml(data: unknown): string {
 }
 
 function parseYaml(content: string): Record<string, unknown> {
-  return yaml.load(content) as Record<string, unknown>
+  const result = yaml.load(content)
+  if (!result || typeof result !== 'object') {
+    throw new Error('Invalid or empty YAML content')
+  }
+  return result as Record<string, unknown>
 }
 
 // --- Serialization ---
@@ -212,15 +216,15 @@ export function serializeRequest(request: Request, options: SerializeOptions = {
     body_type: request.body_type,
   }
 
-  const scripts = request.scripts ? JSON.parse(request.scripts) : null
-  if (scripts) {
-    data.scripts = scripts
-  }
+  try {
+    const scripts = request.scripts ? JSON.parse(request.scripts) : null
+    if (scripts) data.scripts = scripts
+  } catch { /* skip malformed scripts JSON */ }
 
-  const auth = request.auth ? JSON.parse(request.auth) : null
-  if (auth) {
-    data.auth = auth
-  }
+  try {
+    const auth = request.auth ? JSON.parse(request.auth) : null
+    if (auth) data.auth = auth
+  } catch { /* skip malformed auth JSON */ }
 
   // Strip local file references from form-data body
   if (request.body_type === 'form-data' && data.body) {

@@ -141,10 +141,14 @@ vaxtly/
 │           │   ├── SensitiveDataModal.svelte # Sensitive data findings before push
 │           │   ├── EnvironmentAssociationModal.svelte # Env checkbox list + default star + reloads store on save
 │           │   └── WelcomeGuide.svelte    # 5-step onboarding modal
+│           ├── help/
+│           │   └── UserManual.svelte     # Comprehensive in-app user manual (F1 shortcut)
 │           └── shared/
 │               ├── KeyValueEditor.svelte  # Reusable checkbox + key + value + delete rows
 │               ├── ContextMenu.svelte     # Right-click menu with position correction
-│               └── Modal.svelte           # Generic modal with backdrop + Escape
+│               ├── Modal.svelte           # Generic modal with backdrop + Escape
+│               ├── Toggle.svelte          # Pill-shaped sliding switch (settings)
+│               └── Checkbox.svelte        # Square checkbox with checkmark animation
 ├── tests/
 │   └── unit/
 │       ├── repositories.test.ts        # 26 tests covering all repositories
@@ -277,7 +281,7 @@ requests 1──N request_histories
 | response_body | TEXT | NULL | |
 | response_headers | TEXT | NULL | JSON |
 | duration_ms | INTEGER | NULL | |
-| executed_at | TEXT NOT NULL | datetime('now') | |
+| executed_at | TEXT NOT NULL | datetime('now') | Indexed for prune queries |
 | created_at | TEXT | datetime('now') | |
 | updated_at | TEXT | datetime('now') | |
 
@@ -373,11 +377,14 @@ Pattern: `ipcMain.handle('domain:action', handler)` in main, `ipcRenderer.invoke
 | `settings:get` | ipc/settings.ts | `getSetting(key)` | `api.settings.get(key)` |
 | `settings:set` | ipc/settings.ts | `setSetting(key, val)` | `api.settings.set(key, val)` |
 | `settings:get-all` | ipc/settings.ts | `getAllSettings()` | `api.settings.getAll()` |
+| `workspace-settings:get` | ipc/settings.ts | `getWorkspaceSetting(wsId, key)` | `api.workspaceSettings.get(wsId, key)` |
+| `workspace-settings:set` | ipc/settings.ts | `setWorkspaceSetting(wsId, key, val)` | `api.workspaceSettings.set(wsId, key, val)` |
+| `workspace-settings:get-all` | ipc/settings.ts | `getWorkspaceSettings(wsId)` | `api.workspaceSettings.getAll(wsId)` |
 | `window:get-state` | ipc/settings.ts | `getWindowState()` | `api.window.getState()` |
 | `window:save-state` | ipc/settings.ts | `saveWindowState(s)` | `api.window.saveState(s)` |
 
-**Menu channels** (main→renderer push, not request/response):
-`menu:new-request`, `menu:save-request`, `menu:send-request`, `menu:close-tab`, `menu:toggle-sidebar`, `menu:next-tab`, `menu:prev-tab`
+**Menu channels** (main→renderer push via `IPC.*` constants, not request/response):
+`menu:new-request`, `menu:save-request`, `menu:open-settings`, `menu:open-manual`, `menu:check-updates`
 
 ---
 
@@ -429,7 +436,7 @@ BODY_TYPES = ['none','json','xml','form-data','urlencoded','raw','graphql'] as c
 AUTH_TYPES = ['none','bearer','basic','api-key'] as const
 SENSITIVE_HEADERS = ['authorization','x-api-key','cookie','set-cookie', ...]
 SENSITIVE_PARAM_KEYS = ['api_key','apikey','token','secret','password', ...]
-DEFAULTS = { REQUEST_TIMEOUT_MS: 30000, HISTORY_RETENTION_DAYS: 7, FOLLOW_REDIRECTS: true,
+DEFAULTS = { REQUEST_TIMEOUT_MS: 30000, HISTORY_RETENTION_DAYS: 30, FOLLOW_REDIRECTS: true,
     VERIFY_SSL: true, MAX_SCRIPT_CHAIN_DEPTH: 3, MAX_VARIABLE_NESTING: 10, SESSION_LOG_MAX_ENTRIES: 100 }
 ```
 
@@ -449,7 +456,7 @@ All stores use this pattern: module-level `$state` + `$derived` + exported objec
 
 **Actions**: `openRequestTab`, `openEnvironmentTab`, `closeTab`, `closeOtherTabs`, `closeAllTabs`, `togglePinTab`, `setActiveTab`, `nextTab`, `prevTab`, `toggleSidebar`, `getTabState`, `updateTabState`, `markTabSaved`, `updateTabLabel`
 
-**Session persistence**: Open tabs + active tab serialized to `app_settings` key `session.tabs` (debounced 500ms). Restored on mount after collections/environments load. Deleted entities silently skipped.
+**Session persistence**: Open tabs + active tab serialized to `app_settings` key `session.tabs.{workspaceId}` (debounced 500ms, scoped per workspace). Restored on mount after collections/environments load. Deleted entities silently skipped.
 
 ### `collectionsStore` — `lib/stores/collections.svelte.ts`
 
@@ -469,20 +476,37 @@ All stores use this pattern: module-level `$state` + `$derived` + exported objec
 
 **Actions**: `loadAll`, `create`, `update`, `remove`, `activate`, `deactivate`, `getById`
 
+### `settingsStore` — `lib/stores/settings.svelte.ts`
+
+**State**: `allSettings: Record<string, string>`
+
+**Actions**: `loadAll`, `get(key)`, `set(key, value)` — typed settings keys with IPC persistence. Used for app-wide preferences (layout orientation, timeout, SSL, history retention, etc.).
+
 ---
 
 ## Services
 
 ### Encryption (`services/encryption.ts`)
-- `initEncryption()` → generates/loads 256-bit master key via Electron `safeStorage`, persists encrypted blob to `{userData}/master.key`
+- `initEncryption()` → generates/loads 256-bit master key via Electron `safeStorage`, persists encrypted blob to `{userData}/master.key` with `0o600` file permissions
+- Master key file uses `vxk1:` prefix to distinguish keychain-encrypted format from legacy plaintext (handles graceful migration)
 - `encryptValue(plaintext)` → AES-256-CBC, returns base64(IV + ciphertext)
-- `decryptValue(encrypted)` → reverse
+- `decryptValue(encrypted)` → reverse; uses string-mode `decipher.update()` to avoid Buffer concat issues
 - `initEncryptionForTesting(key?)` → bypass safeStorage for Vitest
 - **Repository-layer integration**: encryption is transparent at the repository layer — callers (IPC, services, UI) are unaware
   - **Settings**: `SENSITIVE_KEYS` set (`vault.token`, `vault.role_id`, `vault.secret_id`, `sync.token`) — encrypted on write, decrypted on read with try/catch fallback for pre-migration plaintext
   - **Environments**: variable values encrypted with `enc:` prefix — `encryptVariables()`/`decryptVariables()` in all CRUD paths
-  - **Requests**: auth credentials (`bearer_token`, `basic_password`, `api_key_value`) encrypted with `enc:` prefix — `encryptAuth()`/`decryptAuth()` in all CRUD paths
+  - **Requests**: auth credentials (`bearer_token`, `basic_password`, `api_key_value`) encrypted with `enc:` prefix — `encryptAuth()`/`decryptAuth()` in all CRUD paths; double-encryption guard checks `enc:` prefix before encrypting
+  - **Workspace settings**: sensitive fields in `workspaces.settings` JSON column encrypted/decrypted using the same key set as `app_settings`
   - **One-time migration**: `migrateToEncryptedStorage()` runs at startup, encrypts existing plaintext data, tracked by `encryption.migrated` setting
+
+### Workspace-Scoped Settings (`database/repositories/workspaces.ts`)
+- Stored in the existing `workspaces.settings TEXT` column as a JSON blob
+- `getWorkspaceSettings(wsId)` → parse JSON, decrypt sensitive fields, return nested object
+- `setWorkspaceSetting(wsId, key, value)` → read-modify-write; key uses dot-notation (e.g., `sync.provider`)
+- `getWorkspaceSetting(wsId, key)` → convenience: dot-path into nested object
+- Sensitive keys encrypted: `sync.token`, `vault.token`, `vault.role_id`, `vault.secret_id`
+- **Fallback pattern**: Services (`getProvider`) try workspace settings first, fall back to global `app_settings` if workspace has no config for that domain
+- Provider cache invalidation: `ipc/settings.ts` monitors `PROVIDER_KEYS` set and calls `resetVaultProvider()` when relevant keys change
 
 ### HTTP Proxy (`ipc/proxy.ts`)
 - Uses Node `fetch` with `AbortController` per request ID
@@ -536,10 +560,11 @@ All stores use this pattern: module-level `$state` + `$derived` + exported objec
 - `validateEnvironmentIds()` handles `environment_ids` as both YAML arrays and JSON strings (backward compat with Laravel app)
 - `sanitize` option strips sensitive data via `sanitizeRequestData()`/`sanitizeCollectionData()`
 - Strips local file references from form-data before sync
+- `parseYaml()` validates non-null/non-empty returns; `serializeRequest()` wraps JSON.parse of scripts/auth in try/catch
 
 ### Sensitive Data Scanner (`services/sensitive-data-scanner.ts`)
 - `scanRequest(request)` → `SensitiveFinding[]` — scans auth, headers, params, body
-- `scanCollection(requests, variables)` → `SensitiveFinding[]` — scans all requests + collection variables
+- `scanCollection(requests, variables)` → `SensitiveFinding[]` — scans all requests (using decrypted data from repository) + collection variables
 - `sanitizeRequestData(data)` / `sanitizeCollectionData(data)` — blanks sensitive values, preserves `{{var}}` references
 - Extensive sensitive key lists: auth tokens, API keys, passwords, cloud keys, PII
 - Recursive JSON body scanning
@@ -552,36 +577,40 @@ All stores use this pattern: module-level `$state` + `$derived` + exported objec
 - Both: `listDirectoryRecursive()`, `getDirectoryTree()`, `getFile()`, `createFile()`, `updateFile()`, `deleteFile()`, `deleteDirectory()`, `commitMultipleFiles()`, `testConnection()`
 
 ### Remote Sync Service (`sync/remote-sync-service.ts`)
-- Settings keys: `sync.provider`, `sync.repository`, `sync.token`, `sync.branch` — read via `settingsRepo.getSetting()` (transparent decryption)
+- Settings keys: `sync.provider`, `sync.repository`, `sync.token`, `sync.branch` — read via workspace settings with global fallback (transparent decryption)
+- `getProvider(workspaceId?)` → creates git provider from workspace-scoped config, falls back to global `app_settings`
 - `pull(workspaceId?)` → `SyncResult` — pulls all collections, detects conflicts, collects per-collection errors
-- `pushCollection(collection, sanitize?)` — 3-way merge per file, atomic commit
-- `pushAll(workspaceId?)` → `SyncResult` — pushes all dirty/unsynced collections
+- `pushCollection(collection, sanitize?, workspaceId?)` — 3-way merge per file, atomic commit
+- `pushAll(workspaceId?)` → `SyncResult` — pushes all dirty/unsynced collections (scoped to workspace)
 - `pullSingleCollection(collection, workspaceId?)` — pulls one collection
-- `pushSingleRequest(collection, requestId, sanitize?)` — granular single-file push
-- `forceKeepLocal(collection)` / `forceKeepRemote(collection, workspaceId?)` — conflict resolution
-- `deleteRemoteCollection(collection)` — removes from remote
+- `pushSingleRequest(collection, requestId, sanitize?, workspaceId?)` — granular single-file push
+- `forceKeepLocal(collection, workspaceId?)` / `forceKeepRemote(collection, workspaceId?)` — conflict resolution
+- `deleteRemoteCollection(collection, workspaceId?)` — removes from remote
 - `SyncConflictError` class for conflict detection
 - File state: `{path: {content_hash, remote_sha, commit_sha}}` with backward-compat normalization
 - Blob SHA computed locally: `SHA-1("blob {size}\0{content}")` — avoids extra API call after push
+- `buildFolderPath()` has cycle detection via `visited` Set to prevent infinite loops from data corruption
 
 ### HashiCorp Vault Provider (`vault/hashicorp-vault-provider.ts`)
 - Implements `SecretsProvider` interface from `vault/secrets-provider.interface.ts`
 - KV v2 API: `listSecrets()` (GET with `?list=true`), `getSecrets()`, `putSecrets()`, `deleteSecrets()`
 - Auth methods: token (direct) or AppRole (login to get token)
-- Namespace header only sent during AppRole auth — data operations use token only
+- `X-Vault-Namespace` header sent on ALL operations (auth and data) when configured — required for Vault Enterprise
 - `testConnection()` — token: lookup-self, AppRole: login attempt
+- AppRole login validates response: guards against null `json.auth` with explicit error
 - Static factory: `HashiCorpVaultProvider.create(opts)` handles async AppRole login
 - SSL bypass: when `verifySsl` is false, uses undici `Agent({ connect: { rejectUnauthorized: false } })` — all HTTP calls route through `this.fetch()` wrapper which dispatches via undici when the custom Agent is present
 
 ### Vault Sync Service (`vault/vault-sync-service.ts`)
-- Settings keys: `vault.provider`, `vault.url`, `vault.auth_method`, `vault.token`, `vault.role_id`, `vault.secret_id`, `vault.namespace`, `vault.mount`, `vault.verify_ssl`
+- Settings keys: `vault.provider`, `vault.url`, `vault.auth_method`, `vault.token`, `vault.role_id`, `vault.secret_id`, `vault.namespace`, `vault.mount`, `vault.verify_ssl` — read from workspace settings with global fallback
 - `vault.verify_ssl` parsed as boolean: `'0'` and `'false'` both mean SSL verification off (UI stores `String(boolean)`)
-- `getProvider()` → reads vault config from `app_settings`, returns cached `SecretsProvider`
-- `fetchVariables(envId)` → get secrets from Vault, return as `EnvironmentVariable[]` (cached 60s)
-- `pushVariables(envId, vars)` → push enabled variables to Vault
-- `deleteSecrets(envId)` → remove secrets for an environment
-- `pullAll(wsId?)` → list all secrets at mount root, create environments for untracked paths
-- `migrateEnvironment(envId, oldPath, newPath)` → copy secrets to new path, delete old
+- `getProvider(workspaceId?)` → reads vault config from workspace settings (with global fallback), returns cached `SecretsProvider` (cache keyed by `workspaceId ?? '__global__'`)
+- `fetchVariables(envId, workspaceId?)` → get secrets from Vault, return as `EnvironmentVariable[]` (cached 60s)
+- `pushVariables(envId, vars, workspaceId?)` → push enabled variables to Vault
+- `deleteSecrets(envId, workspaceId?)` → remove secrets for an environment
+- `pullAll(wsId?)` → list all secrets at mount root, create environments for untracked paths (uses returned ID from create, not name scan)
+- `migrateEnvironment(envId, oldPath, newPath, workspaceId?)` → copy secrets to new path, delete old
+- `resetProvider(workspaceId?)` → invalidate provider cache (called automatically when vault settings change)
 - `buildPath(env)` → uses `vault_path` if set, otherwise slugifies environment name
 
 ### Data Export/Import (`services/data-export-import.ts`)
@@ -622,6 +651,7 @@ All stores use this pattern: module-level `$state` + `$derived` + exported objec
 | Cmd/Ctrl+L | Focus URL input (planned) |
 | Ctrl+PageDown | Next tab |
 | Ctrl+PageUp | Previous tab |
+| F1 | Open user manual |
 
 ---
 
@@ -629,7 +659,7 @@ All stores use this pattern: module-level `$state` + `$derived` + exported objec
 
 Three `$effect` hooks in `App.svelte` drive cross-cutting UX behaviors:
 
-1. **Session save**: Watches `openTabs.length` + `activeTabId`, debounce-writes to `session.tabs` setting (skipped until initial restore completes via `sessionRestored` flag).
+1. **Session save**: Watches `openTabs.length` + `activeTabId`, debounce-writes to `session.tabs.{workspaceId}` setting (skipped until initial restore completes via `sessionRestored` flag). Sessions are scoped per workspace.
 2. **Sidebar auto-reveal**: When active tab changes — request tabs: expands ancestor tree nodes + switches sidebar to "collections"; environment tabs: switches sidebar to "environments".
 3. **Default environment auto-activation**: When a request tab becomes active, resolves the nearest `default_environment_id` (folder chain → collection) and activates it if different from current.
 
@@ -665,18 +695,27 @@ Three `$effect` hooks in `App.svelte` drive cross-cutting UX behaviors:
 ## Boot Sequence (`main/index.ts`)
 
 ```
-1. initEncryption()              — Load/create master key from OS keychain
+1. initEncryption()              — Load/create master key from OS keychain (vxk1: prefix, 0o600 perms)
 2. openDatabase(dbPath)          — Open SQLite + run pending migrations
 3. migrateToEncryptedStorage()   — One-time: encrypt existing plaintext sensitive data
 4. ensureDefaultWorkspace()      — Create "Default Workspace" if table is empty
-5. registerAllIpcHandlers()      — Register all domain handlers (incl. histories, session-log, code-generator)
-6. pruneHistories()              — Auto-prune old request histories based on retention setting
-7. buildMenu()                   — Set native application menu
+5. registerAllIpcHandlers()      — Register all domain handlers (incl. workspace-settings, histories, session-log, code-generator)
+6. pruneHistories()              — Auto-prune old request histories based on retention setting (default 30 days)
+7. buildMenu()                   — Set native application menu (using IPC.MENU_* constants)
 8. createWindow()                — BrowserWindow with preload script
 9. runAutoSync()                 — On ready-to-show: vault pullAll + git pull if auto_sync enabled
 ```
 
 ---
+
+## Build Configuration
+
+- **electron-builder.yml**: configures packaging for macOS (dmg/zip), Windows (nsis), Linux (AppImage/deb)
+- **`asarUnpack`**: `better-sqlite3` native module unpacked from asar archive (required for native addons)
+- **Icons**: `build/icon.icns` (macOS), `build/icon.ico` (Windows), `build/icon.png` (Linux 512×512)
+- **Linux `artifactName`**: includes `${arch}` for multi-architecture builds
+- **macOS notarization**: `build/notarize.js` (CJS) — runs `@electron/notarize` as afterSign hook; errors propagate to fail the build
+- **Dependencies**: `uuid` pinned to v9 (CJS-compatible; v13+ is pure ESM, incompatible with Electron main process)
 
 ## Build & Test Commands
 
@@ -684,7 +723,7 @@ Three `$effect` hooks in `App.svelte` drive cross-cutting UX behaviors:
 |---------|-------------|
 | `npm run dev` | Hot-reload dev server (electron-vite dev) |
 | `npm run build` | Production build → `out/` |
-| `npm run test` | Vitest single run (135 tests) |
+| `npm run test` | Vitest single run |
 | `npm run test:watch` | Vitest watch mode |
 
 ---
@@ -699,16 +738,18 @@ Three `$effect` hooks in `App.svelte` drive cross-cutting UX behaviors:
 | **3: Scripting + History + Code Gen** | COMPLETE | Pre/post-request scripts, request history auto-save/prune, code generation (5 languages), session log, SystemLog panel, CodeSnippetModal, 29 new tests |
 | **4: Git Sync** | COMPLETE | YAML serializer, sensitive data scanner, GitHub/GitLab providers, remote sync service, sync IPC, 40 tests. UI: RemoteSyncTab, ConflictModal, SensitiveDataModal, sync indicators on sidebar. |
 | **5: Vault + Import/Export** | COMPLETE | Vault provider + sync, data export/import, Postman import, vault IPC, 28 tests. UI: VaultTab, DataTab, vault sync in EnvironmentEditor, drag-drop, WelcomeGuide, HtmlPreview. |
+| **Pre-release hardening** | COMPLETE | Workspace-scoped sync/vault settings, draggable request/response splitter, session-per-workspace, encryption hardening (key prefix, file perms, double-encryption guard), vault namespace on all ops, cycle detection, async cancellation, pointer events, accessibility, build config fixes (asarUnpack, uuid CJS, notarize CJS). 37+ issues resolved across 25 files. |
 
 ---
 
 ## Known Issues / TODOs
 
-- `menu:send-request`, `menu:close-tab`, `menu:toggle-sidebar`, `menu:next-tab`, `menu:prev-tab` are sent by menu but not subscribed in preload `api.on`
-- `sql.js` is installed but unused (leftover from prototype)
 - No E2E tests (Playwright planned)
 - SQLCipher not yet integrated (requires `libcrypto` — using plain better-sqlite3 + field-level AES-256-CBC encryption at the repository layer)
 - `better-sqlite3` native module must be rebuilt when switching between Electron (`npx electron-rebuild -f -w better-sqlite3`) and system Node.js (`npm rebuild better-sqlite3`) for tests
+- AppRole token auto-refresh not implemented — tokens expire, requiring manual reconnect (deferred: low-priority edge case)
+- `contextIsolation: false` in BrowserWindow — should evaluate enabling sandbox for hardened security (deferred: requires preload refactor)
+- GitLab provider `listDirectoryRecursive` doesn't handle pagination for repos with 100+ files per directory (deferred: rare edge case)
 
 ## Resolved Issues (Post Phase 5)
 
@@ -720,3 +761,39 @@ Three `$effect` hooks in `App.svelte` drive cross-cutting UX behaviors:
 - **Pull error messages swallowed**: errors were overwritten by "Everything up to date" — now collected and reported
 - **Vault SSL bypass broken**: `verify_ssl` setting stored as `'false'` but only `'0'` was checked; also required undici Agent for actual TLS bypass (Node's `NODE_TLS_REJECT_UNAUTHORIZED` doesn't affect Electron's fetch)
 - **UI not refreshing after vault pull**: environments store not reloaded after pullAll — now calls `environmentsStore.loadAll()`
+
+## Resolved Issues (Pre-Release Audit)
+
+- **C1 — better-sqlite3 asar**: added `asarUnpack` for native module in `electron-builder.yml`
+- **C2 — uuid ESM**: downgraded `uuid` from v13 (pure ESM) to v9 (CJS-compatible)
+- **C3 — sql.js leftover**: removed unused `sql.js` dependency
+- **C4 — decryptValue Buffer concat**: fixed AES decryption using string-mode `decipher.update()` to avoid Buffer encoding issues
+- **H1 — session per workspace**: sessions scoped to `session.tabs.{workspaceId}` key
+- **H2 — vault/sync cache invalidation**: provider caches cleared when relevant settings change (both global and workspace-scoped)
+- **H3 — double decryption**: removed duplicate `safeStorage.decryptString()` call in `initEncryption()`
+- **H4 — master.key permissions**: file written with `0o600` and `chmodSync` applied
+- **H5 — key format marker**: `vxk1:` prefix distinguishes keychain-encrypted vs legacy plaintext master key files
+- **H6 — sensitive scan on encrypted data**: scanner now reads via `requestsRepo.findByCollection()` (decrypted) instead of raw DB
+- **H8 — vault namespace header**: `X-Vault-Namespace` sent on ALL operations, not just AppRole auth
+- **H9 — AppRole null guard**: `loginWithAppRole` validates `json.auth?.client_token` before use
+- **H10 — YAML parse validation**: `parseYaml()` validates non-null returns
+- **H11 — notarize.js errors**: converted to CJS, errors re-thrown instead of swallowed
+- **H13 — EnvironmentEditor workspace**: all vault operations pass `workspaceId`
+- **M1 — workspace switch ordering**: `closeAllTabs()` called before `setActiveWorkspace()` to prevent stale entity lookups
+- **M3 — double-encryption guard**: `encryptAuth()` checks `enc:` prefix before encrypting
+- **M4 — menu channel constants**: hardcoded strings in `menu.ts` and `preload.ts` replaced with `IPC.MENU_*` constants
+- **M5 — GraphQL variables**: body sends `{ query, variables: {} }` correctly
+- **M6 — rename tab label**: `RequestItem.commitRename()` updates open tab label via `appStore.updateTabLabel()`
+- **M7 — splitPercent reset**: resets to 50 when layout orientation changes
+- **M8 — history index**: added `CREATE INDEX idx_histories_executed_at ON request_histories(executed_at)` for prune performance
+- **M11 — pullAll ID lookup**: uses returned ID from `environmentsRepo.create()` instead of post-hoc name scan
+- **M12 — folder path cycle**: `buildFolderPath()` uses `visited` Set to detect circular parent references
+- **M17 — async effect guard**: `RequestBuilder` `$effect` uses cancellation flag to prevent stale async updates
+- **M18 — serializeRequest JSON**: `JSON.parse` of scripts/auth wrapped in try/catch
+- **M20 — pushAll scope**: workspace query correctly scopes to `workspace_id = ?` or `workspace_id IS NULL`
+- **L2 — platform detection**: replaced deprecated `navigator.platform` with `navigator.userAgent`
+- **L4 — Linux artifact name**: includes `${arch}` for multi-architecture builds
+- **L6 — Modal accessibility**: close button has `aria-label="Close"`
+- **L7 — SystemLog pointer events**: drag resize uses Pointer Events API with `setPointerCapture`
+- **L8 — saveTimer cleanup**: `clearTimeout(saveTimer)` in App.svelte cleanup
+- **L9 — splitter pointercancel**: `onpointercancel` handler prevents stuck drag state

@@ -4,9 +4,9 @@ import type { SyncResult } from '../../shared/types/sync'
 import type { SensitiveFinding } from '../services/sensitive-data-scanner'
 import * as syncService from '../sync/remote-sync-service'
 import * as collectionsRepo from '../database/repositories/collections'
+import * as requestsRepo from '../database/repositories/requests'
 import { scanCollection } from '../services/sensitive-data-scanner'
-import { getDatabase } from '../database/connection'
-import type { Request, KeyValueEntry } from '../../shared/types/models'
+import type { KeyValueEntry } from '../../shared/types/models'
 
 export function registerSyncHandlers(): void {
   ipcMain.handle(IPC.SYNC_TEST_CONNECTION, async (_event, workspaceId?: string): Promise<boolean> => {
@@ -92,15 +92,12 @@ export function registerSyncHandlers(): void {
   ipcMain.handle(
     IPC.SYNC_SCAN_SENSITIVE,
     async (_event, collectionId: string): Promise<SensitiveFinding[]> => {
-      const db = getDatabase()
-      const requests = db
-        .prepare('SELECT * FROM requests WHERE collection_id = ?')
-        .all(collectionId) as Request[]
-
       const collection = collectionsRepo.findById(collectionId)
       if (!collection) return []
 
-      // Parse requests for scanning
+      // Use the repository (which decrypts auth fields) instead of raw DB query
+      const requests = requestsRepo.findByCollection(collectionId)
+
       const parsedRequests = requests.map((r) => ({
         id: r.id,
         name: r.name,

@@ -47,25 +47,24 @@
   let dragStartY = 0
   let dragStartHeight = 0
 
-  function onDragStart(e: MouseEvent): void {
+  function onDragStart(e: PointerEvent): void {
     if (!expanded) return
     e.preventDefault()
     dragging = true
     dragStartY = e.clientY
     dragStartHeight = panelHeight
-    document.addEventListener('mousemove', onDragMove)
-    document.addEventListener('mouseup', onDragEnd)
+    const target = e.currentTarget as HTMLElement
+    target.setPointerCapture(e.pointerId)
   }
 
-  function onDragMove(e: MouseEvent): void {
+  function onDragMove(e: PointerEvent): void {
+    if (!dragging) return
     const delta = dragStartY - e.clientY
     panelHeight = Math.max(100, Math.min(600, dragStartHeight + delta))
   }
 
   function onDragEnd(): void {
     dragging = false
-    document.removeEventListener('mousemove', onDragMove)
-    document.removeEventListener('mouseup', onDragEnd)
   }
 
   function formatTime(timestamp: string): string {
@@ -103,7 +102,10 @@
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div
       class="h-1 shrink-0 cursor-ns-resize border-t border-surface-700 hover:bg-brand-500/20 active:bg-brand-500/30 transition-colors"
-      onmousedown={onDragStart}
+      onpointerdown={onDragStart}
+      onpointermove={onDragMove}
+      onpointerup={onDragEnd}
+      onpointercancel={onDragEnd}
     ></div>
   {:else}
     <div class="h-0 shrink-0 border-t border-surface-700"></div>

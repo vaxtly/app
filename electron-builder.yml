@@ -10,6 +10,9 @@ files:
   - package.json
   - node_modules/**/*
 
+asarUnpack:
+  - node_modules/better-sqlite3/**/*
+
 npmRebuild: true
 
 afterSign: build/notarize.js
@@ -46,6 +49,6 @@ linux:
     - AppImage
     - deb
   category: Development
-  artifactName: Vaxtly-${version}.${ext}
+  artifactName: Vaxtly-${version}-${arch}.${ext}
   icon: build/icon.png
   executableName: vaxtly

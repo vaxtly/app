@@ -64,12 +64,14 @@
     // Track dependencies so we re-fetch when active env or collection changes
     void environmentsStore.activeEnvironmentId
     void currentCollectionId
+    let cancelled = false
     window.api.variables.resolveWithSource(
       appStore.activeWorkspaceId ?? undefined,
       currentCollectionId,
     ).then((result) => {
-      resolvedVars = result as Record<string, ResolvedVariable>
+      if (!cancelled) resolvedVars = result as Record<string, ResolvedVariable>
     })
+    return () => { cancelled = true }
   })
 
   function getResolvedVariables(): Record<string, ResolvedVariable> {
@@ -169,11 +171,7 @@
       bodyContent = undefined
     } else if (state.body_type === 'graphql') {
       // Wrap query + variables as JSON
-      try {
-        bodyContent = JSON.stringify({ query: state.body ?? '', variables: JSON.parse('{}') })
-      } catch {
-        bodyContent = JSON.stringify({ query: state.body ?? '' })
-      }
+      bodyContent = JSON.stringify({ query: state.body ?? '', variables: {} })
     }
 
     try {
@@ -268,6 +266,12 @@
 
   let layout = $derived(settingsStore.get('request.layout'))
 
+  // Reset split when layout changes
+  $effect(() => {
+    void layout
+    splitPercent = 50
+  })
+
   // --- Draggable splitter ---
   let splitPercent = $state(50)
   let dragging = $state(false)
@@ -293,6 +297,10 @@
   }
 
   function onDividerPointerUp(): void {
+    dragging = false
+  }
+
+  function onDividerPointerCancel(): void {
     dragging = false
   }
 </script>
@@ -396,6 +404,7 @@
         onpointerdown={onDividerPointerDown}
         onpointermove={onDividerPointerMove}
         onpointerup={onDividerPointerUp}
+        onpointercancel={onDividerPointerCancel}
       ></div>
 
       <!-- Response section -->

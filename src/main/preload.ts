@@ -210,28 +210,28 @@ const api = {
     },
     menuNewRequest: (callback: () => void): (() => void) => {
       const handler = (): void => callback()
-      ipcRenderer.on('menu:new-request', handler)
-      return () => ipcRenderer.removeListener('menu:new-request', handler)
+      ipcRenderer.on(IPC.MENU_NEW_REQUEST, handler)
+      return () => ipcRenderer.removeListener(IPC.MENU_NEW_REQUEST, handler)
     },
     menuSaveRequest: (callback: () => void): (() => void) => {
       const handler = (): void => callback()
-      ipcRenderer.on('menu:save-request', handler)
-      return () => ipcRenderer.removeListener('menu:save-request', handler)
+      ipcRenderer.on(IPC.MENU_SAVE_REQUEST, handler)
+      return () => ipcRenderer.removeListener(IPC.MENU_SAVE_REQUEST, handler)
     },
     menuOpenSettings: (callback: () => void): (() => void) => {
       const handler = (): void => callback()
-      ipcRenderer.on('menu:open-settings', handler)
-      return () => ipcRenderer.removeListener('menu:open-settings', handler)
+      ipcRenderer.on(IPC.MENU_OPEN_SETTINGS, handler)
+      return () => ipcRenderer.removeListener(IPC.MENU_OPEN_SETTINGS, handler)
     },
     menuOpenManual: (callback: () => void): (() => void) => {
       const handler = (): void => callback()
-      ipcRenderer.on('menu:open-manual', handler)
-      return () => ipcRenderer.removeListener('menu:open-manual', handler)
+      ipcRenderer.on(IPC.MENU_OPEN_MANUAL, handler)
+      return () => ipcRenderer.removeListener(IPC.MENU_OPEN_MANUAL, handler)
     },
     menuCheckUpdates: (callback: () => void): (() => void) => {
       const handler = (): void => callback()
-      ipcRenderer.on('menu:check-updates', handler)
-      return () => ipcRenderer.removeListener('menu:check-updates', handler)
+      ipcRenderer.on(IPC.MENU_CHECK_UPDATES, handler)
+      return () => ipcRenderer.removeListener(IPC.MENU_CHECK_UPDATES, handler)
     },
   },
 }

@@ -395,14 +395,19 @@ export async function pushAll(workspaceId?: string): Promise<SyncResult> {
   const result: SyncResult = { success: true, message: '', pulled: 0, pushed: 0, conflicts: [] }
 
   const db = getDatabase()
-  const collections = db
-    .prepare(`
-      SELECT * FROM collections
-      WHERE sync_enabled = 1
-        AND (workspace_id = ? OR workspace_id IS NULL)
-        AND (is_dirty = 1 OR remote_sha IS NULL)
-    `)
-    .all(workspaceId ?? null) as Collection[]
+  const collections = workspaceId
+    ? db.prepare(`
+        SELECT * FROM collections
+        WHERE sync_enabled = 1
+          AND workspace_id = ?
+          AND (is_dirty = 1 OR remote_sha IS NULL)
+      `).all(workspaceId) as Collection[]
+    : db.prepare(`
+        SELECT * FROM collections
+        WHERE sync_enabled = 1
+          AND workspace_id IS NULL
+          AND (is_dirty = 1 OR remote_sha IS NULL)
+      `).all() as Collection[]
 
   for (const collection of collections) {
     try {
@@ -609,8 +614,11 @@ function buildFolderPath(folderId: string | null): string {
   const db = getDatabase()
   const segments: string[] = []
   let currentId: string | null = folderId
+  const visited = new Set<string>()
 
   while (currentId) {
+    if (visited.has(currentId)) break // cycle detection
+    visited.add(currentId)
     const folder = db.prepare('SELECT id, parent_id FROM folders WHERE id = ?').get(currentId) as
       | { id: string; parent_id: string | null }
       | undefined

@@ -40,7 +40,7 @@
 
 <div class="flex h-full flex-col bg-surface-900">
   <!-- Workspace switcher -->
-  <div class="drag-region shrink-0 border-b border-surface-700 px-2" style="padding-top: {navigator.platform.includes('Mac') ? 'calc(2rem + 6px)' : '6px'}; padding-bottom: 5px">
+  <div class="drag-region shrink-0 border-b border-surface-700 px-2" style="padding-top: {window.navigator.userAgent.includes('Macintosh') ? 'calc(2rem + 6px)' : '6px'}; padding-bottom: 5px">
     <WorkspaceSwitcher />
   </div>
 

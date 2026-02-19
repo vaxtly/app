@@ -221,20 +221,17 @@ export async function pullAll(workspaceId?: string): Promise<{ created: number; 
         .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
         .join(' ')
 
-      environmentsRepo.create({
+      const created = environmentsRepo.create({
         name: friendlyName,
         workspace_id: workspaceId,
         variables: '[]',
       })
 
       // Update the newly created environment with vault settings
-      const created = environmentsRepo.findAll().find((e) => e.name === friendlyName)
-      if (created) {
-        environmentsRepo.update(created.id, {
-          vault_synced: 1,
-          vault_path: name,
-        })
-      }
+      environmentsRepo.update(created.id, {
+        vault_synced: 1,
+        vault_path: name,
+      })
 
       result.created++
     } catch (e) {

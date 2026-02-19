@@ -32,6 +32,7 @@
       <h2 class="text-sm font-semibold text-surface-100">{title}</h2>
       <button
         onclick={onclose}
+        aria-label="Close"
         class="flex h-6 w-6 items-center justify-center rounded text-surface-400 hover:bg-surface-700 hover:text-surface-200"
       >
         <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">

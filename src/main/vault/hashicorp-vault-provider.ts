@@ -1,7 +1,7 @@
 /**
  * HashiCorp Vault KV v2 provider.
  * Supports token and AppRole authentication.
- * Namespace header is only used during AppRole auth — data operations do NOT send it.
+ * Namespace header is sent on all requests when configured (required for Vault Enterprise / HCP Vault).
  */
 
 import type { SecretsProvider } from './secrets-provider.interface'
@@ -10,7 +10,7 @@ import { Agent, fetch as undiciFetch } from 'undici'
 
 export class HashiCorpVaultProvider implements SecretsProvider {
   private token: string
-  private readonly authNamespace: string | null
+  private readonly namespace: string | null
   private readonly dispatcher: Agent | undefined
 
   constructor(
@@ -23,7 +23,7 @@ export class HashiCorpVaultProvider implements SecretsProvider {
     private readonly secretId?: string,
     verifySsl = true,
   ) {
-    this.authNamespace = namespace
+    this.namespace = namespace
     // AppRole login is async — callers must use the static create() method
     this.token = token
 
@@ -143,26 +143,28 @@ export class HashiCorpVaultProvider implements SecretsProvider {
 
     // For AppRole, test the login endpoint
     try {
-      const headers: Record<string, string> = {}
-      if (this.authNamespace) {
-        headers['X-Vault-Namespace'] = this.authNamespace
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+      if (this.namespace) {
+        headers['X-Vault-Namespace'] = this.namespace
       }
 
       const controller = new AbortController()
       const timeout = setTimeout(() => controller.abort(), 30_000)
 
-      const response = await this.fetch(`${this.url}/v1/auth/approle/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...headers },
-        body: JSON.stringify({
-          role_id: this.roleId,
-          secret_id: this.secretId,
-        }),
-        signal: controller.signal,
-      })
-
-      clearTimeout(timeout)
-      return response.ok
+      try {
+        const response = await this.fetch(`${this.url}/v1/auth/approle/login`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            role_id: this.roleId,
+            secret_id: this.secretId,
+          }),
+          signal: controller.signal,
+        })
+        return response.ok
+      } finally {
+        clearTimeout(timeout)
+      }
     } catch {
       return false
     }
@@ -173,36 +175,42 @@ export class HashiCorpVaultProvider implements SecretsProvider {
       'Content-Type': 'application/json',
     }
 
-    if (this.authNamespace) {
-      headers['X-Vault-Namespace'] = this.authNamespace
+    if (this.namespace) {
+      headers['X-Vault-Namespace'] = this.namespace
     }
 
     const controller = new AbortController()
     const timeout = setTimeout(() => controller.abort(), 30_000)
 
-    const response = await this.fetch(`${this.url}/v1/auth/approle/login`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
-        role_id: this.roleId,
-        secret_id: this.secretId,
-      }),
-      signal: controller.signal,
-    })
-
-    clearTimeout(timeout)
+    let response: Response
+    try {
+      response = await this.fetch(`${this.url}/v1/auth/approle/login`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          role_id: this.roleId,
+          secret_id: this.secretId,
+        }),
+        signal: controller.signal,
+      })
+    } finally {
+      clearTimeout(timeout)
+    }
 
     if (!response.ok) {
       throw new Error(`AppRole login failed: ${response.status} ${response.statusText}`)
     }
 
     const json = await response.json()
+    if (!json?.auth?.client_token) {
+      throw new Error('AppRole login response missing auth.client_token')
+    }
     return json.auth.client_token
   }
 
   /**
-   * Make an authenticated request for data operations.
-   * Namespace header is NOT sent for data operations — only for authentication.
+   * Make an authenticated request. Namespace header is sent when configured
+   * (required for Vault Enterprise / HCP Vault).
    */
   private async request(
     method: string,
@@ -213,6 +221,10 @@ export class HashiCorpVaultProvider implements SecretsProvider {
       'X-Vault-Token': this.token,
     }
 
+    if (this.namespace) {
+      headers['X-Vault-Namespace'] = this.namespace
+    }
+
     if (body) {
       headers['Content-Type'] = 'application/json'
     }
@@ -220,15 +232,17 @@ export class HashiCorpVaultProvider implements SecretsProvider {
     const controller = new AbortController()
     const timeout = setTimeout(() => controller.abort(), 30_000)
 
-    const response = await this.fetch(url, {
-      method,
-      headers,
-      body: body ? JSON.stringify(body) : undefined,
-      signal: controller.signal,
-    })
-
-    clearTimeout(timeout)
-    return response
+    try {
+      const response = await this.fetch(url, {
+        method,
+        headers,
+        body: body ? JSON.stringify(body) : undefined,
+        signal: controller.signal,
+      })
+      return response
+    } finally {
+      clearTimeout(timeout)
+    }
   }
 
   /** Wrapper that uses undici's fetch with custom dispatcher when verifySsl is off. */

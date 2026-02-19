@@ -34,7 +34,9 @@
         tabs: appStore.openTabs.map((t) => ({ type: t.type, entityId: t.entityId, pinned: t.pinned })),
         activeEntityId: appStore.activeTab?.entityId ?? null,
       }
-      window.api.settings.set('session.tabs', JSON.stringify(session))
+      const wsId = appStore.activeWorkspaceId
+      const sessionKey = wsId ? `session.tabs.${wsId}` : 'session.tabs'
+      window.api.settings.set(sessionKey, JSON.stringify(session))
     }, 500)
   }
 
@@ -62,7 +64,9 @@
 
   async function restoreSession(): Promise<void> {
     try {
-      const raw = await window.api.settings.get('session.tabs')
+      const wsId = appStore.activeWorkspaceId
+      const sessionKey = wsId ? `session.tabs.${wsId}` : 'session.tabs'
+      const raw = await window.api.settings.get(sessionKey)
       if (!raw) return
       const session: PersistedSession = JSON.parse(raw)
       if (!Array.isArray(session.tabs)) return
@@ -210,6 +214,7 @@
     return () => {
       cleanups.forEach((fn) => fn())
       document.removeEventListener('keydown', handleKeydown)
+      clearTimeout(saveTimer)
     }
   })
 </script>
@@ -227,7 +232,7 @@
     <!-- Main area -->
     <div class="flex min-w-0 flex-1 flex-col">
       <!-- Drag region (non-Mac or when sidebar collapsed) -->
-      {#if navigator.platform.includes('Mac')}
+      {#if window.navigator.userAgent.includes('Macintosh')}
         <div class="drag-region shrink-0" style="height: 2rem"></div>
       {:else if appStore.sidebarCollapsed}
         <div class="drag-region h-2 shrink-0"></div>

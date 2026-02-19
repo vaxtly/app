@@ -40,6 +40,9 @@
     const trimmed = renameValue.trim()
     if (trimmed && trimmed !== node.name) {
       await collectionsStore.renameRequest(node.id, trimmed)
+      // Update open tab label if this request has one
+      const tab = appStore.openTabs.find((t) => t.entityId === node.id && t.type === 'request')
+      if (tab) appStore.updateTabLabel(tab.id, trimmed)
     }
     renaming = false
   }

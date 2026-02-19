@@ -51,7 +51,8 @@
   async function fetchVaultVariablesOnLoad(): Promise<void> {
     vaultPulling = true
     try {
-      const vars = await window.api.vault.fetchVariables(environmentId)
+      const wsId = appStore.activeWorkspaceId ?? undefined
+      const vars = await window.api.vault.fetchVariables(environmentId, wsId)
       variables = vars.length > 0 ? vars : [{ key: '', value: '', enabled: true }]
       if (vars.length > 0) {
         await environmentsStore.update(environmentId, { variables: JSON.stringify(vars) })
@@ -100,7 +101,14 @@
   })
 
   async function checkVaultConfigured(): Promise<void> {
-    const url = await window.api.settings.get('vault.url')
+    const wsId = appStore.activeWorkspaceId
+    let url: string | undefined
+    if (wsId) {
+      url = await window.api.workspaceSettings.get(wsId, 'vault.url')
+    }
+    if (!url) {
+      url = await window.api.settings.get('vault.url')
+    }
     vaultConfigured = !!url
   }
 
@@ -114,7 +122,8 @@
     vaultPulling = true
     vaultStatus = null
     try {
-      const vars = await window.api.vault.fetchVariables(environmentId)
+      const wsId = appStore.activeWorkspaceId ?? undefined
+      const vars = await window.api.vault.fetchVariables(environmentId, wsId)
       variables = vars.length > 0 ? vars : [{ key: '', value: '', enabled: true }]
       await environmentsStore.update(environmentId, { variables: JSON.stringify(vars) })
       vaultStatus = { type: 'success', message: `Pulled ${vars.length} variables from Vault` }
@@ -129,7 +138,8 @@
     vaultPushing = true
     vaultStatus = null
     try {
-      const result = await window.api.vault.pushVariables(environmentId, variables)
+      const wsId = appStore.activeWorkspaceId ?? undefined
+      const result = await window.api.vault.pushVariables(environmentId, variables, wsId)
       vaultStatus = result.success
         ? { type: 'success', message: 'Pushed variables to Vault' }
         : { type: 'error', message: result.message ?? 'Push failed' }
