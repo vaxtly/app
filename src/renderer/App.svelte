@@ -50,15 +50,12 @@
     if (!tab) return
     if (tab.type === 'request') {
       collectionsStore.revealRequest(tab.entityId)
-      if (appStore.sidebarMode !== 'collections') appStore.setSidebarMode('collections')
 
       // Auto-activate default environment for this request's folder/collection
       const defaultEnvId = collectionsStore.resolveDefaultEnvironment(tab.entityId)
       if (defaultEnvId && defaultEnvId !== environmentsStore.activeEnvironmentId) {
         environmentsStore.activate(defaultEnvId, appStore.activeWorkspaceId ?? undefined)
       }
-    } else if (tab.type === 'environment') {
-      if (appStore.sidebarMode !== 'environments') appStore.setSidebarMode('environments')
     }
   })
 
