@@ -23,6 +23,10 @@ publish:
   repo: app
   releaseType: release
 
+extraResources:
+  - from: build/icons
+    to: icons
+
 win:
   target: nsis
   artifactName: Vaxtly-${version}-setup.${ext}
@@ -50,7 +54,7 @@ linux:
     - deb
   category: Development
   artifactName: Vaxtly-${version}-${arch}.${ext}
-  icon: build/icon.png
+  icon: build/icons
   executableName: vaxtly
   extraResources:
     - from: build/icon.png

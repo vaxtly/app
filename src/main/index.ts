@@ -1,4 +1,4 @@
-import { app, BrowserWindow } from 'electron'
+import { app, BrowserWindow, nativeImage } from 'electron'
 import { join } from 'path'
 import { is } from '@electron-toolkit/utils'
 import { initEncryption } from './services/encryption'
@@ -32,6 +32,33 @@ import { logVault, logSync } from './services/session-log'
 
 let mainWindow: BrowserWindow | null = null
 
+function getAppIcon(): Electron.NativeImage {
+  const iconsDir = app.isPackaged
+    ? join(process.resourcesPath, 'icons')
+    : join(__dirname, '../../build/icons')
+  const sizes = [16, 32, 48, 64, 128, 256, 512]
+  const image = nativeImage.createEmpty()
+  for (const size of sizes) {
+    const sizePath = join(iconsDir, `${size}x${size}.png`)
+    try {
+      const sizeImage = nativeImage.createFromPath(sizePath)
+      if (!sizeImage.isEmpty()) {
+        image.addRepresentation({ width: size, height: size, buffer: sizeImage.toPNG() })
+      }
+    } catch {
+      // skip missing sizes
+    }
+  }
+  // Fallback to single icon.png if no sized icons found
+  if (image.isEmpty()) {
+    const fallback = app.isPackaged
+      ? join(process.resourcesPath, 'icon.png')
+      : join(__dirname, '../../build/icon.png')
+    return nativeImage.createFromPath(fallback)
+  }
+  return image
+}
+
 function createWindow(): void {
   const state = getWindowState()
 
@@ -43,11 +70,7 @@ function createWindow(): void {
     minWidth: 800,
     minHeight: 600,
     ...(process.platform !== 'darwin'
-      ? {
-          icon: app.isPackaged
-            ? join(process.resourcesPath, 'icon.png')
-            : join(__dirname, '../../build/icon.png'),
-        }
+      ? { icon: getAppIcon() }
       : {}),
     titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
     trafficLightPosition: { x: 15, y: 15 },
