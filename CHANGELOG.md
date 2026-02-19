@@ -24,9 +24,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Vault settings: inline hints for Namespace and Engine Path fields
 - Expanded Vault section in user manual with field-by-field configuration guide
 - Save button in environment editor with Cmd/Ctrl+S support; auto-pushes to Vault when synced
+- Drag-and-drop request moves now auto-sync affected collections when sync is enabled
+- Sidebar auto-switches between Collections and Environments based on active tab type
 
 ### Changed
 - Environment variables no longer auto-save on every keystroke — requires explicit Save
+- Default verify SSL setting changed to off for new installs
 
 ### Fixed
 - Vault "fetch failed" errors now show descriptive messages (SSL errors, DNS failures, connection refused, etc.) instead of generic "fetch failed"

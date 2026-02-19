@@ -72,6 +72,7 @@ vaxtly/
 │   │   │   ├── code-generator.ts       # Code snippet generation (5 languages)
 │   │   │   ├── session-log.ts          # In-memory ring buffer, push to renderer
 │   │   │   ├── yaml-serializer.ts      # Collection ↔ YAML directory serialization/import
+│   │   │   ├── fetch-error.ts            # Shared formatFetchError (SSL, DNS, timeout, etc.)
 │   │   │   ├── sensitive-data-scanner.ts # Scan/sanitize sensitive data in requests & variables
 │   │   │   ├── data-export-import.ts  # Export/import collections, environments, config
 │   │   │   ├── postman-import.ts      # Import Postman collections/environments (3 formats)
@@ -112,8 +113,8 @@ vaxtly/
 │           │   └── SystemLog.svelte    # Collapsible bottom panel: logs + request history
 │           ├── sidebar/
 │           │   ├── CollectionTree.svelte # Recursive tree with search filter
-│           │   ├── CollectionItem.svelte # Expand/collapse, rename, sync, drag-drop target
-│           │   ├── FolderItem.svelte    # Same pattern, self-recursive, drag-drop target
+│           │   ├── CollectionItem.svelte # Expand/collapse, rename, sync, drag-drop target + auto-sync on move
+│           │   ├── FolderItem.svelte    # Same pattern, self-recursive, drag-drop target + auto-sync on move
 │           │   ├── RequestItem.svelte   # Method badge, active state, draggable
 │           │   ├── EnvironmentList.svelte # Env list + active toggle + context menu
 │           │   └── WorkspaceSwitcher.svelte # Dropdown workspace selector + rename/delete/create
@@ -126,7 +127,7 @@ vaxtly/
 │           │   ├── AuthEditor.svelte     # 4 auth types: none/bearer/basic/api-key
 │           │   └── ScriptsEditor.svelte  # Pre-request + post-response script config
 │           ├── environment/
-│           │   └── EnvironmentEditor.svelte # Name, active toggle, variables, vault sync
+│           │   └── EnvironmentEditor.svelte # Name, active toggle, variables, Save button, vault sync
 │           ├── response/
 │           │   ├── ResponseViewer.svelte  # Status bar + Body/Headers/Cookies/Preview tabs
 │           │   ├── ResponseBody.svelte    # Read-only CodeMirror, auto-detect language
@@ -460,7 +461,7 @@ AUTH_TYPES = ['none','bearer','basic','api-key'] as const
 SENSITIVE_HEADERS = ['authorization','x-api-key','cookie','set-cookie', ...]
 SENSITIVE_PARAM_KEYS = ['api_key','apikey','token','secret','password', ...]
 DEFAULTS = { REQUEST_TIMEOUT_MS: 30000, HISTORY_RETENTION_DAYS: 30, FOLLOW_REDIRECTS: true,
-    VERIFY_SSL: true, MAX_SCRIPT_CHAIN_DEPTH: 3, MAX_VARIABLE_NESTING: 10, SESSION_LOG_MAX_ENTRIES: 100 }
+    VERIFY_SSL: false, MAX_SCRIPT_CHAIN_DEPTH: 3, MAX_VARIABLE_NESTING: 10, SESSION_LOG_MAX_ENTRIES: 100 }
 ```
 
 ---
@@ -530,6 +531,11 @@ All stores use this pattern: module-level `$state` + `$derived` + exported objec
 - Sensitive keys encrypted: `sync.token`, `vault.token`, `vault.role_id`, `vault.secret_id`
 - **Fallback pattern**: Services (`getProvider`) try workspace settings first, fall back to global `app_settings` if workspace has no config for that domain
 - Provider cache invalidation: `ipc/settings.ts` monitors `PROVIDER_KEYS` set and calls `resetVaultProvider()` when relevant keys change
+
+### Fetch Error Formatting (`services/fetch-error.ts`)
+- `formatFetchError(error, url?)` → user-friendly error message from undici/fetch errors
+- Unwraps `error.cause.code` for descriptive messages: SSL certificate errors, DNS lookup failures, connection refused, EHOSTUNREACH, timeouts, abort signals
+- Shared by proxy handler and vault IPC handlers
 
 ### HTTP Proxy (`ipc/proxy.ts`)
 - Uses Node `fetch` with `AbortController` per request ID
