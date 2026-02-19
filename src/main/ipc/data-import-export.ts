@@ -1,4 +1,5 @@
 import { ipcMain } from 'electron'
+import { readFileSync } from 'fs'
 import { IPC } from '../../shared/types/ipc'
 import * as dataService from '../services/data-export-import'
 import { importPostman } from '../services/postman-import'
@@ -21,6 +22,10 @@ export function registerDataImportExportHandlers(): void {
       }
     },
   )
+
+  ipcMain.handle(IPC.DATA_READ_FILE, async (_event, filePath: string) => {
+    return readFileSync(filePath, 'utf-8')
+  })
 
   ipcMain.handle(IPC.DATA_IMPORT, async (_event, json: string, workspaceId?: string) => {
     return dataService.importData(json, workspaceId)

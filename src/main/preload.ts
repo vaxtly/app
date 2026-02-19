@@ -154,6 +154,8 @@ const api = {
   data: {
     export: (type: 'all' | 'collections' | 'environments' | 'config', workspaceId?: string): Promise<Record<string, unknown>> =>
       ipcRenderer.invoke(IPC.DATA_EXPORT, type, workspaceId),
+    readFile: (filePath: string): Promise<string> =>
+      ipcRenderer.invoke(IPC.DATA_READ_FILE, filePath),
     import: (json: string, workspaceId?: string): Promise<{ collections: number; environments: number; config: boolean; errors: string[] }> =>
       ipcRenderer.invoke(IPC.DATA_IMPORT, json, workspaceId),
     importPostman: (json: string, workspaceId?: string): Promise<PostmanImportResult> =>

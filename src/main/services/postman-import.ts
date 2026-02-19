@@ -111,7 +111,7 @@ function parseDumpCollection(
   try {
     const txn = db.transaction(() => {
       const collection = collectionsRepo.create({
-        name: generateUniqueCollectionName(name),
+        name: generateUniqueCollectionName(name, workspaceId),
         workspace_id: workspaceId,
         description: description ?? undefined,
       })
@@ -335,7 +335,7 @@ function parseCollection(
   try {
     const txn = db.transaction(() => {
       const collection = collectionsRepo.create({
-        name: generateUniqueCollectionName(name),
+        name: generateUniqueCollectionName(name, workspaceId),
         workspace_id: workspaceId,
         description: description ?? undefined,
       })
@@ -436,7 +436,7 @@ function parseEnvironment(
 
   try {
     environmentsRepo.create({
-      name: generateUniqueEnvironmentName(name),
+      name: generateUniqueEnvironmentName(name, workspaceId),
       workspace_id: workspaceId,
       variables: JSON.stringify(variables),
     })
@@ -542,20 +542,21 @@ function extractBody(body: Record<string, unknown> | null | undefined): string |
 
 function buildUrlencodedBody(params: Record<string, unknown>[]): string {
   const data = params
-    .filter((p) => !(p.disabled ?? false))
     .map((p) => ({
       key: stringify(p.key ?? ''),
       value: stringify(p.value ?? ''),
+      enabled: !(p.disabled ?? false),
     }))
   return JSON.stringify(data)
 }
 
 function buildFormdataBody(params: Record<string, unknown>[]): string {
   const data = params
-    .filter((p) => !(p.disabled ?? false) && (p.type ?? 'text') === 'text')
+    .filter((p) => (p.type ?? 'text') === 'text')
     .map((p) => ({
       key: stringify(p.key ?? ''),
       value: stringify(p.value ?? ''),
+      enabled: !(p.disabled ?? false),
     }))
   return JSON.stringify(data)
 }
@@ -595,22 +596,22 @@ function stringify(value: unknown): string {
   return String(value)
 }
 
-function generateUniqueCollectionName(baseName: string): string {
+function generateUniqueCollectionName(baseName: string, workspaceId?: string): string {
   const db = getDatabase()
   let name = baseName
   let counter = 1
-  while (db.prepare('SELECT 1 FROM collections WHERE name = ?').get(name)) {
+  while (db.prepare('SELECT 1 FROM collections WHERE name = ? AND workspace_id IS ?').get(name, workspaceId ?? null)) {
     counter++
     name = `${baseName} (${counter})`
   }
   return name
 }
 
-function generateUniqueEnvironmentName(baseName: string): string {
+function generateUniqueEnvironmentName(baseName: string, workspaceId?: string): string {
   const db = getDatabase()
   let name = baseName
   let counter = 1
-  while (db.prepare('SELECT 1 FROM environments WHERE name = ?').get(name)) {
+  while (db.prepare('SELECT 1 FROM environments WHERE name = ? AND workspace_id IS ?').get(name, workspaceId ?? null)) {
     counter++
     name = `${baseName} (${counter})`
   }

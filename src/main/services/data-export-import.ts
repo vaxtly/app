@@ -157,7 +157,7 @@ function importCollections(
     try {
       const txn = db.transaction(() => {
         const collection = collectionsRepo.create({
-          name: generateUniqueCollectionName(collData.name ?? 'Imported Collection'),
+          name: generateUniqueCollectionName(collData.name ?? 'Imported Collection', workspaceId),
           workspace_id: workspaceId,
           description: collData.description ?? undefined,
         })
@@ -250,7 +250,7 @@ function importEnvironments(
   for (const envData of environments) {
     try {
       const env = environmentsRepo.create({
-        name: generateUniqueEnvironmentName(envData.name ?? 'Imported Environment'),
+        name: generateUniqueEnvironmentName(envData.name ?? 'Imported Environment', workspaceId),
         workspace_id: workspaceId,
         variables: typeof envData.variables === 'string'
           ? envData.variables
@@ -407,12 +407,12 @@ function wrap(type: string, data: Record<string, unknown>): ExportWrapper {
   }
 }
 
-function generateUniqueCollectionName(baseName: string): string {
+function generateUniqueCollectionName(baseName: string, workspaceId?: string): string {
   const db = getDatabase()
   let name = baseName
   let counter = 1
 
-  while (db.prepare('SELECT 1 FROM collections WHERE name = ?').get(name)) {
+  while (db.prepare('SELECT 1 FROM collections WHERE name = ? AND workspace_id IS ?').get(name, workspaceId ?? null)) {
     counter++
     name = `${baseName} (${counter})`
   }
@@ -420,12 +420,12 @@ function generateUniqueCollectionName(baseName: string): string {
   return name
 }
 
-function generateUniqueEnvironmentName(baseName: string): string {
+function generateUniqueEnvironmentName(baseName: string, workspaceId?: string): string {
   const db = getDatabase()
   let name = baseName
   let counter = 1
 
-  while (db.prepare('SELECT 1 FROM environments WHERE name = ?').get(name)) {
+  while (db.prepare('SELECT 1 FROM environments WHERE name = ? AND workspace_id IS ?').get(name, workspaceId ?? null)) {
     counter++
     name = `${baseName} (${counter})`
   }
