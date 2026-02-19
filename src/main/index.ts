@@ -40,8 +40,12 @@ function createWindow(): void {
     y: state.y ?? undefined,
     minWidth: 800,
     minHeight: 600,
-    ...(!app.isPackaged && process.platform !== 'darwin'
-      ? { icon: join(__dirname, '../../build/icon.png') }
+    ...(process.platform !== 'darwin'
+      ? {
+          icon: app.isPackaged
+            ? join(process.resourcesPath, 'icon.png')
+            : join(__dirname, '../../build/icon.png'),
+        }
       : {}),
     titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
     trafficLightPosition: { x: 15, y: 15 },
