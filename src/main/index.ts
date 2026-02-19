@@ -223,7 +223,7 @@ app.whenReady().then(() => {
   registerAllIpcHandlers()
 
   // Prune old request histories
-  const retentionDays = parseInt(getSetting('history_retention_days') ?? '', 10) || DEFAULTS.HISTORY_RETENTION_DAYS
+  const retentionDays = parseInt(getSetting('history.retention_days') ?? '', 10) || DEFAULTS.HISTORY_RETENTION_DAYS
   historiesRepo.prune(retentionDays)
 
   // Build native menu

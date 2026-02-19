@@ -20,7 +20,7 @@ type SettingsKey = keyof SettingsMap
 // --- Defaults ---
 
 const defaults: SettingsMap = {
-  'request.layout': 'rows',
+  'request.layout': 'columns',
   'request.timeout': 30,
   'request.verify_ssl': true,
   'request.follow_redirects': true,

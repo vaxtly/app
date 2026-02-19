@@ -11,6 +11,7 @@
   import { appStore, type TabRequestState } from '../../lib/stores/app.svelte'
   import { collectionsStore } from '../../lib/stores/collections.svelte'
   import { environmentsStore } from '../../lib/stores/environments.svelte'
+  import { settingsStore } from '../../lib/stores/settings.svelte'
   import type { KeyValueEntry, AuthConfig, ScriptsConfig, FormDataEntry, ResponseData } from '../../lib/types'
   import type { ResolvedVariable } from '../../lib/utils/variable-highlight'
 
@@ -257,6 +258,36 @@
     { key: 'auth' as const, label: 'Auth', icon: 'auth' },
     { key: 'scripts' as const, label: 'Scripts', icon: 'scripts' },
   ] as const
+
+  let layout = $derived(settingsStore.get('request.layout'))
+
+  // --- Draggable splitter ---
+  let splitPercent = $state(50)
+  let dragging = $state(false)
+  let splitContainer = $state<HTMLElement | null>(null)
+
+  function onDividerPointerDown(e: PointerEvent): void {
+    e.preventDefault()
+    dragging = true
+    const target = e.currentTarget as HTMLElement
+    target.setPointerCapture(e.pointerId)
+  }
+
+  function onDividerPointerMove(e: PointerEvent): void {
+    if (!dragging || !splitContainer) return
+    const rect = splitContainer.getBoundingClientRect()
+    let pct: number
+    if (layout === 'rows') {
+      pct = ((e.clientY - rect.top) / rect.height) * 100
+    } else {
+      pct = ((e.clientX - rect.left) / rect.width) * 100
+    }
+    splitPercent = Math.min(85, Math.max(15, pct))
+  }
+
+  function onDividerPointerUp(): void {
+    dragging = false
+  }
 </script>
 
 {#if state}
@@ -275,9 +306,14 @@
     />
 
     <!-- Split: request tabs + response -->
-    <div class="rb-split">
+    <div
+      class="rb-split"
+      class:rb-split--rows={layout === 'rows'}
+      class:rb-split--dragging={dragging}
+      bind:this={splitContainer}
+    >
       <!-- Request section -->
-      <div class="rb-request">
+      <div class="rb-request" style="flex: {splitPercent} 0 0%;">
         <!-- Sub-tabs -->
         <div class="rb-tabs">
           {#each requestTabs as tab}
@@ -346,10 +382,17 @@
       </div>
 
       <!-- Divider -->
-      <div class="rb-divider"></div>
+      <div
+        class="rb-divider"
+        role="separator"
+        tabindex="-1"
+        onpointerdown={onDividerPointerDown}
+        onpointermove={onDividerPointerMove}
+        onpointerup={onDividerPointerUp}
+      ></div>
 
       <!-- Response section -->
-      <div class="rb-response">
+      <div class="rb-response" style="flex: {100 - splitPercent} 0 0%;">
         <ResponseViewer response={state.response} loading={state.loading} />
       </div>
     </div>
@@ -382,31 +425,56 @@
     height: 100%;
   }
 
-  /* --- Split layout --- */
+  /* --- Split layout (default: columns / side-by-side) --- */
   .rb-split {
     display: flex;
     flex: 1;
     min-height: 0;
   }
 
+  .rb-split--dragging {
+    user-select: none;
+  }
+
   .rb-request {
     display: flex;
     flex-direction: column;
-    width: 50%;
     min-width: 0;
+    min-height: 0;
+    overflow: hidden;
   }
 
   .rb-divider {
-    width: 1px;
-    background: var(--color-surface-700);
     flex-shrink: 0;
+    width: 5px;
+    background: var(--color-surface-700);
+    cursor: col-resize;
+    position: relative;
+    transition: background 0.12s;
+  }
+
+  .rb-divider:hover,
+  .rb-split--dragging .rb-divider {
+    background: var(--color-brand-500);
   }
 
   .rb-response {
     display: flex;
     flex-direction: column;
-    width: 50%;
     min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  /* Rows layout (top / bottom) */
+  .rb-split--rows {
+    flex-direction: column;
+  }
+
+  .rb-split--rows > .rb-divider {
+    width: auto;
+    height: 5px;
+    cursor: row-resize;
   }
 
   /* --- Sub-tabs --- */
