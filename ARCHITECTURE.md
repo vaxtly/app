@@ -243,7 +243,7 @@ requests 1──N request_histories
 | query_params | TEXT | NULL | JSON `KeyValueEntry[]` |
 | body | TEXT | NULL | String or JSON (form-data: serialized `FormDataEntry[]`) |
 | body_type | TEXT | 'json' | none\|json\|xml\|form-data\|urlencoded\|raw\|graphql |
-| auth | TEXT | NULL | JSON `AuthConfig` |
+| auth | TEXT | NULL | JSON `AuthConfig` — sensitive fields encrypted with `enc:` prefix |
 | scripts | TEXT | NULL | JSON `ScriptsConfig` |
 | order | INTEGER | 0 | |
 | created_at | TEXT | datetime('now') | |
@@ -255,7 +255,7 @@ requests 1──N request_histories
 | id | TEXT PK | uuid | |
 | workspace_id | TEXT | NULL | FK → workspaces ON DELETE CASCADE |
 | name | TEXT NOT NULL | | |
-| variables | TEXT NOT NULL | '[]' | JSON `EnvironmentVariable[]` |
+| variables | TEXT NOT NULL | '[]' | JSON `EnvironmentVariable[]` — values encrypted with `enc:` prefix |
 | is_active | INTEGER | 0 | Only 1 active per workspace (enforced in code) |
 | order | INTEGER | 0 | |
 | vault_synced | INTEGER | 0 | |
@@ -285,7 +285,7 @@ requests 1──N request_histories
 | Column | Type | Notes |
 |--------|------|-------|
 | key | TEXT PK | |
-| value | TEXT NOT NULL | |
+| value | TEXT NOT NULL | Sensitive keys (`vault.token`, `vault.role_id`, `vault.secret_id`, `sync.token`) stored as AES-256-CBC encrypted base64 |
 
 #### `window_state`
 | Column | Type | Default | Notes |
@@ -478,6 +478,11 @@ All stores use this pattern: module-level `$state` + `$derived` + exported objec
 - `encryptValue(plaintext)` → AES-256-CBC, returns base64(IV + ciphertext)
 - `decryptValue(encrypted)` → reverse
 - `initEncryptionForTesting(key?)` → bypass safeStorage for Vitest
+- **Repository-layer integration**: encryption is transparent at the repository layer — callers (IPC, services, UI) are unaware
+  - **Settings**: `SENSITIVE_KEYS` set (`vault.token`, `vault.role_id`, `vault.secret_id`, `sync.token`) — encrypted on write, decrypted on read with try/catch fallback for pre-migration plaintext
+  - **Environments**: variable values encrypted with `enc:` prefix — `encryptVariables()`/`decryptVariables()` in all CRUD paths
+  - **Requests**: auth credentials (`bearer_token`, `basic_password`, `api_key_value`) encrypted with `enc:` prefix — `encryptAuth()`/`decryptAuth()` in all CRUD paths
+  - **One-time migration**: `migrateToEncryptedStorage()` runs at startup, encrypts existing plaintext data, tracked by `encryption.migrated` setting
 
 ### HTTP Proxy (`ipc/proxy.ts`)
 - Uses Node `fetch` with `AbortController` per request ID
@@ -547,7 +552,7 @@ All stores use this pattern: module-level `$state` + `$derived` + exported objec
 - Both: `listDirectoryRecursive()`, `getDirectoryTree()`, `getFile()`, `createFile()`, `updateFile()`, `deleteFile()`, `deleteDirectory()`, `commitMultipleFiles()`, `testConnection()`
 
 ### Remote Sync Service (`sync/remote-sync-service.ts`)
-- Settings keys: `sync.provider`, `sync.repository`, `sync.token`, `sync.branch` (must match UI's `RemoteSyncTab`)
+- Settings keys: `sync.provider`, `sync.repository`, `sync.token`, `sync.branch` — read via `settingsRepo.getSetting()` (transparent decryption)
 - `pull(workspaceId?)` → `SyncResult` — pulls all collections, detects conflicts, collects per-collection errors
 - `pushCollection(collection, sanitize?)` — 3-way merge per file, atomic commit
 - `pushAll(workspaceId?)` → `SyncResult` — pushes all dirty/unsynced collections
@@ -660,14 +665,15 @@ Three `$effect` hooks in `App.svelte` drive cross-cutting UX behaviors:
 ## Boot Sequence (`main/index.ts`)
 
 ```
-1. initEncryption()          — Load/create master key from OS keychain
-2. openDatabase(dbPath)      — Open SQLite + run pending migrations
-3. ensureDefaultWorkspace()  — Create "Default Workspace" if table is empty
-4. registerAllIpcHandlers()  — Register all domain handlers (incl. histories, session-log, code-generator)
-5. pruneHistories()          — Auto-prune old request histories based on retention setting
-6. buildMenu()               — Set native application menu
-7. createWindow()            — BrowserWindow with preload script
-8. runAutoSync()             — On ready-to-show: vault pullAll + git pull if auto_sync enabled
+1. initEncryption()              — Load/create master key from OS keychain
+2. openDatabase(dbPath)          — Open SQLite + run pending migrations
+3. migrateToEncryptedStorage()   — One-time: encrypt existing plaintext sensitive data
+4. ensureDefaultWorkspace()      — Create "Default Workspace" if table is empty
+5. registerAllIpcHandlers()      — Register all domain handlers (incl. histories, session-log, code-generator)
+6. pruneHistories()              — Auto-prune old request histories based on retention setting
+7. buildMenu()                   — Set native application menu
+8. createWindow()                — BrowserWindow with preload script
+9. runAutoSync()                 — On ready-to-show: vault pullAll + git pull if auto_sync enabled
 ```
 
 ---
@@ -701,7 +707,7 @@ Three `$effect` hooks in `App.svelte` drive cross-cutting UX behaviors:
 - `menu:send-request`, `menu:close-tab`, `menu:toggle-sidebar`, `menu:next-tab`, `menu:prev-tab` are sent by menu but not subscribed in preload `api.on`
 - `sql.js` is installed but unused (leftover from prototype)
 - No E2E tests (Playwright planned)
-- SQLCipher not yet integrated (requires `libcrypto` — using plain better-sqlite3 + field-level encryption for now)
+- SQLCipher not yet integrated (requires `libcrypto` — using plain better-sqlite3 + field-level AES-256-CBC encryption at the repository layer)
 - `better-sqlite3` native module must be rebuilt when switching between Electron (`npx electron-rebuild -f -w better-sqlite3`) and system Node.js (`npm rebuild better-sqlite3`) for tests
 
 ## Resolved Issues (Post Phase 5)

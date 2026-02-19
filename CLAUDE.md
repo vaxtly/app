@@ -51,6 +51,7 @@ npm run test:watch   # Vitest watch mode
 - Foreign keys with CASCADE (except requests→folders which is SET NULL).
 - Repositories are plain exported functions, not classes.
 - `getDatabase()` returns the singleton `better-sqlite3` instance.
+- **Encryption**: sensitive data encrypted transparently at the repository layer (AES-256-CBC). Settings tokens, environment variable values (`enc:` prefix), and request auth credentials (`enc:` prefix) are encrypted on write and decrypted on read. See `services/encryption.ts`.
 
 ### IPC
 - Pattern: `ipcMain.handle('domain:action', handler)` in main.
