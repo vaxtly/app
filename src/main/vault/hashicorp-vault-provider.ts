@@ -211,8 +211,32 @@ export class HashiCorpVaultProvider implements SecretsProvider {
   /**
    * Make an authenticated request. Namespace header is sent when configured
    * (required for Vault Enterprise / HCP Vault).
+   *
+   * For AppRole auth: if a request returns 403 (expired token), automatically
+   * re-authenticates and retries the request once.
    */
   private async request(
+    method: string,
+    url: string,
+    body?: unknown,
+  ): Promise<Response> {
+    const response = await this.doRequest(method, url, body)
+
+    // Auto-refresh: if AppRole and 403, re-login and retry once
+    if (response.status === 403 && this.authMethod === 'approle' && this.roleId && this.secretId) {
+      try {
+        this.token = await this.loginWithAppRole()
+        return await this.doRequest(method, url, body)
+      } catch {
+        // Re-login failed — return the original 403 response
+        return response
+      }
+    }
+
+    return response
+  }
+
+  private async doRequest(
     method: string,
     url: string,
     body?: unknown,

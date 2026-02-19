@@ -23,42 +23,47 @@ export class GitLabProvider implements GitProvider {
   }
 
   async listFiles(path: string): Promise<FileContent[]> {
-    const params = new URLSearchParams({
-      path,
-      ref: this.branch,
-      per_page: '100',
-    })
-
-    const response = await this.request(`/projects/${this.projectId}/repository/tree?${params}`)
-
-    if (response.status === 404) return []
-    if (!response.ok) throw new Error(`GitLab API error: ${response.status}`)
-
-    const items = (await response.json()) as Array<{ type: string; name: string; path: string; id: string }>
+    const items = await this.paginateTree({ path, ref: this.branch })
     return items
-      .filter((item) => item.type === 'blob' && item.name.endsWith('.yaml'))
+      .filter((item) => item.type === 'blob' && item.name!.endsWith('.yaml'))
       .map((item) => ({ path: item.path, content: '', sha: item.id }))
   }
 
   async listDirectoryRecursive(path: string): Promise<DirectoryItem[]> {
-    const params = new URLSearchParams({
-      path,
-      ref: this.branch,
-      recursive: 'true',
-      per_page: '100',
-    })
-
-    const response = await this.request(`/projects/${this.projectId}/repository/tree?${params}`)
-
-    if (response.status === 404) return []
-    if (!response.ok) throw new Error(`GitLab API error: ${response.status}`)
-
-    const items = (await response.json()) as Array<{ type: string; path: string; id: string }>
+    const items = await this.paginateTree({ path, ref: this.branch, recursive: 'true' })
     return items.map((item) => ({
       type: item.type === 'tree' ? 'dir' as const : 'file' as const,
       path: item.path,
       sha: item.id,
     }))
+  }
+
+  /**
+   * Paginate through all pages of the GitLab repository tree API.
+   * GitLab returns `x-next-page` header when there are more pages.
+   */
+  private async paginateTree(
+    query: Record<string, string>,
+  ): Promise<Array<{ type: string; name?: string; path: string; id: string }>> {
+    const all: Array<{ type: string; name?: string; path: string; id: string }> = []
+    let page = 1
+
+    while (true) {
+      const params = new URLSearchParams({ ...query, per_page: '100', page: String(page) })
+      const response = await this.request(`/projects/${this.projectId}/repository/tree?${params}`)
+
+      if (response.status === 404) return all
+      if (!response.ok) throw new Error(`GitLab API error: ${response.status}`)
+
+      const items = (await response.json()) as Array<{ type: string; name?: string; path: string; id: string }>
+      all.push(...items)
+
+      const nextPage = response.headers.get('x-next-page')
+      if (!nextPage || nextPage === '') break
+      page = parseInt(nextPage, 10)
+    }
+
+    return all
   }
 
   async getDirectoryTree(path: string): Promise<FileContent[]> {

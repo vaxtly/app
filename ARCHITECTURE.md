@@ -572,7 +572,7 @@ All stores use this pattern: module-level `$state` + `$derived` + exported objec
 ### Git Providers (`sync/github-provider.ts`, `sync/gitlab-provider.ts`)
 - Both implement `GitProvider` interface from `sync/git-provider.interface.ts`
 - **GitHub**: Git Data API (trees for listing, blob+tree+commit+ref for atomic multi-file commits), Contents API for single files. Paths passed directly to Contents API (no `encodeURIComponent` — GitHub handles slashes natively).
-- **GitLab**: Repository API v4 (tree listing, Files API, Commits API with actions array for atomic commits). Uses `encodeURIComponent` per GitLab's file path encoding requirement.
+- **GitLab**: Repository API v4 (tree listing with pagination via `x-next-page` header, Files API, Commits API with actions array for atomic commits). Uses `encodeURIComponent` per GitLab's file path encoding requirement.
 - Key difference: GitHub uses blob SHA for conflict detection, GitLab uses `last_commit_id`
 - Both: `listDirectoryRecursive()`, `getDirectoryTree()`, `getFile()`, `createFile()`, `updateFile()`, `deleteFile()`, `deleteDirectory()`, `commitMultipleFiles()`, `testConnection()`
 
@@ -598,6 +598,7 @@ All stores use this pattern: module-level `$state` + `$derived` + exported objec
 - `X-Vault-Namespace` header sent on ALL operations (auth and data) when configured — required for Vault Enterprise
 - `testConnection()` — token: lookup-self, AppRole: login attempt
 - AppRole login validates response: guards against null `json.auth` with explicit error
+- **AppRole token auto-refresh**: on 403 responses, automatically re-authenticates via AppRole login and retries the request once
 - Static factory: `HashiCorpVaultProvider.create(opts)` handles async AppRole login
 - SSL bypass: when `verifySsl` is false, uses undici `Agent({ connect: { rejectUnauthorized: false } })` — all HTTP calls route through `this.fetch()` wrapper which dispatches via undici when the custom Agent is present
 
@@ -728,72 +729,9 @@ Three `$effect` hooks in `App.svelte` drive cross-cutting UX behaviors:
 
 ---
 
-## Migration Status
-
-| Phase | Status | Description |
-|-------|--------|-------------|
-| **0: Foundation** | COMPLETE | Database, encryption, IPC, repos, 26 tests |
-| **1: Core Request Builder** | COMPLETE | Sidebar tree, tabs, request builder, response viewer, all body/auth types, keyboard shortcuts |
-| **2: Environments + Variables** | COMPLETE | Variable substitution service, proxy integration, environment sidebar + editor tabs, CodeMirror `{{var}}` highlighting, 12 new tests |
-| **3: Scripting + History + Code Gen** | COMPLETE | Pre/post-request scripts, request history auto-save/prune, code generation (5 languages), session log, SystemLog panel, CodeSnippetModal, 29 new tests |
-| **4: Git Sync** | COMPLETE | YAML serializer, sensitive data scanner, GitHub/GitLab providers, remote sync service, sync IPC, 40 tests. UI: RemoteSyncTab, ConflictModal, SensitiveDataModal, sync indicators on sidebar. |
-| **5: Vault + Import/Export** | COMPLETE | Vault provider + sync, data export/import, Postman import, vault IPC, 28 tests. UI: VaultTab, DataTab, vault sync in EnvironmentEditor, drag-drop, WelcomeGuide, HtmlPreview. |
-| **Pre-release hardening** | COMPLETE | Workspace-scoped sync/vault settings, draggable request/response splitter, session-per-workspace, encryption hardening (key prefix, file perms, double-encryption guard), vault namespace on all ops, cycle detection, async cancellation, pointer events, accessibility, build config fixes (asarUnpack, uuid CJS, notarize CJS). 37+ issues resolved across 25 files. |
-
----
-
 ## Known Issues / TODOs
 
 - No E2E tests (Playwright planned)
 - SQLCipher not yet integrated (requires `libcrypto` — using plain better-sqlite3 + field-level AES-256-CBC encryption at the repository layer)
 - `better-sqlite3` native module must be rebuilt when switching between Electron (`npx electron-rebuild -f -w better-sqlite3`) and system Node.js (`npm rebuild better-sqlite3`) for tests
-- AppRole token auto-refresh not implemented — tokens expire, requiring manual reconnect (deferred: low-priority edge case)
 - `contextIsolation: false` in BrowserWindow — should evaluate enabling sandbox for hardened security (deferred: requires preload refactor)
-- GitLab provider `listDirectoryRecursive` doesn't handle pagination for repos with 100+ files per directory (deferred: rare edge case)
-
-## Resolved Issues (Post Phase 5)
-
-- **Settings key mismatch**: backend sync service read `remote.*` keys while UI saved `sync.*` — unified to `sync.*`
-- **Missing vault.provider**: VaultTab never set `vault.provider` on save — provider creation silently failed
-- **GitHub path encoding**: `encodeURIComponent()` on Contents API paths encoded slashes, causing 404s
-- **Vault LIST method**: changed from HTTP `LIST` to `GET ?list=true` for broader compatibility
-- **environment_ids type mismatch**: old Laravel app stored as JSON string, YAML import assumed array — now handles both
-- **Pull error messages swallowed**: errors were overwritten by "Everything up to date" — now collected and reported
-- **Vault SSL bypass broken**: `verify_ssl` setting stored as `'false'` but only `'0'` was checked; also required undici Agent for actual TLS bypass (Node's `NODE_TLS_REJECT_UNAUTHORIZED` doesn't affect Electron's fetch)
-- **UI not refreshing after vault pull**: environments store not reloaded after pullAll — now calls `environmentsStore.loadAll()`
-
-## Resolved Issues (Pre-Release Audit)
-
-- **C1 — better-sqlite3 asar**: added `asarUnpack` for native module in `electron-builder.yml`
-- **C2 — uuid ESM**: downgraded `uuid` from v13 (pure ESM) to v9 (CJS-compatible)
-- **C3 — sql.js leftover**: removed unused `sql.js` dependency
-- **C4 — decryptValue Buffer concat**: fixed AES decryption using string-mode `decipher.update()` to avoid Buffer encoding issues
-- **H1 — session per workspace**: sessions scoped to `session.tabs.{workspaceId}` key
-- **H2 — vault/sync cache invalidation**: provider caches cleared when relevant settings change (both global and workspace-scoped)
-- **H3 — double decryption**: removed duplicate `safeStorage.decryptString()` call in `initEncryption()`
-- **H4 — master.key permissions**: file written with `0o600` and `chmodSync` applied
-- **H5 — key format marker**: `vxk1:` prefix distinguishes keychain-encrypted vs legacy plaintext master key files
-- **H6 — sensitive scan on encrypted data**: scanner now reads via `requestsRepo.findByCollection()` (decrypted) instead of raw DB
-- **H8 — vault namespace header**: `X-Vault-Namespace` sent on ALL operations, not just AppRole auth
-- **H9 — AppRole null guard**: `loginWithAppRole` validates `json.auth?.client_token` before use
-- **H10 — YAML parse validation**: `parseYaml()` validates non-null returns
-- **H11 — notarize.js errors**: converted to CJS, errors re-thrown instead of swallowed
-- **H13 — EnvironmentEditor workspace**: all vault operations pass `workspaceId`
-- **M1 — workspace switch ordering**: `closeAllTabs()` called before `setActiveWorkspace()` to prevent stale entity lookups
-- **M3 — double-encryption guard**: `encryptAuth()` checks `enc:` prefix before encrypting
-- **M4 — menu channel constants**: hardcoded strings in `menu.ts` and `preload.ts` replaced with `IPC.MENU_*` constants
-- **M5 — GraphQL variables**: body sends `{ query, variables: {} }` correctly
-- **M6 — rename tab label**: `RequestItem.commitRename()` updates open tab label via `appStore.updateTabLabel()`
-- **M7 — splitPercent reset**: resets to 50 when layout orientation changes
-- **M8 — history index**: added `CREATE INDEX idx_histories_executed_at ON request_histories(executed_at)` for prune performance
-- **M11 — pullAll ID lookup**: uses returned ID from `environmentsRepo.create()` instead of post-hoc name scan
-- **M12 — folder path cycle**: `buildFolderPath()` uses `visited` Set to detect circular parent references
-- **M17 — async effect guard**: `RequestBuilder` `$effect` uses cancellation flag to prevent stale async updates
-- **M18 — serializeRequest JSON**: `JSON.parse` of scripts/auth wrapped in try/catch
-- **M20 — pushAll scope**: workspace query correctly scopes to `workspace_id = ?` or `workspace_id IS NULL`
-- **L2 — platform detection**: replaced deprecated `navigator.platform` with `navigator.userAgent`
-- **L4 — Linux artifact name**: includes `${arch}` for multi-architecture builds
-- **L6 — Modal accessibility**: close button has `aria-label="Close"`
-- **L7 — SystemLog pointer events**: drag resize uses Pointer Events API with `setPointerCapture`
-- **L8 — saveTimer cleanup**: `clearTimeout(saveTimer)` in App.svelte cleanup
-- **L9 — splitter pointercancel**: `onpointercancel` handler prevents stuck drag state
