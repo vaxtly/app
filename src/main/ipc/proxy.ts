@@ -43,7 +43,7 @@ export function registerProxyHandlers(): void {
     const resolvedBody = sub(config.body)
 
     // Read settings
-    const verifySsl = config.verifySsl ?? (settingsRepo.getSetting('request.verify_ssl') !== 'false')
+    const verifySsl = config.verifySsl ?? (settingsRepo.getSetting('request.verify_ssl') === 'true')
     const followRedirects = config.followRedirects ?? (settingsRepo.getSetting('request.follow_redirects') !== 'false')
     const timeoutSec = config.timeout ?? Number(settingsRepo.getSetting('request.timeout') || '30')
 

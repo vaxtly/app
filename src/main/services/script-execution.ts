@@ -196,7 +196,7 @@ async function executeHttpRequest(
   }
 
   // Read SSL setting (same as main proxy)
-  const verifySsl = settingsRepo.getSetting('request.verify_ssl') !== 'false'
+  const verifySsl = settingsRepo.getSetting('request.verify_ssl') === 'true'
   const dispatcher = !verifySsl
     ? new Agent({ connect: { rejectUnauthorized: false } })
     : undefined
