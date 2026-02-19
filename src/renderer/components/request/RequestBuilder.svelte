@@ -7,9 +7,12 @@
   import ScriptsEditor from './ScriptsEditor.svelte'
   import ResponseViewer from '../response/ResponseViewer.svelte'
   import CodeSnippetModal from '../modals/CodeSnippetModal.svelte'
+  import { setContext } from 'svelte'
   import { appStore, type TabRequestState } from '../../lib/stores/app.svelte'
   import { collectionsStore } from '../../lib/stores/collections.svelte'
+  import { environmentsStore } from '../../lib/stores/environments.svelte'
   import type { KeyValueEntry, AuthConfig, ScriptsConfig, FormDataEntry, ResponseData } from '../../lib/types'
+  import type { ResolvedVariable } from '../../lib/utils/variable-highlight'
 
   interface Props {
     tabId: string
@@ -52,6 +55,28 @@
   })
 
   let currentCollectionId = $derived(collectionsStore.getRequestById(requestId)?.collection_id)
+
+  // Resolved variables for highlighting (refreshed when env or collection changes)
+  let resolvedVars = $state<Record<string, ResolvedVariable>>({})
+
+  $effect(() => {
+    // Track dependencies so we re-fetch when active env or collection changes
+    void environmentsStore.activeEnvironmentId
+    void currentCollectionId
+    window.api.variables.resolveWithSource(
+      appStore.activeWorkspaceId ?? undefined,
+      currentCollectionId,
+    ).then((result) => {
+      resolvedVars = result as Record<string, ResolvedVariable>
+    })
+  })
+
+  function getResolvedVariables(): Record<string, ResolvedVariable> {
+    return resolvedVars
+  }
+
+  // Provide resolved vars via context for VarInput and CodeEditor children
+  setContext('resolvedVars', getResolvedVariables)
 
   const defaultFormData: FormDataEntry[] = [{ key: '', value: '', type: 'text', enabled: true }]
 

@@ -1,6 +1,7 @@
 <script lang="ts">
   import { HTTP_METHODS } from '../../../shared/constants'
   import { METHOD_COLORS } from '../../lib/utils/http-colors'
+  import VarInput from '../shared/VarInput.svelte'
 
   interface Props {
     method: string
@@ -17,14 +18,13 @@
   let { method, url, loading, unsaved, onmethodchange, onurlchange, onsend, oncancel, onsave }: Props = $props()
 
   let saveFeedback = $state('')
+  let varInput: { focus: () => void } | undefined
 
   async function handleSave(): Promise<void> {
     await onsave()
     saveFeedback = 'Saved'
     setTimeout(() => saveFeedback = '', 1200)
   }
-
-  let urlInput: HTMLInputElement
 
   function handleKeydown(e: KeyboardEvent): void {
     if (e.key === 'Enter' && (e.metaKey || e.ctrlKey || !e.shiftKey)) {
@@ -33,7 +33,7 @@
   }
 
   export function focus(): void {
-    urlInput?.focus()
+    varInput?.focus()
   }
 </script>
 
@@ -53,12 +53,11 @@
       <span class="method-led {method}"></span>
     </div>
 
-    <!-- URL input -->
-    <input
-      bind:this={urlInput}
-      type="text"
+    <!-- URL input with variable highlight -->
+    <VarInput
+      bind:this={varInput}
       value={url}
-      oninput={(e) => onurlchange(e.currentTarget.value)}
+      oninput={(e) => onurlchange((e.target as HTMLInputElement).value)}
       onkeydown={handleKeydown}
       placeholder="Enter request URL..."
       class="url-input"
@@ -186,9 +185,9 @@
   .method-led.OPTIONS { background: var(--color-surface-400); box-shadow: none; }
 
   /* --- URL input --- */
-  .url-input {
-    flex: 1;
-    min-width: 0;
+  :global(.url-input) {
+    position: relative;
+    width: 100%;
     height: 38px;
     padding: 0 12px;
     border: none;
@@ -199,7 +198,7 @@
     outline: none;
   }
 
-  .url-input::placeholder {
+  :global(.url-input::placeholder) {
     color: var(--color-surface-500);
     font-family: inherit;
   }

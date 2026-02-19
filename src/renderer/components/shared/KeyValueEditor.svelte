@@ -1,5 +1,6 @@
 <script lang="ts">
   import Checkbox from './Checkbox.svelte'
+  import VarInput from './VarInput.svelte'
   import type { KeyValueEntry } from '../../lib/types'
 
   interface Props {
@@ -55,20 +56,18 @@
         </span>
       {/if}
       <span class="kv-cell kv-cell--key">
-        <input
-          type="text"
+        <VarInput
           value={entry.key}
-          oninput={(e) => update(i, 'key', e.currentTarget.value)}
+          oninput={(e) => update(i, 'key', (e.target as HTMLInputElement).value)}
           placeholder={keyPlaceholder}
           {readonly}
           class="kv-input"
         />
       </span>
       <span class="kv-cell kv-cell--value">
-        <input
-          type="text"
+        <VarInput
           value={entry.value}
-          oninput={(e) => update(i, 'value', e.currentTarget.value)}
+          oninput={(e) => update(i, 'value', (e.target as HTMLInputElement).value)}
           placeholder={valuePlaceholder}
           {readonly}
           class="kv-input"
@@ -178,7 +177,7 @@
     background: color-mix(in srgb, var(--color-surface-700) 20%, transparent);
   }
 
-  .kv-row--disabled .kv-input {
+  .kv-row--disabled :global(.kv-input) {
     opacity: 0.35;
   }
 
@@ -216,7 +215,7 @@
   }
 
   /* --- Inputs --- */
-  .kv-input {
+  :global(.kv-input) {
     width: 100%;
     height: 32px;
     min-width: 0;
@@ -231,20 +230,20 @@
     transition: background 0.12s;
   }
 
-  .kv-cell--key .kv-input {
+  .kv-cell--key :global(.kv-input) {
     font-weight: 500;
     border-left: none;
   }
 
-  .kv-input:focus {
+  :global(.kv-input:focus) {
     background: color-mix(in srgb, var(--color-brand-500) 5%, transparent);
   }
 
-  .kv-input::placeholder {
+  :global(.kv-input::placeholder) {
     color: var(--color-surface-600);
   }
 
-  .kv-input--desc {
+  :global(.kv-input--desc) {
     color: var(--color-surface-400);
     font-size: 11px;
   }

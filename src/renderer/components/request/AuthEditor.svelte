@@ -1,5 +1,6 @@
 <script lang="ts">
   import { AUTH_TYPES } from '../../../shared/constants'
+  import VarInput from '../shared/VarInput.svelte'
   import type { AuthConfig } from '../../lib/types'
 
   interface Props {
@@ -43,11 +44,10 @@
       <div class="ae-fields">
         <div class="ae-field">
           <label for="auth-bearer-token" class="ae-label">Token</label>
-          <input
+          <VarInput
             id="auth-bearer-token"
-            type="text"
             value={auth.bearer_token ?? ''}
-            oninput={(e) => updateField('bearer_token', e.currentTarget.value)}
+            oninput={(e) => updateField('bearer_token', (e.target as HTMLInputElement).value)}
             placeholder="Enter bearer token..."
             class="ae-input"
           />
@@ -57,22 +57,21 @@
       <div class="ae-fields">
         <div class="ae-field">
           <label for="auth-basic-username" class="ae-label">Username</label>
-          <input
+          <VarInput
             id="auth-basic-username"
-            type="text"
             value={auth.basic_username ?? ''}
-            oninput={(e) => updateField('basic_username', e.currentTarget.value)}
+            oninput={(e) => updateField('basic_username', (e.target as HTMLInputElement).value)}
             placeholder="Username"
             class="ae-input"
           />
         </div>
         <div class="ae-field">
           <label for="auth-basic-password" class="ae-label">Password</label>
-          <input
+          <VarInput
             id="auth-basic-password"
             type="password"
             value={auth.basic_password ?? ''}
-            oninput={(e) => updateField('basic_password', e.currentTarget.value)}
+            oninput={(e) => updateField('basic_password', (e.target as HTMLInputElement).value)}
             placeholder="Password"
             class="ae-input"
           />
@@ -82,22 +81,20 @@
       <div class="ae-fields">
         <div class="ae-field">
           <label for="auth-apikey-header" class="ae-label">Header Name</label>
-          <input
+          <VarInput
             id="auth-apikey-header"
-            type="text"
             value={auth.api_key_header ?? ''}
-            oninput={(e) => updateField('api_key_header', e.currentTarget.value)}
+            oninput={(e) => updateField('api_key_header', (e.target as HTMLInputElement).value)}
             placeholder="X-API-Key"
             class="ae-input"
           />
         </div>
         <div class="ae-field">
           <label for="auth-apikey-value" class="ae-label">Value</label>
-          <input
+          <VarInput
             id="auth-apikey-value"
-            type="text"
             value={auth.api_key_value ?? ''}
-            oninput={(e) => updateField('api_key_value', e.currentTarget.value)}
+            oninput={(e) => updateField('api_key_value', (e.target as HTMLInputElement).value)}
             placeholder="API key value"
             class="ae-input"
           />
@@ -185,7 +182,7 @@
     color: var(--color-surface-500);
   }
 
-  .ae-input {
+  :global(.ae-input) {
     height: 32px;
     width: 100%;
     padding: 0 10px;
@@ -199,16 +196,16 @@
     transition: border-color 0.12s, background 0.12s;
   }
 
-  .ae-input:hover {
+  :global(.ae-input:hover) {
     border-color: var(--color-surface-600);
   }
 
-  .ae-input:focus {
+  :global(.ae-input:focus) {
     border-color: var(--color-brand-500);
     box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-brand-500) 15%, transparent);
   }
 
-  .ae-input::placeholder {
+  :global(.ae-input::placeholder) {
     color: var(--color-surface-600);
   }
 </style>

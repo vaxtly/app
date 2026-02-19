@@ -91,7 +91,7 @@ function variableTooltip(
             const dom = document.createElement('div')
             dom.className = 'cm-var-tooltip'
             if (info) {
-              dom.innerHTML = `<span class="cm-var-tooltip-value">${escapeHtml(info.value)}</span><span class="cm-var-tooltip-source">${escapeHtml(info.source)}</span>`
+              dom.innerHTML = `<span class="cm-var-tooltip-source">${escapeHtml(info.source)}</span><span class="cm-var-tooltip-value">${escapeHtml(info.value)}</span>`
             } else {
               dom.textContent = `Unresolved: ${varName}`
               dom.classList.add('cm-var-tooltip-unresolved')

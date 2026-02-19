@@ -57,6 +57,7 @@
 .cm-editor {
   height: 100%;
   font-size: 13px;
+  background: var(--color-surface-900) !important;
 }
 
 .cm-editor .cm-scroller {
@@ -65,6 +66,16 @@
 
 .cm-editor.cm-focused {
   outline: none;
+}
+
+.cm-editor .cm-gutters {
+  background: var(--color-surface-900) !important;
+  border-right-color: var(--color-surface-700) !important;
+}
+
+.cm-editor .cm-activeLineGutter,
+.cm-editor .cm-activeLine {
+  background: color-mix(in srgb, var(--color-surface-700) 30%, transparent) !important;
 }
 
 /* Variable highlighting: {{resolved}} green, {{unresolved}} red */
@@ -93,6 +104,9 @@
   color: var(--color-surface-200);
   max-width: 300px;
   word-break: break-all;
+  user-select: text;
+  -webkit-user-select: text;
+  cursor: text;
 }
 
 .cm-var-tooltip-value {

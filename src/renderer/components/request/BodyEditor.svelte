@@ -1,9 +1,14 @@
 <script lang="ts">
+  import { getContext } from 'svelte'
   import CodeEditor from '../CodeEditor.svelte'
   import KeyValueEditor from '../shared/KeyValueEditor.svelte'
+  import VarInput from '../shared/VarInput.svelte'
   import Checkbox from '../shared/Checkbox.svelte'
   import type { KeyValueEntry, FormDataEntry } from '../../lib/types'
+  import type { ResolvedVariable } from '../../lib/utils/variable-highlight'
   import { BODY_TYPES } from '../../../shared/constants'
+
+  const getResolvedVars = getContext<(() => Record<string, ResolvedVariable>) | undefined>('resolvedVars')
 
   interface Props {
     bodyType: string
@@ -173,22 +178,22 @@
       </div>
     {:else if bodyType === 'json'}
       <div class="be-editor">
-        <CodeEditor value={body} language="json" placeholder={'{"key": "value"}'} onchange={onbodychange} />
+        <CodeEditor value={body} language="json" placeholder={'{"key": "value"}'} onchange={onbodychange} enableVariableHighlight={!!getResolvedVars} getResolvedVariables={getResolvedVars} />
       </div>
     {:else if bodyType === 'xml'}
       <div class="be-editor">
-        <CodeEditor value={body} language="xml" placeholder="<root></root>" onchange={onbodychange} />
+        <CodeEditor value={body} language="xml" placeholder="<root></root>" onchange={onbodychange} enableVariableHighlight={!!getResolvedVars} getResolvedVariables={getResolvedVars} />
       </div>
     {:else if bodyType === 'raw'}
       <div class="be-editor">
-        <CodeEditor value={body} language="text" placeholder="Raw body..." onchange={onbodychange} />
+        <CodeEditor value={body} language="text" placeholder="Raw body..." onchange={onbodychange} enableVariableHighlight={!!getResolvedVars} getResolvedVariables={getResolvedVars} />
       </div>
     {:else if bodyType === 'graphql'}
       <div class="be-graphql">
         <div class="be-graphql-query">
           <div class="be-section-label">Query</div>
           <div class="be-graphql-editor">
-            <CodeEditor value={body} language="text" placeholder={"query { ... }"} onchange={onbodychange} />
+            <CodeEditor value={body} language="text" placeholder={"query { ... }"} onchange={onbodychange} enableVariableHighlight={!!getResolvedVars} getResolvedVariables={getResolvedVars} />
           </div>
         </div>
         <div class="be-graphql-vars">
@@ -219,10 +224,9 @@
               <Checkbox checked={entry.enabled} onchange={(v) => updateFormEntry(i, 'enabled', v)} />
             </span>
             <span class="fd-cell fd-cell--key">
-              <input
-                type="text"
+              <VarInput
                 value={entry.key}
-                oninput={(e) => updateFormEntry(i, 'key', e.currentTarget.value)}
+                oninput={(e) => updateFormEntry(i, 'key', (e.target as HTMLInputElement).value)}
                 placeholder="Key"
                 class="fd-input"
               />
@@ -257,10 +261,9 @@
                   {/if}
                 </button>
               {:else}
-                <input
-                  type="text"
+                <VarInput
                   value={entry.value}
-                  oninput={(e) => updateFormEntry(i, 'value', e.currentTarget.value)}
+                  oninput={(e) => updateFormEntry(i, 'value', (e.target as HTMLInputElement).value)}
                   placeholder="Value"
                   class="fd-input"
                 />
@@ -474,7 +477,7 @@
     background: color-mix(in srgb, var(--color-surface-700) 20%, transparent);
   }
 
-  .fd-row--disabled .fd-input,
+  .fd-row--disabled :global(.fd-input),
   .fd-row--disabled .fd-file {
     opacity: 0.35;
   }
@@ -490,7 +493,7 @@
   .fd-cell--value { flex: 1; min-width: 0; }
   .fd-cell--actions { width: 30px; flex-shrink: 0; justify-content: center; }
 
-  .fd-input {
+  :global(.fd-input) {
     width: 100%;
     height: 32px;
     min-width: 0;
@@ -505,16 +508,16 @@
     transition: background 0.12s;
   }
 
-  .fd-cell--key .fd-input {
+  .fd-cell--key :global(.fd-input) {
     font-weight: 500;
     border-left: none;
   }
 
-  .fd-input:focus {
+  :global(.fd-input:focus) {
     background: color-mix(in srgb, var(--color-brand-500) 5%, transparent);
   }
 
-  .fd-input::placeholder { color: var(--color-surface-600); }
+  :global(.fd-input::placeholder) { color: var(--color-surface-600); }
 
   .fd-type-btn {
     display: flex;

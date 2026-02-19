@@ -97,4 +97,4 @@
   })
 </script>
 
-<div bind:this={container} class="h-full overflow-hidden rounded border border-surface-700 bg-surface-950"></div>
+<div bind:this={container} class="h-full overflow-hidden rounded border border-surface-700 bg-surface-900"></div>
