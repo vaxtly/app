@@ -16,7 +16,8 @@
 | HTTP | undici (custom TLS Agent) | 7 |
 | Auto-update | electron-updater | 6 |
 | Encryption | Electron safeStorage + AES-256-CBC | — |
-| Tests | Vitest (unit) | 4 |
+| Tests (unit) | Vitest | 4 |
+| Tests (e2e) | Playwright Electron | 1 |
 | Types | TypeScript strict | 5.7 |
 
 ## Project Structure
@@ -153,18 +154,30 @@ vaxtly/
 │               ├── Toggle.svelte          # Pill-shaped sliding switch (settings)
 │               └── Checkbox.svelte        # Square checkbox with checkmark animation
 ├── tests/
-│   └── unit/
-│       ├── repositories.test.ts        # 26 tests covering all repositories
-│       ├── variable-substitution.test.ts # 12 tests for variable resolution
-│       ├── script-execution.test.ts    # 17 tests for extractValue + extractJsonPath
-│       ├── code-generator.test.ts      # 12 tests for 5 language generators
-│       ├── sensitive-data-scanner.test.ts # 20 tests for scan + sanitize
-│       ├── yaml-serializer.test.ts     # 8 tests for serialize + import
-│       ├── remote-sync.test.ts         # 12 tests for file state helpers
-│       ├── vault-sync.test.ts          # 7 tests for buildPath + isConfigured
-│       ├── data-export-import.test.ts  # 11 tests for export + import
-│       └── postman-import.test.ts      # 10 tests for 3 Postman formats
+│   ├── unit/
+│   │   ├── repositories.test.ts        # 26 tests covering all repositories
+│   │   ├── variable-substitution.test.ts # 12 tests for variable resolution
+│   │   ├── script-execution.test.ts    # 17 tests for extractValue + extractJsonPath
+│   │   ├── code-generator.test.ts      # 12 tests for 5 language generators
+│   │   ├── sensitive-data-scanner.test.ts # 20 tests for scan + sanitize
+│   │   ├── yaml-serializer.test.ts     # 8 tests for serialize + import
+│   │   ├── remote-sync.test.ts         # 12 tests for file state helpers
+│   │   ├── vault-sync.test.ts          # 7 tests for buildPath + isConfigured
+│   │   ├── data-export-import.test.ts  # 11 tests for export + import
+│   │   └── postman-import.test.ts      # 10 tests for 3 Postman formats
+│   └── e2e/
+│       ├── fixtures/
+│       │   ├── electron-app.ts         # Shared fixture: temp userData, app launch, cleanup
+│       │   └── test-server.ts          # Local HTTP echo server (127.0.0.1:0)
+│       ├── smoke.spec.ts              # 3 tests: boot, sidebar, empty state
+│       ├── keyboard-shortcuts.spec.ts # 4 tests: Ctrl+N/W/B/,
+│       ├── collection-crud.spec.ts    # 4 tests: create/rename/add-request/delete
+│       ├── send-request.spec.ts       # 3 tests: GET, POST+JSON, error
+│       ├── settings.spec.ts           # 3 tests: tabs, Escape, close button
+│       ├── environment-vars.spec.ts   # 2 tests: create env+var, use {{var}}
+│       └── session-persistence.spec.ts # 1 test: tabs survive restart
 ├── electron.vite.config.ts             # 3-target build (main, preload, renderer)
+├── playwright.config.ts                # E2E config: workers:1, timeout:30s
 ├── vitest.config.ts                    # @shared alias, globals: true
 ├── tsconfig.json                       # Project references
 ├── tsconfig.node.json                  # main + shared

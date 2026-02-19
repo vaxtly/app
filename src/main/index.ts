@@ -239,6 +239,10 @@ function migrateToEncryptedStorage(): void {
   `).run()
 }
 
+if (process.env.VAXTLY_TEST_USERDATA) {
+  app.setPath('userData', process.env.VAXTLY_TEST_USERDATA)
+}
+
 app.whenReady().then(() => {
   // Initialize encryption (master key for future SQLCipher)
   initEncryption()

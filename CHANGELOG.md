@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+- End-to-end testing with Playwright Electron API (20 tests across 7 spec files)
+  - Smoke tests: window boot, sidebar, empty state
+  - Keyboard shortcuts: Ctrl+N, Ctrl+W, Ctrl+B, Ctrl+,
+  - Collection CRUD: create, rename, add request, delete
+  - HTTP requests: GET/POST to local echo server, error handling
+  - Settings modal: tab navigation, close via Escape and button
+  - Environment variables: create, activate, `{{var}}` substitution in requests
+  - Session persistence: tabs survive app restart
+- Shared test fixtures: isolated temp userData per worker, local HTTP echo server
+- `test:e2e` and `test:e2e:headed` npm scripts
+
 ## [0.1.0] - 2026-02-19
 
 ### Added
