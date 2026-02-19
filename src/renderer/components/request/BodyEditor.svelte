@@ -127,7 +127,7 @@
   function handleUrlencodedChange(entries: KeyValueEntry[]): void {
     const params = new URLSearchParams()
     for (const e of entries) {
-      if (e.enabled && e.key.trim()) {
+      if (e.enabled) {
         params.append(e.key, e.value)
       }
     }
@@ -475,8 +475,7 @@
   }
 
   .fd-row--disabled .fd-input,
-  .fd-row--disabled .fd-file,
-  .fd-row--disabled .fd-type-select {
+  .fd-row--disabled .fd-file {
     opacity: 0.35;
   }
 

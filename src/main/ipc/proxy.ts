@@ -1,12 +1,14 @@
 import { ipcMain, dialog } from 'electron'
 import { readFileSync } from 'fs'
 import { basename } from 'path'
+import { Agent, fetch as undiciFetch, FormData as UndiciFormData } from 'undici'
 import { IPC } from '../../shared/types/ipc'
 import type { RequestConfig, ResponseData, FormDataEntry, ResponseCookie } from '../../shared/types/http'
 import { substitute } from '../services/variable-substitution'
 import { executePreRequestScripts, executePostResponseScripts } from '../services/script-execution'
 import { logHttp } from '../services/session-log'
 import * as historiesRepo from '../database/repositories/request-histories'
+import * as settingsRepo from '../database/repositories/settings'
 
 const activeRequests = new Map<string, AbortController>()
 
@@ -38,42 +40,84 @@ export function registerProxyHandlers(): void {
       }
     }
 
+    // Read settings
+    const verifySsl = config.verifySsl ?? (settingsRepo.getSetting('request.verify_ssl') !== 'false')
+    const followRedirects = config.followRedirects ?? (settingsRepo.getSetting('request.follow_redirects') !== 'false')
+    const timeoutSec = config.timeout ?? Number(settingsRepo.getSetting('request.timeout') || '30')
+
+    // Set up timeout
+    const timeoutMs = timeoutSec * 1000
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
+
     try {
-      const fetchOptions: RequestInit = {
-        method: config.method,
-        headers: { ...resolvedHeaders },
-        redirect: config.followRedirects !== false ? 'follow' : 'manual',
-        signal: controller.signal,
-      }
+      const fetchHeaders = { ...resolvedHeaders }
+
+      // Use undici Agent — optionally disable SSL verification
+      const dispatcher = !verifySsl
+        ? new Agent({ connect: { rejectUnauthorized: false } })
+        : undefined
+
+      // Build request body
+      let requestBodyForHistory: string | undefined = resolvedBody ?? undefined
+      let fetchBody: any = undefined
 
       if (config.method !== 'GET' && config.method !== 'HEAD') {
         if (config.bodyType === 'json' && resolvedBody) {
-          fetchOptions.body = resolvedBody
-          setDefaultHeader(fetchOptions.headers as Record<string, string>, 'Content-Type', 'application/json')
+          fetchBody = resolvedBody
+          setDefaultHeader(fetchHeaders, 'Content-Type', 'application/json')
         } else if (config.bodyType === 'xml' && resolvedBody) {
-          fetchOptions.body = resolvedBody
-          setDefaultHeader(fetchOptions.headers as Record<string, string>, 'Content-Type', 'application/xml')
+          fetchBody = resolvedBody
+          setDefaultHeader(fetchHeaders, 'Content-Type', 'application/xml')
         } else if (config.bodyType === 'form-data' && config.formData) {
           // Substitute variables in form-data text values
-          const resolvedFormData = config.formData.map((e) =>
-            e.type === 'text' ? { ...e, key: sub(e.key)!, value: sub(e.value)! } : { ...e, key: sub(e.key)! },
-          )
-          const formData = buildFormData(resolvedFormData)
-          fetchOptions.body = formData
-          // Let fetch set boundary
-          deleteHeader(fetchOptions.headers as Record<string, string>, 'Content-Type')
+          const resolvedFormData = config.formData.map((e) => ({
+            ...e,
+            type: e.type || 'text',
+            key: sub(e.key)!,
+            value: e.type === 'file' ? e.value : (sub(e.value) ?? e.value),
+          }))
+          const formBody = new UndiciFormData()
+          for (const entry of resolvedFormData) {
+            if (!entry.enabled) continue
+            if (entry.type === 'file' && entry.filePath) {
+              const buffer = readFileSync(entry.filePath)
+              const blob = new Blob([buffer])
+              formBody.append(entry.key, blob, entry.fileName ?? basename(entry.filePath))
+            } else {
+              formBody.append(entry.key, entry.value ?? '')
+            }
+          }
+          fetchBody = formBody
+          // Remove Content-Type so undici sets multipart boundary automatically
+          deleteHeader(fetchHeaders, 'Content-Type')
+          // Save resolved form data for history
+          requestBodyForHistory = JSON.stringify(resolvedFormData.filter((e) => e.enabled).map((e) => `${e.key}=${e.value}`).join('&'))
         } else if (config.bodyType === 'urlencoded' && resolvedBody) {
-          fetchOptions.body = resolvedBody
-          setDefaultHeader(fetchOptions.headers as Record<string, string>, 'Content-Type', 'application/x-www-form-urlencoded')
+          // Parse, substitute variables in each key/value, re-encode
+          const params = new URLSearchParams(resolvedBody)
+          const resolved = new URLSearchParams()
+          for (const [k, v] of params) {
+            resolved.append(sub(k) ?? k, sub(v) ?? v)
+          }
+          fetchBody = resolved.toString()
+          setDefaultHeader(fetchHeaders, 'Content-Type', 'application/x-www-form-urlencoded')
         } else if (config.bodyType === 'graphql' && resolvedBody) {
-          fetchOptions.body = resolvedBody
-          setDefaultHeader(fetchOptions.headers as Record<string, string>, 'Content-Type', 'application/json')
+          fetchBody = resolvedBody
+          setDefaultHeader(fetchHeaders, 'Content-Type', 'application/json')
         } else if (config.bodyType === 'raw' && resolvedBody) {
-          fetchOptions.body = resolvedBody
+          fetchBody = resolvedBody
         }
       }
 
-      const response = await fetch(resolvedUrl, fetchOptions)
+      const response = await undiciFetch(resolvedUrl, {
+        method: config.method,
+        headers: fetchHeaders,
+        body: fetchBody,
+        redirect: followRedirects ? 'follow' : 'manual',
+        signal: controller.signal,
+        dispatcher,
+      } as any)
+      clearTimeout(timeoutId)
       ttfb = performance.now() - startTime
 
       const bodyBuffer = await response.arrayBuffer()
@@ -95,7 +139,7 @@ export function registerProxyHandlers(): void {
           url: resolvedUrl,
           status_code: response.status,
           request_headers: JSON.stringify(resolvedHeaders),
-          request_body: resolvedBody ?? undefined,
+          request_body: requestBodyForHistory,
           response_body: body,
           response_headers: JSON.stringify(headers),
           duration_ms: Math.round(total),
@@ -127,8 +171,9 @@ export function registerProxyHandlers(): void {
 
       return result
     } catch (error) {
+      clearTimeout(timeoutId)
       const total = performance.now() - startTime
-      const errorMessage = error instanceof Error ? error.message : 'Request failed'
+      const errorMessage = formatFetchError(error, resolvedUrl)
       logHttp('request', resolvedUrl, `${config.method} failed: ${errorMessage}`, false)
       return {
         status: 0,
@@ -159,21 +204,6 @@ export function registerProxyHandlers(): void {
   })
 }
 
-function buildFormData(entries: FormDataEntry[]): FormData {
-  const formData = new FormData()
-  for (const entry of entries) {
-    if (!entry.enabled) continue
-    if (entry.type === 'file' && entry.filePath) {
-      const buffer = readFileSync(entry.filePath)
-      const blob = new Blob([buffer])
-      formData.append(entry.key, blob, entry.fileName ?? basename(entry.filePath))
-    } else {
-      formData.append(entry.key, entry.value)
-    }
-  }
-  return formData
-}
-
 function setDefaultHeader(headers: Record<string, string>, name: string, value: string): void {
   const lower = name.toLowerCase()
   const exists = Object.keys(headers).some((k) => k.toLowerCase() === lower)
@@ -189,6 +219,27 @@ function deleteHeader(headers: Record<string, string>, name: string): void {
       delete headers[key]
     }
   }
+}
+
+function formatFetchError(error: unknown, url: string): string {
+  if (!(error instanceof Error)) return 'Request failed'
+  const msg = error.message
+  const cause = (error as any).cause
+
+  if (msg === 'fetch failed' && cause) {
+    const code = cause.code as string | undefined
+    if (code === 'UNABLE_TO_VERIFY_LEAF_SIGNATURE' || code === 'CERT_HAS_EXPIRED' || code === 'DEPTH_ZERO_SELF_SIGNED_CERT' || code === 'SELF_SIGNED_CERT_IN_CHAIN') {
+      return `SSL certificate error (${code}). Disable "Verify SSL" in Settings to bypass.`
+    }
+    if (code === 'ECONNREFUSED') return `Connection refused — is the server running at ${url}?`
+    if (code === 'ENOTFOUND') return `DNS lookup failed — could not resolve hostname`
+    if (code === 'ECONNRESET') return 'Connection reset by server'
+    if (code === 'ETIMEDOUT' || code === 'UND_ERR_CONNECT_TIMEOUT') return 'Connection timed out'
+    if (cause.message) return cause.message
+  }
+
+  if (msg.includes('aborted')) return 'Request aborted (timeout or cancelled)'
+  return msg
 }
 
 function parseCookies(headers: Headers): ResponseCookie[] {

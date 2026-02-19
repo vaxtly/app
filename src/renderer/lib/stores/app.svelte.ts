@@ -28,6 +28,7 @@ export interface TabRequestState {
   query_params: string | null
   body: string | null
   body_type: string
+  bodyCache?: Record<string, string | null>
   auth: string | null
   scripts: string | null
   response: ResponseData | null

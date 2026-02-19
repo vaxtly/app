@@ -58,7 +58,12 @@
   let formData = $derived.by((): FormDataEntry[] => {
     if (!state?.body_type || state.body_type !== 'form-data') return defaultFormData
     if (!state.body) return defaultFormData
-    try { const v = JSON.parse(state.body); return Array.isArray(v) ? v : defaultFormData } catch { return defaultFormData }
+    try {
+      const v = JSON.parse(state.body)
+      if (!Array.isArray(v)) return defaultFormData
+      // Ensure every entry has type and enabled defaults (old data may lack them)
+      return v.map((e: any) => ({ type: 'text' as const, enabled: true, ...e }))
+    } catch { return defaultFormData }
   })
 
   // Compute implicit headers from body type and auth
@@ -87,6 +92,19 @@
 
   function update(partial: Partial<TabRequestState>): void {
     appStore.updateTabState(tabId, partial)
+  }
+
+  function handleBodyTypeChange(newType: string): void {
+    if (!state) return
+    const oldType = state.body_type
+    if (oldType === newType) return
+
+    // Save current body to cache under old type, restore from cache for new type
+    const cache = { ...(state.bodyCache ?? {}) }
+    cache[oldType] = state.body
+    const restoredBody = cache[newType] ?? null
+
+    update({ body_type: newType, body: restoredBody, bodyCache: cache })
   }
 
   async function sendRequest(): Promise<void> {
@@ -266,7 +284,7 @@
               bodyType={state.body_type}
               body={state.body_type === 'form-data' ? '' : (state.body ?? '')}
               {formData}
-              onbodytypechange={(t) => update({ body_type: t })}
+              onbodytypechange={handleBodyTypeChange}
               onbodychange={(b) => update({ body: b })}
               onformdatachange={(d) => update({ body: JSON.stringify(d) })}
             />
