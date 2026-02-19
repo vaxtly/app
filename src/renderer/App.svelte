@@ -71,6 +71,7 @@
     const tab = appStore.activeTab
     if (!tab) return
     if (tab.type === 'request') {
+      appStore.setSidebarMode('collections')
       collectionsStore.revealRequest(tab.entityId)
 
       // Auto-activate default environment for this request's folder/collection
@@ -78,6 +79,8 @@
       if (defaultEnvId && defaultEnvId !== environmentsStore.activeEnvironmentId) {
         environmentsStore.activate(defaultEnvId, appStore.activeWorkspaceId ?? undefined)
       }
+    } else if (tab.type === 'environment') {
+      appStore.setSidebarMode('environments')
     }
   })
 
