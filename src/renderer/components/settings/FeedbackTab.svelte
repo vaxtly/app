@@ -1,12 +1,31 @@
 <script lang="ts">
+  import { settingsStore } from '../../lib/stores/settings.svelte'
+
   const ISSUES_URL = 'https://github.com/vaxtly/app/issues'
+
+  function getOS(): string {
+    const ua = navigator.userAgent
+    if (ua.includes('Macintosh')) return 'macOS'
+    if (ua.includes('Windows')) return 'Windows'
+    return 'Linux'
+  }
 
   function openIssues(): void {
     window.open(ISSUES_URL, '_blank')
   }
 
-  function openNewIssue(): void {
-    window.open(`${ISSUES_URL}/new/choose`, '_blank')
+  function openBugReport(): void {
+    const version = settingsStore.get('app.version') ?? ''
+    const params = new URLSearchParams({
+      template: 'bug_report.yml',
+      os: getOS(),
+      version,
+    })
+    window.open(`${ISSUES_URL}/new?${params}`, '_blank')
+  }
+
+  function openFeatureRequest(): void {
+    window.open(`${ISSUES_URL}/new?template=feature_request.yml`, '_blank')
   }
 </script>
 
@@ -46,13 +65,22 @@
   <!-- Actions -->
   <div class="flex gap-3">
     <button
-      onclick={openNewIssue}
+      onclick={openBugReport}
       class="flex items-center gap-2 rounded-lg bg-brand-600 px-4 py-2 text-xs font-medium text-white transition-colors hover:bg-brand-500"
     >
       <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-        <path d="M12 4v16m8-8H4" stroke-linecap="round"/>
+        <path d="M12 9v2m0 4h.01M5.07 19H19a2.18 2.18 0 001.87-3.17L13.87 4.33a2.18 2.18 0 00-3.74 0L3.2 15.83A2.18 2.18 0 005.07 19z" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>
-      New Issue
+      Bug Report
+    </button>
+    <button
+      onclick={openFeatureRequest}
+      class="flex items-center gap-2 rounded-lg border border-surface-600 bg-surface-800 px-4 py-2 text-xs font-medium text-surface-300 transition-colors hover:bg-surface-700"
+    >
+      <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      Feature Request
     </button>
     <button
       onclick={openIssues}

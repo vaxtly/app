@@ -1,4 +1,4 @@
-import { Menu, BrowserWindow, app } from 'electron'
+import { Menu, BrowserWindow, app, shell } from 'electron'
 import { is } from '@electron-toolkit/utils'
 import { IPC } from '../shared/types/ipc'
 
@@ -128,6 +128,18 @@ export function buildMenu(): void {
           label: 'User Manual',
           accelerator: 'F1',
           click: (): void => sendToFocused(IPC.MENU_OPEN_MANUAL),
+        },
+        {
+          label: 'Report a Problem...',
+          click: (): void => {
+            const os = process.platform === 'darwin' ? 'macOS' : process.platform === 'win32' ? 'Windows' : 'Linux'
+            const params = new URLSearchParams({
+              template: 'bug_report.yml',
+              os,
+              version: app.getVersion(),
+            })
+            shell.openExternal(`https://github.com/vaxtly/app/issues/new?${params}`)
+          },
         },
         { type: 'separator' },
         {

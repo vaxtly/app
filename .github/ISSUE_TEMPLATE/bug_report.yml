@@ -31,14 +31,11 @@ body:
     validations:
       required: true
 
-  - type: dropdown
+  - type: input
     id: os
     attributes:
       label: Operating system
-      options:
-        - macOS
-        - Windows
-        - Linux
+      placeholder: e.g. macOS, Windows, Linux
     validations:
       required: true
 
