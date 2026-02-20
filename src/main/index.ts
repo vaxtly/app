@@ -1,4 +1,4 @@
-import { app, BrowserWindow, nativeImage, nativeTheme } from 'electron'
+import { app, BrowserWindow, nativeImage, nativeTheme, shell } from 'electron'
 import { join } from 'path'
 import { is } from '@electron-toolkit/utils'
 import { initEncryption } from './services/encryption'
@@ -127,8 +127,12 @@ function createWindow(): void {
     event.preventDefault()
   })
 
-  // Block all new window requests
-  mainWindow.webContents.setWindowOpenHandler(() => {
+  // Open whitelisted external URLs in the system browser, deny everything else
+  const ALLOWED_EXTERNAL_ORIGINS = ['https://github.com/vaxtly/']
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    if (ALLOWED_EXTERNAL_ORIGINS.some((origin) => url.startsWith(origin))) {
+      shell.openExternal(url)
+    }
     return { action: 'deny' }
   })
 
