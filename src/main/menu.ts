@@ -1,4 +1,5 @@
 import { Menu, BrowserWindow, app } from 'electron'
+import { is } from '@electron-toolkit/utils'
 import { IPC } from '../shared/types/ipc'
 
 export function buildMenu(): void {
@@ -94,11 +95,15 @@ export function buildMenu(): void {
           accelerator: 'Ctrl+PageUp',
           click: (): void => sendToFocused('menu:prev-tab'),
         },
-        { type: 'separator' },
-        { role: 'reload' },
-        { role: 'forceReload' },
-        { role: 'toggleDevTools' },
-        { type: 'separator' },
+        ...(is.dev
+          ? [
+              { type: 'separator' as const },
+              { role: 'reload' as const },
+              { role: 'forceReload' as const },
+              { role: 'toggleDevTools' as const },
+              { type: 'separator' as const },
+            ]
+          : [{ type: 'separator' as const }]),
         { role: 'resetZoom' },
         { role: 'zoomIn' },
         { role: 'zoomOut' },

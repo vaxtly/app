@@ -76,7 +76,7 @@ function createWindow(): void {
     trafficLightPosition: { x: 15, y: 15 },
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
-      sandbox: false,
+      sandbox: true,
       contextIsolation: true,
       nodeIntegration: false,
     },
@@ -105,6 +105,21 @@ function createWindow(): void {
         is_maximized: mainWindow.isMaximized() ? 1 : 0,
       })
     }
+  })
+
+  // Block all navigation away from the app
+  mainWindow.webContents.on('will-navigate', (event) => {
+    event.preventDefault()
+  })
+
+  // Block all new window requests
+  mainWindow.webContents.setWindowOpenHandler(() => {
+    return { action: 'deny' }
+  })
+
+  // Deny all permission requests (camera, mic, geolocation, etc.)
+  mainWindow.webContents.session.setPermissionRequestHandler((_wc, _perm, callback) => {
+    callback(false)
   })
 
   if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
@@ -212,7 +227,7 @@ function migrateToEncryptedStorage(): void {
   }
 
   // Re-write request auth credentials
-  const AUTH_FIELDS = ['bearer_token', 'basic_password', 'api_key_value']
+  const AUTH_FIELDS = ['bearer_token', 'basic_username', 'basic_password', 'api_key_value']
   const reqRows = db.prepare('SELECT id, auth FROM requests WHERE auth IS NOT NULL').all() as { id: string; auth: string }[]
   for (const row of reqRows) {
     try {
@@ -239,7 +254,7 @@ function migrateToEncryptedStorage(): void {
   `).run()
 }
 
-if (process.env.VAXTLY_TEST_USERDATA) {
+if (!app.isPackaged && process.env.VAXTLY_TEST_USERDATA) {
   app.setPath('userData', process.env.VAXTLY_TEST_USERDATA)
 }
 

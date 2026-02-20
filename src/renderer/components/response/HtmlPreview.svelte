@@ -5,25 +5,27 @@
 
   let { body }: Props = $props()
 
-  let iframeEl = $state<HTMLIFrameElement | null>(null)
+  let blobUrl = $state<string | null>(null)
 
   $effect(() => {
-    if (iframeEl && body) {
-      const doc = iframeEl.contentDocument
-      if (doc) {
-        doc.open()
-        doc.write(body)
-        doc.close()
-      }
+    if (body) {
+      const blob = new Blob([body], { type: 'text/html' })
+      const url = URL.createObjectURL(blob)
+      blobUrl = url
+      return () => URL.revokeObjectURL(url)
+    } else {
+      blobUrl = null
     }
   })
 </script>
 
 <div class="h-full w-full overflow-hidden bg-white">
-  <iframe
-    bind:this={iframeEl}
-    sandbox="allow-same-origin"
-    title="HTML Preview"
-    class="h-full w-full border-0"
-  ></iframe>
+  {#if blobUrl}
+    <iframe
+      src={blobUrl}
+      sandbox=""
+      title="HTML Preview"
+      class="h-full w-full border-0"
+    ></iframe>
+  {/if}
 </div>

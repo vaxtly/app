@@ -16,6 +16,7 @@ export function registerHistoryHandlers(): void {
   })
 
   ipcMain.handle(IPC.HISTORIES_PRUNE, (_event, retentionDays: number) => {
-    return historiesRepo.prune(retentionDays)
+    const clamped = Math.max(1, Math.min(365, Math.floor(retentionDays) || 30))
+    return historiesRepo.prune(clamped)
   })
 }

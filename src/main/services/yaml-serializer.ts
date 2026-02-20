@@ -30,6 +30,15 @@ const COLLECTION_FILE = '_collection.yaml'
 const FOLDER_FILE = '_folder.yaml'
 const MANIFEST_FILE = '_manifest.yaml'
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+function assertUuid(value: unknown, label: string): string {
+  if (typeof value !== 'string' || !UUID_RE.test(value)) {
+    throw new Error(`Invalid UUID for ${label}: ${String(value).slice(0, 40)}`)
+  }
+  return value
+}
+
 interface ManifestItem {
   type: 'folder' | 'request'
   id: string
@@ -288,6 +297,7 @@ export function importFromDirectory(
   }
 
   const collectionData = parseYaml(collectionFileContent)
+  assertUuid(collectionData.id, 'collection')
   const environmentFields = validateEnvironmentIds(collectionData, workspaceId)
 
   const run = db.transaction(() => {
@@ -382,6 +392,7 @@ function importFolderRecursive(
   if (!folderContent) return
 
   const folderData = parseYaml(folderContent)
+  assertUuid(folderData.id, 'folder')
   const folderEnvFields = validateEnvironmentIds(folderData)
   const now = new Date().toISOString()
   const db = getDatabase()
@@ -432,6 +443,7 @@ function importRequest(
   folderId: string | null,
   order: number,
 ): void {
+  assertUuid(data.id, 'request')
   const db = getDatabase()
   const now = new Date().toISOString()
 

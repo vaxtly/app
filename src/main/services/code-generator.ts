@@ -108,7 +108,7 @@ function buildBody(data: CodeGenRequest, sub: (s: string) => string): string | n
 }
 
 function esc(s: string): string {
-  return s.replace(/'/g, "\\'")
+  return s.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, '\\n').replace(/\r/g, '\\r')
 }
 
 // --- Language generators ---
@@ -235,11 +235,7 @@ function generateJavascript(method: string, url: string, headers: Record<string,
   }
 
   if (body !== null && ['POST', 'PUT', 'PATCH'].includes(m)) {
-    if (bodyType === 'json') {
-      options.push(`  body: JSON.stringify(${body})`)
-    } else {
-      options.push(`  body: '${esc(body)}'`)
-    }
+    options.push(`  body: '${esc(body)}'`)
   }
 
   return [
@@ -264,7 +260,7 @@ function generateNode(method: string, url: string, headers: Record<string, strin
 
   const args = [`'${esc(url)}'`]
   if (body !== null && ['post', 'put', 'patch'].includes(m)) {
-    args.push(bodyType === 'json' ? body : `'${esc(body)}'`)
+    args.push(`'${esc(body)}'`)
   }
   if (config.length > 0) {
     args.push(`{\n${config.join(',\n')}\n}`)

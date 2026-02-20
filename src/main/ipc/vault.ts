@@ -87,6 +87,10 @@ export function registerVaultHandlers(): void {
   })
 
   ipcMain.handle(IPC.VAULT_MIGRATE, async (_event, environmentId: string, oldPath: string, newPath: string, workspaceId?: string) => {
+    // Validate paths don't contain traversal sequences
+    if ([oldPath, newPath].some((p) => !p || p.includes('..') || p.startsWith('/'))) {
+      return { success: false, message: 'Invalid vault path' }
+    }
     try {
       await vaultService.migrateEnvironment(environmentId, oldPath, newPath, workspaceId)
       return { success: true }

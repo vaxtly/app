@@ -15,7 +15,7 @@
 | Database | better-sqlite3 (SQLite WAL) | 12 |
 | HTTP | undici (custom TLS Agent) | 7 |
 | Auto-update | electron-updater | 6 |
-| Encryption | Electron safeStorage + AES-256-CBC | — |
+| Encryption | Electron safeStorage + AES-256-GCM | — |
 | Tests (unit) | Vitest | 4 |
 | Tests (e2e) | Playwright Electron | 1 |
 | Types | TypeScript strict | 5.7 |
@@ -66,7 +66,7 @@ vaxtly/
 │   │   │   ├── updater.ts            # Auto-update: check, install, install-source
 │   │   │   └── settings.ts
 │   │   ├── services/
-│   │   │   ├── encryption.ts           # safeStorage master key + AES-256-CBC
+│   │   │   ├── encryption.ts           # safeStorage master key + AES-256-GCM (CBC backward compat)
 │   │   │   ├── variable-substitution.ts # {{var}} resolution, nested refs, env+collection merge
 │   │   │   ├── script-execution.ts     # Pre/post-request scripts, dependent request chains
 │   │   │   ├── code-generator.ts       # Code snippet generation (5 languages)
@@ -133,7 +133,7 @@ vaxtly/
 │           │   ├── ResponseBody.svelte    # Read-only CodeMirror, auto-detect language
 │           │   ├── ResponseHeaders.svelte # Key-value list
 │           │   ├── ResponseCookies.svelte # Cookie cards with attributes
-│           │   └── HtmlPreview.svelte     # Sandboxed iframe HTML response preview
+│           │   └── HtmlPreview.svelte     # Sandboxed iframe (blob: URL, empty sandbox) HTML response preview
 │           ├── settings/
 │           │   ├── SettingsModal.svelte   # 4-tab bespoke modal (General/Data/Remote/Vault)
 │           │   ├── GeneralTab.svelte      # Layout, timeout, SSL, redirects, retention, about
@@ -310,7 +310,7 @@ requests 1──N request_histories
 | Column | Type | Notes |
 |--------|------|-------|
 | key | TEXT PK | |
-| value | TEXT NOT NULL | Sensitive keys (`vault.token`, `vault.role_id`, `vault.secret_id`, `sync.token`) stored as AES-256-CBC encrypted base64 |
+| value | TEXT NOT NULL | Sensitive keys (`vault.token`, `vault.role_id`, `vault.secret_id`, `sync.token`) stored as AES-256-GCM encrypted base64 |
 
 #### `window_state`
 | Column | Type | Default | Notes |
@@ -393,6 +393,7 @@ Pattern: `ipcMain.handle('domain:action', handler)` in main, `ipcRenderer.invoke
 | `vault:delete-secrets` | ipc/vault.ts | `vaultService.deleteSecrets(envId)` | `api.vault.deleteSecrets(envId)` |
 | `vault:migrate` | ipc/vault.ts | `vaultService.migrateEnvironment(...)` | `api.vault.migrate(envId, old, new)` |
 | `data:export` | ipc/data-import-export.ts | `dataService.export{All,Collections,...}()` | `api.data.export(type, wsId?)` |
+| `data:pick-and-read` | ipc/data-import-export.ts | `dialog.showOpenDialog()` + `readFileSync()` | `api.data.pickAndRead()` |
 | `data:import` | ipc/data-import-export.ts | `dataService.importData(json, wsId?)` | `api.data.import(json, wsId?)` |
 | `postman:import` | ipc/data-import-export.ts | `importPostman(json, wsId?)` | `api.data.importPostman(json, wsId?)` |
 | `settings:get` | ipc/settings.ts | `getSetting(key)` | `api.settings.get(key)` |
@@ -466,7 +467,7 @@ AUTH_TYPES = ['none','bearer','basic','api-key'] as const
 SENSITIVE_HEADERS = ['authorization','x-api-key','cookie','set-cookie', ...]
 SENSITIVE_PARAM_KEYS = ['api_key','apikey','token','secret','password', ...]
 DEFAULTS = { REQUEST_TIMEOUT_MS: 30000, HISTORY_RETENTION_DAYS: 30, FOLLOW_REDIRECTS: true,
-    VERIFY_SSL: false, MAX_SCRIPT_CHAIN_DEPTH: 3, MAX_VARIABLE_NESTING: 10, SESSION_LOG_MAX_ENTRIES: 100 }
+    VERIFY_SSL: true, MAX_SCRIPT_CHAIN_DEPTH: 3, MAX_VARIABLE_NESTING: 10, SESSION_LOG_MAX_ENTRIES: 100 }
 ```
 
 ---
@@ -518,13 +519,13 @@ All stores use this pattern: module-level `$state` + `$derived` + exported objec
 ### Encryption (`services/encryption.ts`)
 - `initEncryption()` → generates/loads 256-bit master key via Electron `safeStorage`, persists encrypted blob to `{userData}/master.key` with `0o600` file permissions
 - Master key file uses `vxk1:` prefix to distinguish keychain-encrypted format from legacy plaintext (handles graceful migration)
-- `encryptValue(plaintext)` → AES-256-CBC, returns base64(IV + ciphertext)
-- `decryptValue(encrypted)` → reverse; uses string-mode `decipher.update()` to avoid Buffer concat issues
+- `encryptValue(plaintext)` → AES-256-GCM, returns `gcm:` + base64(IV[12] + authTag[16] + ciphertext)
+- `decryptValue(encrypted)` → detects format: `gcm:` prefix → AES-256-GCM; otherwise → legacy AES-256-CBC fallback for backward compatibility
 - `initEncryptionForTesting(key?)` → bypass safeStorage for Vitest
 - **Repository-layer integration**: encryption is transparent at the repository layer — callers (IPC, services, UI) are unaware
   - **Settings**: `SENSITIVE_KEYS` set (`vault.token`, `vault.role_id`, `vault.secret_id`, `sync.token`) — encrypted on write, decrypted on read with try/catch fallback for pre-migration plaintext
   - **Environments**: variable values encrypted with `enc:` prefix — `encryptVariables()`/`decryptVariables()` in all CRUD paths
-  - **Requests**: auth credentials (`bearer_token`, `basic_password`, `api_key_value`) encrypted with `enc:` prefix — `encryptAuth()`/`decryptAuth()` in all CRUD paths; double-encryption guard checks `enc:` prefix before encrypting
+  - **Requests**: auth credentials (`bearer_token`, `basic_username`, `basic_password`, `api_key_value`) encrypted with `enc:` prefix — `encryptAuth()`/`decryptAuth()` in all CRUD paths; double-encryption guard checks `enc:` prefix before encrypting
   - **Workspace settings**: sensitive fields in `workspaces.settings` JSON column encrypted/decrypted using the same key set as `app_settings`
   - **One-time migration**: `migrateToEncryptedStorage()` runs at startup, encrypts existing plaintext data, tracked by `encryption.migrated` setting
 
@@ -552,7 +553,8 @@ All stores use this pattern: module-level `$state` + `$derived` + exported objec
 - **Pre-request scripts**: executes dependent requests before main send
 - **Post-response scripts**: extracts values and sets collection variables after response
 - **Auto-saves history** to `request_histories` table (try/catch — doesn't fail the request)
-- **Logs** all requests to session log (success/error)
+- **Logs** template URL (not resolved URL with secrets) to session log; error bodies use `error.message` (not stack traces)
+- **Security validation**: URL scheme whitelist (http/https only), HTTP method whitelist, timeout clamped 1-300s, response body size limit 50MB (content-length check), form-data file paths validated against dialog-approved set
 
 ### Variable Substitution (`services/variable-substitution.ts`)
 - `getResolvedVariables(wsId?, colId?)` → flat `Record<string, string>` (env vars + collection overrides)
@@ -565,7 +567,7 @@ All stores use this pattern: module-level `$state` + `$derived` + exported objec
 ### Script Execution (`services/script-execution.ts`)
 - **Pre-request**: `executePreRequestScripts(reqId, colId, wsId?)` — fires dependent requests before the main one
 - **Post-response**: `executePostResponseScripts(reqId, colId, response, wsId?)` — extracts values from response and sets collection variables
-- Circular dependency detection via execution stack
+- Circular dependency detection via per-chain execution stack (no shared global state)
 - Max chain depth: `DEFAULTS.MAX_SCRIPT_CHAIN_DEPTH` (3)
 - `extractValue(source, status, body, headers)` — supports `status`, `header.Name`, `body.key.nested[0].id`
 - `extractJsonPath(data, path)` — dot-notation with `[n]` array index support
@@ -757,10 +759,44 @@ Three `$effect` hooks in `App.svelte` drive cross-cutting UX behaviors:
 6. pruneHistories()              — Auto-prune old request histories based on retention setting (default 30 days)
 7. buildMenu()                   — Set native application menu (using IPC.MENU_* constants)
 8. initUpdater()                 — Configure electron-updater (no-op in dev; macOS: notify only; Win/Linux: auto-download)
-9. createWindow()                — BrowserWindow with preload script
+9. createWindow()                — BrowserWindow (sandbox: true, CSP, navigation guards, permission deny-all)
 10. runAutoSync()                — On ready-to-show: vault pullAll + git pull if auto_sync enabled
 11. checkForUpdates()            — On ready-to-show: check for available updates
 ```
+
+---
+
+## Security Hardening
+
+### Electron
+- **Sandbox**: `sandbox: true` — preload runs in sandboxed context (only `contextBridge` + `ipcRenderer`)
+- **CSP**: `<meta http-equiv="Content-Security-Policy">` — `default-src 'self'`, `script-src 'self'`, `style-src 'self' 'unsafe-inline'`, `frame-src blob:`
+- **Navigation**: `will-navigate` blocked, `setWindowOpenHandler` returns `deny`
+- **Permissions**: `setPermissionRequestHandler` denies all (camera, mic, geolocation, etc.)
+- **DevTools**: `reload`, `forceReload`, `toggleDevTools` menu items only shown in dev mode
+- **macOS entitlements**: only `allow-jit` (removed `allow-unsigned-executable-memory`, `allow-dyld-environment-variables`)
+- **Test guard**: `VAXTLY_TEST_USERDATA` env var only honored when `!app.isPackaged`
+
+### IPC Validation
+- **Settings**: readonly key denylist (`encryption.*`, `app.version`), sensitive keys (`vault.token`, etc.) filtered from `getAll`
+- **Proxy**: URL scheme whitelist (http/https), HTTP method whitelist, timeout clamped 1-300s, response body 50MB limit, form-data file paths checked against dialog-approved set
+- **Data import**: replaced arbitrary `data:read-file` with dialog-based `data:pick-and-read`, JSON import size capped at 50MB
+- **Vault migrate**: path traversal blocked (`..`, leading `/`)
+- **Sync**: conflict resolution value strictly validated
+- **Histories**: retention days clamped 1-365
+
+### Encryption
+- AES-256-GCM with 12-byte IV and 16-byte auth tag (authenticated encryption)
+- Legacy AES-256-CBC data decrypted transparently (backward compat)
+- `basic_username` added to encrypted auth fields
+
+### Other
+- **HtmlPreview**: blob: URL with empty sandbox (no scripts, no same-origin access)
+- **SSL default**: `VERIFY_SSL: true` for new installs; check uses `!== 'false'` (secure by default)
+- **Code generator**: `esc()` escapes backslashes and newlines; JS/Node body always string literals (no code interpolation)
+- **YAML import**: UUID format validation on all imported entity IDs
+- **Script execution**: per-chain stack (no global race condition), no debug log leaking body/headers
+- **Error responses**: `error.message` only (no stack traces), session log uses template URL (no resolved secrets)
 
 ---
 

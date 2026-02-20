@@ -133,14 +133,13 @@
     if (importing) return
     importStage = 'reading'
 
-    const fileResult = await window.api.proxy.pickFile()
-    if (!fileResult) {
+    const result = await window.api.data.pickAndRead()
+    if (!result) {
       importStage = 'idle'
       return
     }
 
-    const json = await window.api.data.readFile(fileResult.path)
-    await processImport(json, fileResult.name, json.length)
+    await processImport(result.content, result.name, result.content.length)
   }
 
   function handleDragOver(e: DragEvent): void {

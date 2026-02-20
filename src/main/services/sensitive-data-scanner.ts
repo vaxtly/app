@@ -180,6 +180,7 @@ function scanKeyValueData(
   field: string,
   request: RequestData,
 ): SensitiveFinding[] {
+  if (!Array.isArray(data)) return []
   const findings: SensitiveFinding[] = []
 
   for (const pair of data) {
@@ -239,6 +240,7 @@ function scanCollectionVariables(
   variables: KeyValueEntry[],
   referencedVars: string[],
 ): SensitiveFinding[] {
+  if (!Array.isArray(variables)) return []
   const findings: SensitiveFinding[] = []
 
   for (const variable of variables) {

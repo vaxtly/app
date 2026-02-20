@@ -11,6 +11,14 @@ const PROVIDER_KEYS = new Set([
   'vault.role_id', 'vault.secret_id', 'vault.namespace', 'vault.mount', 'vault.verify_ssl',
 ])
 
+/** Internal keys that the renderer must not overwrite */
+const READONLY_KEY_PREFIXES = ['encryption.', 'app.version']
+
+/** Sensitive keys filtered from getAll responses */
+const SENSITIVE_KEYS = new Set([
+  'vault.token', 'vault.role_id', 'vault.secret_id', 'sync.token',
+])
+
 function invalidateCachesIfNeeded(key: string, workspaceId?: string): void {
   if (PROVIDER_KEYS.has(key)) {
     if (key.startsWith('vault.')) {
@@ -26,12 +34,16 @@ export function registerSettingsHandlers(): void {
   })
 
   ipcMain.handle(IPC.SETTINGS_SET, (_event, key: string, value: string) => {
+    if (READONLY_KEY_PREFIXES.some((p) => key.startsWith(p))) {
+      throw new Error(`Setting "${key}" is read-only`)
+    }
     settingsRepo.setSetting(key, value)
     invalidateCachesIfNeeded(key)
   })
 
   ipcMain.handle(IPC.SETTINGS_GET_ALL, () => {
-    return settingsRepo.getAllSettings()
+    const all = settingsRepo.getAllSettings()
+    return all.filter((s) => !SENSITIVE_KEYS.has(s.key))
   })
 
   // Workspace-scoped settings

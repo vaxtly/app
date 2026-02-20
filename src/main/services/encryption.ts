@@ -6,8 +6,8 @@
  *
  * On subsequent launches: reads the blob, decrypts via safeStorage.
  *
- * The decrypted key is used as the SQLCipher PRAGMA key (when using sqlcipher)
- * or for field-level encryption (when using better-sqlite3).
+ * The decrypted key is used for field-level AES-256-GCM encryption.
+ * Legacy AES-256-CBC data is transparently decrypted for backward compatibility.
  */
 
 import { safeStorage, app } from 'electron'
@@ -20,15 +20,17 @@ let masterKey: Buffer | null = null
 /** Prefix to distinguish keychain-encrypted key files from plaintext fallback */
 const KEYCHAIN_PREFIX = Buffer.from('vxk1:')
 
+/** Prefix in encrypted values to distinguish GCM from legacy CBC */
+const GCM_PREFIX = 'gcm:'
+
 function getKeyPath(): string {
   return join(app.getPath('userData'), 'master.key')
 }
 
 /**
  * Initialize the encryption layer. Must be called after app.whenReady().
- * Returns the hex-encoded master key for use as SQLCipher PRAGMA key.
  */
-export function initEncryption(): string {
+export function initEncryption(): void {
   const keyPath = getKeyPath()
 
   if (existsSync(keyPath)) {
@@ -71,12 +73,10 @@ export function initEncryption(): string {
     // Ensure restrictive permissions even if umask was permissive
     chmodSync(keyPath, 0o600)
   }
-
-  return masterKey.toString('hex')
 }
 
 /**
- * Get the master key as a hex string.
+ * Get the master key as a hex string (for testing only).
  * Throws if initEncryption() hasn't been called.
  */
 export function getMasterKeyHex(): string {
@@ -87,27 +87,43 @@ export function getMasterKeyHex(): string {
 }
 
 /**
- * Encrypt a string value using AES-256-CBC with the master key.
- * Returns a base64-encoded string containing IV + ciphertext.
+ * Encrypt a string value using AES-256-GCM with the master key.
+ * Returns "gcm:" + base64(iv[12] + authTag[16] + ciphertext).
  */
 export function encryptValue(plaintext: string): string {
   if (!masterKey) {
     throw new Error('Encryption not initialized.')
   }
-  const iv = randomBytes(16)
-  const cipher = createCipheriv('aes-256-cbc', masterKey, iv)
+  const iv = randomBytes(12)
+  const cipher = createCipheriv('aes-256-gcm', masterKey, iv)
   const encrypted = Buffer.concat([cipher.update(plaintext, 'utf8'), cipher.final()])
-  const combined = Buffer.concat([iv, encrypted])
-  return combined.toString('base64')
+  const authTag = cipher.getAuthTag()
+  const combined = Buffer.concat([iv, authTag, encrypted])
+  return GCM_PREFIX + combined.toString('base64')
 }
 
 /**
- * Decrypt a base64-encoded string (IV + ciphertext) using the master key.
+ * Decrypt an encrypted value. Supports both:
+ * - New GCM format: "gcm:" + base64(iv[12] + authTag[16] + ciphertext)
+ * - Legacy CBC format: base64(iv[16] + ciphertext)
  */
 export function decryptValue(encrypted: string): string {
   if (!masterKey) {
     throw new Error('Encryption not initialized.')
   }
+
+  if (encrypted.startsWith(GCM_PREFIX)) {
+    // AES-256-GCM
+    const combined = Buffer.from(encrypted.slice(GCM_PREFIX.length), 'base64')
+    const iv = combined.subarray(0, 12)
+    const authTag = combined.subarray(12, 28)
+    const ciphertext = combined.subarray(28)
+    const decipher = createDecipheriv('aes-256-gcm', masterKey, iv)
+    decipher.setAuthTag(authTag)
+    return decipher.update(ciphertext, undefined, 'utf8') + decipher.final('utf8')
+  }
+
+  // Legacy AES-256-CBC fallback
   const combined = Buffer.from(encrypted, 'base64')
   const iv = combined.subarray(0, 16)
   const ciphertext = combined.subarray(16)

@@ -12,6 +12,11 @@ import * as historiesRepo from '../database/repositories/request-histories'
 import * as settingsRepo from '../database/repositories/settings'
 
 const activeRequests = new Map<string, AbortController>()
+const approvedFilePaths = new Set<string>()
+
+const ALLOWED_METHODS = new Set(['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'])
+const ALLOWED_SCHEMES = new Set(['http:', 'https:'])
+const MAX_BODY_SIZE = 50 * 1024 * 1024 // 50 MB
 
 export function registerProxyHandlers(): void {
   ipcMain.handle(IPC.PROXY_SEND, async (_event, requestId: string, config: RequestConfig): Promise<ResponseData> => {
@@ -42,10 +47,28 @@ export function registerProxyHandlers(): void {
     }
     const resolvedBody = sub(config.body)
 
+    // Validate HTTP method
+    const method = config.method.toUpperCase()
+    if (!ALLOWED_METHODS.has(method)) {
+      throw new Error(`Unsupported HTTP method: ${config.method}`)
+    }
+
+    // Validate URL scheme
+    try {
+      const parsedUrl = new URL(resolvedUrl)
+      if (!ALLOWED_SCHEMES.has(parsedUrl.protocol)) {
+        throw new Error(`Unsupported URL scheme: ${parsedUrl.protocol} (only http/https allowed)`)
+      }
+    } catch (e) {
+      if (e instanceof TypeError) throw new Error(`Invalid URL: ${resolvedUrl}`)
+      throw e
+    }
+
     // Read settings
-    const verifySsl = config.verifySsl ?? (settingsRepo.getSetting('request.verify_ssl') === 'true')
+    const verifySsl = config.verifySsl ?? (settingsRepo.getSetting('request.verify_ssl') !== 'false')
     const followRedirects = config.followRedirects ?? (settingsRepo.getSetting('request.follow_redirects') !== 'false')
-    const timeoutSec = config.timeout ?? Number(settingsRepo.getSetting('request.timeout') || '30')
+    const rawTimeout = config.timeout ?? Number(settingsRepo.getSetting('request.timeout') || '30')
+    const timeoutSec = Math.max(1, Math.min(300, rawTimeout))
 
     // Set up timeout
     const timeoutMs = timeoutSec * 1000
@@ -63,7 +86,7 @@ export function registerProxyHandlers(): void {
       let requestBodyForHistory: string | undefined = resolvedBody ?? undefined
       let fetchBody: any = undefined
 
-      if (config.method !== 'GET' && config.method !== 'HEAD') {
+      if (method !== 'GET' && method !== 'HEAD') {
         if (config.bodyType === 'json' && resolvedBody) {
           fetchBody = resolvedBody
           setDefaultHeader(fetchHeaders, 'Content-Type', 'application/json')
@@ -82,6 +105,9 @@ export function registerProxyHandlers(): void {
           for (const entry of resolvedFormData) {
             if (!entry.enabled) continue
             if (entry.type === 'file' && entry.filePath) {
+              if (!approvedFilePaths.has(entry.filePath)) {
+                throw new Error(`File path not approved by file picker: ${basename(entry.filePath)}`)
+              }
               const buffer = readFileSync(entry.filePath)
               const blob = new Blob([buffer])
               formBody.append(entry.key, blob, entry.fileName ?? basename(entry.filePath))
@@ -112,7 +138,7 @@ export function registerProxyHandlers(): void {
       }
 
       const response = await undiciFetch(resolvedUrl, {
-        method: config.method,
+        method,
         headers: fetchHeaders,
         body: fetchBody,
         redirect: followRedirects ? 'follow' : 'manual',
@@ -121,6 +147,13 @@ export function registerProxyHandlers(): void {
       } as any)
       clearTimeout(timeoutId)
       ttfb = performance.now() - startTime
+
+      // Check content-length before downloading body
+      const contentLength = parseInt(response.headers.get('content-length') ?? '', 10)
+      if (contentLength > MAX_BODY_SIZE) {
+        await response.body?.cancel()
+        throw new Error(`Response body too large (${Math.round(contentLength / 1024 / 1024)}MB, max 50MB)`)
+      }
 
       const bodyBuffer = await response.arrayBuffer()
       const total = performance.now() - startTime
@@ -169,19 +202,19 @@ export function registerProxyHandlers(): void {
         }
       }
 
-      logHttp('request', resolvedUrl, `${config.method} ${response.status} ${response.statusText} (${Math.round(total)}ms)`)
+      logHttp('request', config.url, `${method} ${response.status} ${response.statusText} (${Math.round(total)}ms)`)
 
       return result
     } catch (error) {
       clearTimeout(timeoutId)
       const total = performance.now() - startTime
       const errorMessage = formatFetchError(error, resolvedUrl)
-      logHttp('request', resolvedUrl, `${config.method} failed: ${errorMessage}`, false)
+      logHttp('request', config.url, `${method} failed: ${errorMessage}`, false)
       return {
         status: 0,
         statusText: errorMessage,
         headers: {},
-        body: error instanceof Error ? error.stack || error.message : String(error),
+        body: error instanceof Error ? error.message : String(error),
         size: 0,
         timing: { start: startTime, ttfb: ttfb || total, total },
         cookies: [],
@@ -202,7 +235,9 @@ export function registerProxyHandlers(): void {
   ipcMain.handle(IPC.PROXY_PICK_FILE, async (): Promise<{ path: string; name: string } | null> => {
     const result = await dialog.showOpenDialog({ properties: ['openFile'] })
     if (result.canceled || result.filePaths.length === 0) return null
-    return { path: result.filePaths[0], name: basename(result.filePaths[0]) }
+    const filePath = result.filePaths[0]
+    approvedFilePaths.add(filePath)
+    return { path: filePath, name: basename(filePath) }
   })
 }
 

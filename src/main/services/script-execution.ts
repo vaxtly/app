@@ -16,8 +16,6 @@ import { logHttp } from './session-log'
 import type { ScriptsConfig, PreRequestScript, PostResponseScript } from '../../shared/types/models'
 import type { ResponseData } from '../../shared/types/http'
 
-const executionStack: string[] = []
-
 /**
  * Execute pre-request scripts. Returns true if the main request should proceed.
  */
@@ -41,10 +39,13 @@ export async function executePreRequestScripts(
     return true
   }
 
+  // Each top-level call gets its own execution stack for circular-dependency detection
+  const stack: string[] = []
+
   for (const script of Array.isArray(scripts.pre_request) ? scripts.pre_request : [scripts.pre_request]) {
     if (script.action !== 'send_request' || !script.request_id) continue
     logHttp('pre-script', requestId, `Firing dependent request: ${script.request_id}`)
-    await executeDependentRequest(script.request_id, collectionId, workspaceId)
+    await executeDependentRequest(script.request_id, collectionId, workspaceId, stack)
     logHttp('pre-script', requestId, 'Dependent request completed')
   }
 
@@ -93,13 +94,14 @@ export function executePostResponseScripts(
 async function executeDependentRequest(
   requestId: string,
   collectionId: string,
-  workspaceId?: string,
+  workspaceId: string | undefined,
+  stack: string[],
 ): Promise<void> {
-  if (executionStack.includes(requestId)) {
+  if (stack.includes(requestId)) {
     throw new Error('Circular dependency detected in request scripts')
   }
 
-  if (executionStack.length >= DEFAULTS.MAX_SCRIPT_CHAIN_DEPTH) {
+  if (stack.length >= DEFAULTS.MAX_SCRIPT_CHAIN_DEPTH) {
     throw new Error(`Maximum script chain depth (${DEFAULTS.MAX_SCRIPT_CHAIN_DEPTH}) exceeded`)
   }
 
@@ -108,12 +110,9 @@ async function executeDependentRequest(
     throw new Error(`Dependent request [${requestId}] not found in this collection`)
   }
 
-  executionStack.push(requestId)
+  stack.push(requestId)
 
   try {
-    // Recursively run pre-request scripts
-    await executePreRequestScripts(requestId, collectionId, workspaceId)
-
     // Execute the HTTP request
     const response = await executeHttpRequest(requestId, collectionId, workspaceId)
     logHttp('pre-script', requestId, `Dependent request returned ${response.status} ${response.statusText}`)
@@ -121,7 +120,7 @@ async function executeDependentRequest(
     // Run post-response scripts
     executePostResponseScripts(requestId, collectionId, response, workspaceId)
   } finally {
-    executionStack.pop()
+    stack.pop()
   }
 }
 
@@ -196,7 +195,7 @@ async function executeHttpRequest(
   }
 
   // Read SSL setting (same as main proxy)
-  const verifySsl = settingsRepo.getSetting('request.verify_ssl') === 'true'
+  const verifySsl = settingsRepo.getSetting('request.verify_ssl') !== 'false'
   const dispatcher = !verifySsl
     ? new Agent({ connect: { rejectUnauthorized: false } })
     : undefined
@@ -211,9 +210,7 @@ async function executeHttpRequest(
     fetchOptions.body = body
   }
 
-  // Debug: log what we're about to send
-  const headerKeys = Object.keys(headers).join(', ')
-  logHttp('pre-script', requestId, `→ ${request.method} ${resolvedUrl} | headers: [${headerKeys}] | body_type: ${request.body_type ?? 'none'} | body: ${body ? body.slice(0, 100) : '(empty)'}`)
+  logHttp('pre-script', requestId, `→ ${request.method} ${request.url}`)
 
   const startTime = performance.now()
 

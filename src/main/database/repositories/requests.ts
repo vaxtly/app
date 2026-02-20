@@ -7,6 +7,7 @@ const ENC_PREFIX = 'enc:'
 
 const AUTH_SENSITIVE_FIELDS: (keyof AuthConfig)[] = [
   'bearer_token',
+  'basic_username',
   'basic_password',
   'api_key_value',
 ]

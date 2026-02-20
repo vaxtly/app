@@ -54,6 +54,9 @@ export function registerSyncHandlers(): void {
   ipcMain.handle(
     IPC.SYNC_RESOLVE_CONFLICT,
     async (_event, collectionId: string, resolution: 'keep-local' | 'keep-remote', workspaceId?: string): Promise<SyncResult> => {
+      if (resolution !== 'keep-local' && resolution !== 'keep-remote') {
+        return { success: false, message: 'Invalid resolution strategy', pulled: 0, pushed: 0 }
+      }
       const collection = collectionsRepo.findById(collectionId)
       if (!collection) {
         return { success: false, message: 'Collection not found', pulled: 0, pushed: 0 }
