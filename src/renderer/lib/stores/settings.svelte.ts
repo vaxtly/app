@@ -13,6 +13,7 @@ export interface SettingsMap {
   'history.retention_days': number
   'app.version': string
   'app.welcomed': boolean
+  'app.theme': 'dark' | 'light' | 'system'
 }
 
 type SettingsKey = keyof SettingsMap
@@ -27,6 +28,7 @@ const defaults: SettingsMap = {
   'history.retention_days': 30,
   'app.version': '0.0.0',
   'app.welcomed': false,
+  'app.theme': 'dark',
 }
 
 // --- State ---

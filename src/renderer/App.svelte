@@ -124,6 +124,33 @@
     }
   }
 
+  // --- Theme application ---
+  $effect(() => {
+    const theme = settingsStore.get('app.theme')
+    const html = document.documentElement
+
+    function applyDark(isDark: boolean): void {
+      if (isDark) {
+        html.classList.remove('light')
+      } else {
+        html.classList.add('light')
+      }
+    }
+
+    if (theme === 'light') {
+      applyDark(false)
+    } else if (theme === 'dark') {
+      applyDark(true)
+    } else {
+      // system
+      const mq = window.matchMedia('(prefers-color-scheme: dark)')
+      applyDark(mq.matches)
+      const handler = (e: MediaQueryListEvent): void => applyDark(e.matches)
+      mq.addEventListener('change', handler)
+      return () => mq.removeEventListener('change', handler)
+    }
+  })
+
   // Active request ID for system log history tab
   let activeRequestId = $derived(
     appStore.activeTab?.type === 'request' ? appStore.activeTab.entityId : undefined,

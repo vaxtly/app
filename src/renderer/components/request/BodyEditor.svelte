@@ -361,12 +361,12 @@
   }
 
   .be-format-feedback {
-    color: #4ade80;
+    color: var(--color-success);
     font-size: 11px;
   }
 
   .be-format-feedback--err {
-    color: #fb923c;
+    color: var(--color-status-client-error);
   }
 
   /* --- Content areas --- */
@@ -579,7 +579,7 @@
   }
 
   .fd-row:hover .fd-remove { opacity: 1; }
-  .fd-remove:hover { color: #f87171; background: color-mix(in srgb, #f87171 8%, transparent); }
+  .fd-remove:hover { color: var(--color-danger-light); background: color-mix(in srgb, var(--color-danger-light) 8%, transparent); }
 
   .fd-add {
     display: flex;

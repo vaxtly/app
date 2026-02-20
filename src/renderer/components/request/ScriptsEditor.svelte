@@ -43,13 +43,13 @@
   })
 
   const methodColors: Record<string, string> = {
-    GET: '#4ade80',
-    POST: '#facc15',
-    PUT: '#60a5fa',
-    PATCH: '#fb923c',
-    DELETE: '#f87171',
-    HEAD: '#c084fc',
-    OPTIONS: '#94a3b8',
+    GET: 'var(--color-method-get)',
+    POST: 'var(--color-method-post)',
+    PUT: 'var(--color-method-put)',
+    PATCH: 'var(--color-method-patch)',
+    DELETE: 'var(--color-method-delete)',
+    HEAD: 'var(--color-method-head)',
+    OPTIONS: 'var(--color-method-options)',
   }
 
   function togglePicker(): void {
@@ -310,8 +310,8 @@
   }
 
   .se-action:hover { color: var(--color-brand-300); }
-  .se-action--danger { color: #f87171; }
-  .se-action--danger:hover { color: #fca5a5; }
+  .se-action--danger { color: var(--color-danger-light); }
+  .se-action--danger:hover { color: var(--color-danger-lighter); }
 
   .se-hint {
     font-size: 11px;
@@ -412,8 +412,8 @@
   }
 
   .se-remove:hover {
-    color: #f87171;
-    background: color-mix(in srgb, #f87171 8%, transparent);
+    color: var(--color-danger-light);
+    background: color-mix(in srgb, var(--color-danger-light) 8%, transparent);
   }
 
   /* --- Searchable request picker --- */

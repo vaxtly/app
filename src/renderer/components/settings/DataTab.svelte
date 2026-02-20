@@ -372,14 +372,14 @@
     opacity: 0.85;
   }
   .status-banner.is-success {
-    border-color: color-mix(in srgb, #4ade80 25%, transparent);
-    background: color-mix(in srgb, #4ade80 8%, transparent);
-    color: #86efac;
+    border-color: color-mix(in srgb, var(--color-success) 25%, transparent);
+    background: color-mix(in srgb, var(--color-success) 8%, transparent);
+    color: var(--color-banner-success);
   }
   .status-banner.is-error {
-    border-color: color-mix(in srgb, #f87171 25%, transparent);
-    background: color-mix(in srgb, #f87171 8%, transparent);
-    color: #fca5a5;
+    border-color: color-mix(in srgb, var(--color-danger-light) 25%, transparent);
+    background: color-mix(in srgb, var(--color-danger-light) 8%, transparent);
+    color: var(--color-banner-error);
   }
   .status-icon {
     flex-shrink: 0;
@@ -433,8 +433,8 @@
     color: var(--color-brand-400);
   }
   .import-icon {
-    background: color-mix(in srgb, #a78bfa 15%, transparent);
-    color: #a78bfa;
+    background: color-mix(in srgb, var(--color-purple) 15%, transparent);
+    color: var(--color-purple);
   }
   .section-title {
     font-size: 13px;
@@ -594,12 +594,12 @@
     height: 18px;
   }
   .done-icon.success {
-    background: color-mix(in srgb, #4ade80 15%, transparent);
-    color: #4ade80;
+    background: color-mix(in srgb, var(--color-success) 15%, transparent);
+    color: var(--color-success);
   }
   .done-icon.error {
-    background: color-mix(in srgb, #f87171 15%, transparent);
-    color: #f87171;
+    background: color-mix(in srgb, var(--color-danger-light) 15%, transparent);
+    color: var(--color-danger-light);
   }
 
   /* Buttons */

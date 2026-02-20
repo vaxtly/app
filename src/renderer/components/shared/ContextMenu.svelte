@@ -63,7 +63,7 @@
         onclick={() => { item.action(); onclose() }}
         disabled={item.disabled}
         class="flex w-full items-center px-3 py-1.5 text-left text-xs transition-colors
-          {item.danger ? 'text-red-400 hover:bg-red-400/10' : 'text-surface-200 hover:bg-surface-700'}
+          {item.danger ? 'ctx-danger' : 'text-surface-200 hover:bg-surface-700'}
           {item.disabled ? 'cursor-not-allowed opacity-40' : ''}"
       >
         {item.label}
@@ -71,3 +71,12 @@
     {/if}
   {/each}
 </div>
+
+<style>
+  .ctx-danger {
+    color: var(--color-danger);
+  }
+  .ctx-danger:hover {
+    background: color-mix(in srgb, var(--color-danger) 10%, transparent);
+  }
+</style>

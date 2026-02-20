@@ -174,10 +174,11 @@
         onclick={toggleActive}
         class="flex items-center gap-2 rounded-full px-3 py-1 text-xs transition-colors
           {environment.is_active
-            ? 'bg-green-500/15 text-green-400'
+            ? ''
             : 'bg-surface-800 text-surface-400 hover:text-surface-200'}"
+        style={environment.is_active ? 'color: var(--color-success); background: color-mix(in srgb, var(--color-success) 15%, transparent)' : ''}
       >
-        <span class="h-2 w-2 rounded-full {environment.is_active ? 'bg-green-400' : 'bg-surface-600'}"></span>
+        <span class="h-2 w-2 rounded-full {environment.is_active ? '' : 'bg-surface-600'}" style={environment.is_active ? 'background: var(--color-success)' : ''}></span>
         {environment.is_active ? 'Active' : 'Inactive'}
       </button>
 
@@ -235,9 +236,8 @@
 
           {#if vaultSynced}
             {#if vaultStatus}
-              <div class="mb-2 rounded px-2 py-1 text-[10px] {vaultStatus.type === 'success'
-                ? 'bg-green-900/30 text-green-300'
-                : 'bg-red-900/30 text-red-300'}">
+              <div class="mb-2 rounded px-2 py-1 text-[10px]"
+                style={`color: var(${vaultStatus.type === 'success' ? '--color-success' : '--color-danger'}); background: color-mix(in srgb, var(${vaultStatus.type === 'success' ? '--color-success' : '--color-danger'}) 12%, transparent)`}>
                 {vaultStatus.message}
               </div>
             {/if}

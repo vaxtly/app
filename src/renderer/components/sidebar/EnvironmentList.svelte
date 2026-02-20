@@ -65,17 +65,19 @@
         <button
           onclick={() => toggleActive(env.id)}
           aria-label={env.is_active ? 'Deactivate environment' : 'Activate environment'}
-          class="flex h-4 w-4 shrink-0 items-center justify-center rounded-full border {env.is_active ? 'border-green-400 bg-green-400/20' : 'border-surface-600 hover:border-surface-400'}"
+          class="flex h-4 w-4 shrink-0 items-center justify-center rounded-full border {env.is_active ? '' : 'border-surface-600 hover:border-surface-400'}"
+          style={env.is_active ? 'border-color: var(--color-success); background: color-mix(in srgb, var(--color-success) 20%, transparent)' : ''}
         >
           {#if env.is_active}
-            <span class="h-2 w-2 rounded-full bg-green-400"></span>
+            <span class="h-2 w-2 rounded-full" style="background: var(--color-success)"></span>
           {/if}
         </button>
 
         <!-- Name (clickable) -->
         <button
           onclick={() => onenvironmentclick(env.id)}
-          class="min-w-0 flex-1 truncate text-left text-[13px] {env.is_active ? 'font-medium text-green-300' : 'text-surface-300'}"
+          class="min-w-0 flex-1 truncate text-left text-[13px] {env.is_active ? 'font-medium' : 'text-surface-300'}"
+          style:color={env.is_active ? 'var(--color-success)' : undefined}
         >
           {env.name}
         </button>

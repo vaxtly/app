@@ -102,7 +102,7 @@ vaxtly/
 │       │   │   ├── settings.svelte.ts  # App settings with typed keys + IPC persistence
 │       │   │   └── drag.svelte.ts      # Drag-and-drop state for sidebar items
 │       │   └── utils/
-│       │       ├── http-colors.ts      # METHOD_COLORS, status color helpers
+│       │       ├── http-colors.ts      # getMethodColor(), getStatusColor() → CSS variable strings
 │       │       ├── formatters.ts       # formatSize, formatTime, detectLanguage, formatBody
 │       │       └── variable-highlight.ts # CodeMirror {{var}} decoration + hover tooltip
 │       └── components/
@@ -713,38 +713,53 @@ All stores use this pattern: module-level `$state` + `$derived` + exported objec
 
 ## App-Level Reactive Behaviors (`App.svelte`)
 
-Three `$effect` hooks in `App.svelte` drive cross-cutting UX behaviors:
+Four `$effect` hooks in `App.svelte` drive cross-cutting UX behaviors:
 
 1. **Session save**: Watches `openTabs.length` + `activeTabId`, debounce-writes to `session.tabs.{workspaceId}` setting (skipped until initial restore completes via `sessionRestored` flag). Sessions are scoped per workspace.
 2. **Sidebar auto-reveal**: When active tab changes — request tabs: expands ancestor tree nodes + switches sidebar to "collections"; environment tabs: switches sidebar to "environments".
 3. **Default environment auto-activation**: When a request tab becomes active, resolves the nearest `default_environment_id` (folder chain → collection) and activates it if different from current.
+4. **Theme application**: Reads `app.theme` setting (`dark` | `light` | `system`), toggles `light` class on `<html>`. In `system` mode listens to `matchMedia('prefers-color-scheme: dark')` with cleanup.
 
 ---
 
 ## Design System
+
+### Theme System
+
+Three-way theme: **dark** (default), **light**, **system** (follows OS preference).
+
+- **CSS variable foundation** — `:root` defines ~30 semantic color variables (`--color-method-*`, `--color-success`, `--color-danger`, `--color-status-*`, `--color-var-*`, etc.) with dark-mode defaults. `html.light` overrides all of them for light mode, including flipping the `surface-*` scale and shifting `brand-*` darker.
+- **No Tailwind class changes needed** — Tailwind `@theme` tokens (`surface-*`, `brand-*`) are overridden via CSS custom properties under `html.light`. All semantic colors (methods, status, feedback) use CSS variables through inline `style:color` or scoped `<style>` blocks.
+- **Setting**: `app.theme` (`'dark' | 'light' | 'system'`), persisted in settings store.
+- **Application**: `App.svelte` `$effect` toggles `light` class on `<html>`. System mode uses `matchMedia` listener with cleanup.
+- **Main process**: `nativeTheme.themeSource` synced before window creation for correct `backgroundColor` and native dialog matching.
+- **CodeMirror**: `Compartment` from `@codemirror/state` swaps `oneDark` ↔ `[]` reactively based on resolved theme.
+- **UI**: Appearance section in GeneralTab (Light/Dark/System picker), theme cycle button in Sidebar footer.
 
 ### Color Tokens (Tailwind v4 `@theme`)
 
 **Brand** (blue): `brand-50` through `brand-900` (based on blue-50..blue-900)
 **Surface** (slate): `surface-50` through `surface-950` (based on slate-50..slate-950)
 
-### HTTP Method Colors
-| Method | Text Class | Background Class |
-|--------|-----------|-----------------|
-| GET | `text-green-400` | `bg-green-500/15` |
-| POST | `text-amber-400` | `bg-amber-500/15` |
-| PUT | `text-blue-400` | `bg-blue-500/15` |
-| PATCH | `text-purple-400` | `bg-purple-500/15` |
-| DELETE | `text-red-400` | `bg-red-500/15` |
-| HEAD | `text-teal-400` | `bg-teal-500/15` |
-| OPTIONS | `text-gray-400` | `bg-gray-500/15` |
+### HTTP Method Colors (CSS Variables)
 
-### Status Code Colors
-- 2xx: `text-green-400` / `bg-green-500/15`
-- 3xx: `text-blue-400` / `bg-blue-500/15`
-- 4xx: `text-amber-400` / `bg-amber-500/15`
-- 5xx: `text-red-400` / `bg-red-500/15`
-- 0/error: `text-red-400` / `bg-red-500/15`
+All method colors are theme-aware via `--color-method-*` CSS variables. Components use `getMethodColor(method)` from `http-colors.ts` which returns `var(--color-method-*)` strings for inline `style:color`.
+
+| Method | Dark | Light | CSS Variable |
+|--------|------|-------|-------------|
+| GET | `#4ade80` | `#16a34a` | `--color-method-get` |
+| POST | `#22d3ee` | `#0891b2` | `--color-method-post` |
+| PUT | `#60a5fa` | `#2563eb` | `--color-method-put` |
+| PATCH | `#fb923c` | `#ea580c` | `--color-method-patch` |
+| DELETE | `#f87171` | `#dc2626` | `--color-method-delete` |
+| HEAD | `#c084fc` | `#9333ea` | `--color-method-head` |
+| OPTIONS | `#94a3b8` | `#64748b` | `--color-method-options` |
+
+### Status Code Colors (CSS Variables)
+- 2xx: `--color-status-success`
+- 3xx: `--color-status-redirect`
+- 4xx: `--color-status-client-error`
+- 5xx: `--color-status-server-error`
 
 ---
 
@@ -759,7 +774,8 @@ Three `$effect` hooks in `App.svelte` drive cross-cutting UX behaviors:
 6. pruneHistories()              — Auto-prune old request histories based on retention setting (default 30 days)
 7. buildMenu()                   — Set native application menu (using IPC.MENU_* constants)
 8. initUpdater()                 — Configure electron-updater (no-op in dev; macOS: notify only; Win/Linux: auto-download)
-9. createWindow()                — BrowserWindow (sandbox: true, CSP, navigation guards, permission deny-all)
+9. applyThemeSetting()           — Read app.theme, set nativeTheme.themeSource + resolve backgroundColor
+10. createWindow()               — BrowserWindow (sandbox: true, CSP, navigation guards, permission deny-all)
 10. runAutoSync()                — On ready-to-show: iterates all workspaces, resolves effective auto_sync setting (workspace → global fallback), runs vault pullAll + git pull per workspace
 11. checkForUpdates()            — On ready-to-show: check for available updates
 ```

@@ -1,5 +1,103 @@
 @import "tailwindcss";
 
+/* --- Semantic color variables (dark-mode defaults) --- */
+:root {
+  /* Method colors */
+  --color-method-get: #4ade80;
+  --color-method-post: #22d3ee;
+  --color-method-put: #60a5fa;
+  --color-method-patch: #fb923c;
+  --color-method-delete: #f87171;
+  --color-method-head: #c084fc;
+  --color-method-options: #94a3b8;
+
+  /* Semantic feedback */
+  --color-success: #4ade80;
+  --color-success-muted: #34d399;
+  --color-warning: #f59e0b;
+  --color-warning-light: #fbbf24;
+  --color-danger: #ef4444;
+  --color-danger-light: #f87171;
+  --color-danger-lighter: #fca5a5;
+  --color-info: #60a5fa;
+  --color-info-muted: #93bbfd;
+  --color-purple: #a78bfa;
+
+  /* Status response colors */
+  --color-status-success: #4ade80;
+  --color-status-redirect: #fbbf24;
+  --color-status-client-error: #fb923c;
+  --color-status-server-error: #f87171;
+
+  /* Variable highlighting */
+  --color-var-resolved: #4ade80;
+  --color-var-resolved-bg: rgba(74, 222, 128, 0.12);
+  --color-var-unresolved: #f87171;
+  --color-var-unresolved-bg: rgba(248, 113, 113, 0.12);
+
+  /* Status banner colors */
+  --color-banner-success: #86efac;
+  --color-banner-error: #fca5a5;
+}
+
+/* --- Light theme overrides --- */
+html.light {
+  --color-surface-950: #f8fafc;
+  --color-surface-900: #ffffff;
+  --color-surface-800: #f1f5f9;
+  --color-surface-700: #e2e8f0;
+  --color-surface-600: #94a3b8;
+  --color-surface-500: #64748b;
+  --color-surface-400: #475569;
+  --color-surface-300: #334155;
+  --color-surface-200: #1e293b;
+  --color-surface-100: #0f172a;
+  --color-surface-50:  #020617;
+
+  --color-brand-50:  #eff6ff;
+  --color-brand-100: #dbeafe;
+  --color-brand-200: #1e40af;
+  --color-brand-300: #1d4ed8;
+  --color-brand-400: #2563eb;
+  --color-brand-500: #3b82f6;
+  --color-brand-600: #2563eb;
+  --color-brand-700: #1d4ed8;
+  --color-brand-800: #1e40af;
+  --color-brand-900: #1e3a8a;
+
+  --color-method-get: #16a34a;
+  --color-method-post: #0891b2;
+  --color-method-put: #2563eb;
+  --color-method-patch: #ea580c;
+  --color-method-delete: #dc2626;
+  --color-method-head: #9333ea;
+  --color-method-options: #64748b;
+
+  --color-success: #16a34a;
+  --color-success-muted: #059669;
+  --color-warning: #d97706;
+  --color-warning-light: #b45309;
+  --color-danger: #dc2626;
+  --color-danger-light: #b91c1c;
+  --color-danger-lighter: #991b1b;
+  --color-info: #2563eb;
+  --color-info-muted: #1d4ed8;
+  --color-purple: #7c3aed;
+
+  --color-status-success: #16a34a;
+  --color-status-redirect: #92400e;
+  --color-status-client-error: #ea580c;
+  --color-status-server-error: #dc2626;
+
+  --color-var-resolved: #16a34a;
+  --color-var-resolved-bg: rgba(22, 163, 74, 0.1);
+  --color-var-unresolved: #dc2626;
+  --color-var-unresolved-bg: rgba(220, 38, 38, 0.1);
+
+  --color-banner-success: #16a34a;
+  --color-banner-error: #dc2626;
+}
+
 @theme {
   --color-brand-50: #eff6ff;
   --color-brand-100: #dbeafe;
@@ -80,14 +178,14 @@
 
 /* Variable highlighting: {{resolved}} green, {{unresolved}} red */
 .cm-var-resolved {
-  color: #4ade80;
-  background: rgba(74, 222, 128, 0.1);
+  color: var(--color-var-resolved);
+  background: var(--color-var-resolved-bg);
   border-radius: 2px;
 }
 
 .cm-var-unresolved {
-  color: #f87171;
-  background: rgba(248, 113, 113, 0.1);
+  color: var(--color-var-unresolved);
+  background: var(--color-var-unresolved-bg);
   border-radius: 2px;
 }
 
@@ -111,7 +209,7 @@
 
 .cm-var-tooltip-value {
   font-family: 'JetBrains Mono', monospace;
-  color: #4ade80;
+  color: var(--color-var-resolved);
 }
 
 .cm-var-tooltip-source {
@@ -120,7 +218,7 @@
 }
 
 .cm-var-tooltip-unresolved {
-  color: #f87171;
+  color: var(--color-var-unresolved);
 }
 
 .cm-tooltip {

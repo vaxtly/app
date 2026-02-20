@@ -188,13 +188,13 @@
   }
 
   .vi-resolved {
-    color: #4ade80;
-    background: rgba(74, 222, 128, 0.12);
+    color: var(--color-var-resolved);
+    background: var(--color-var-resolved-bg);
   }
 
   .vi-unresolved {
-    color: #f87171;
-    background: rgba(248, 113, 113, 0.12);
+    color: var(--color-var-unresolved);
+    background: var(--color-var-unresolved-bg);
   }
 
   /* Non-variable text: visible but passes pointer events through to input */
@@ -239,7 +239,7 @@
   .vi-tooltip-value {
     font-size: 12px;
     font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
-    color: #4ade80;
+    color: var(--color-var-resolved);
     word-break: break-all;
     cursor: text;
   }

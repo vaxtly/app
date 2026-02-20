@@ -2,6 +2,7 @@
   import { settingsStore } from '../../lib/stores/settings.svelte'
   import Toggle from '../shared/Toggle.svelte'
 
+  let theme = $derived(settingsStore.get('app.theme'))
   let layout = $derived(settingsStore.get('request.layout'))
   let timeout = $derived(settingsStore.get('request.timeout'))
   let verifySsl = $derived(settingsStore.get('request.verify_ssl'))
@@ -41,6 +42,10 @@
     await window.api.updater.check()
   }
 
+  function handleThemeChange(value: 'dark' | 'light' | 'system'): void {
+    settingsStore.set('app.theme', value)
+  }
+
   function handleLayoutChange(value: 'rows' | 'columns'): void {
     settingsStore.set('request.layout', value)
   }
@@ -65,6 +70,65 @@
 </script>
 
 <div class="general-tab">
+  <!-- Appearance section -->
+  <section class="section">
+    <div class="section-header">
+      <div class="section-icon appearance-icon">
+        <svg viewBox="0 0 18 18" fill="none">
+          <circle cx="9" cy="9" r="6.5" stroke="currentColor" stroke-width="1.3"/>
+          <path d="M9 2.5V9L13 5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <div>
+        <div class="section-title">Appearance</div>
+        <div class="section-subtitle">Color theme for the interface</div>
+      </div>
+    </div>
+
+    <div class="setting-row last">
+      <div class="setting-info">
+        <span class="setting-label">Theme</span>
+        <span class="setting-desc">Choose light, dark, or follow your system</span>
+      </div>
+      <div class="theme-picker">
+        <button
+          class="theme-option"
+          class:is-active={theme === 'light'}
+          onclick={() => handleThemeChange('light')}
+          title="Light"
+        >
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+            <circle cx="10" cy="10" r="3.5"/>
+            <path d="M10 3V4.5M10 15.5V17M17 10H15.5M4.5 10H3M14.95 5.05L13.89 6.11M6.11 13.89L5.05 14.95M14.95 14.95L13.89 13.89M6.11 6.11L5.05 5.05"/>
+          </svg>
+        </button>
+        <button
+          class="theme-option"
+          class:is-active={theme === 'dark'}
+          onclick={() => handleThemeChange('dark')}
+          title="Dark"
+        >
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+            <path d="M17 11.36A7.5 7.5 0 118.64 3 5.5 5.5 0 0017 11.36z"/>
+          </svg>
+        </button>
+        <button
+          class="theme-option"
+          class:is-active={theme === 'system'}
+          onclick={() => handleThemeChange('system')}
+          title="System"
+        >
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="14" height="10" rx="1.5"/>
+            <path d="M7 16h6M10 13v3"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+
   <!-- HTTP section -->
   <section class="section">
     <div class="section-header">
@@ -247,13 +311,17 @@
     width: 16px;
     height: 16px;
   }
+  .appearance-icon {
+    background: color-mix(in srgb, var(--color-purple) 15%, transparent);
+    color: var(--color-purple);
+  }
   .http-icon {
     background: color-mix(in srgb, var(--color-brand-500) 15%, transparent);
     color: var(--color-brand-400);
   }
   .history-icon {
-    background: color-mix(in srgb, #f59e0b 12%, transparent);
-    color: #fbbf24;
+    background: color-mix(in srgb, var(--color-warning) 12%, transparent);
+    color: var(--color-warning-light);
   }
   .section-title {
     font-size: 13px;
@@ -323,6 +391,38 @@
   .layout-option svg {
     width: 24px;
     height: 18px;
+  }
+
+  /* Theme picker */
+  .theme-picker {
+    display: flex;
+    gap: 4px;
+  }
+  .theme-option {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 42px;
+    height: 32px;
+    border-radius: 6px;
+    border: 1px solid var(--color-surface-700);
+    background: transparent;
+    color: var(--color-surface-500);
+    cursor: pointer;
+    transition: all 0.12s ease;
+  }
+  .theme-option:hover {
+    border-color: var(--color-surface-600);
+    color: var(--color-surface-300);
+  }
+  .theme-option.is-active {
+    border-color: color-mix(in srgb, var(--color-brand-500) 50%, transparent);
+    background: color-mix(in srgb, var(--color-brand-500) 8%, transparent);
+    color: var(--color-brand-400);
+  }
+  .theme-option svg {
+    width: 16px;
+    height: 16px;
   }
 
   /* Inputs */
@@ -445,9 +545,9 @@
     font-weight: 500;
   }
   .update-ok {
-    color: #34d399;
+    color: var(--color-success-muted);
   }
   .update-err {
-    color: #f87171;
+    color: var(--color-danger-light);
   }
 </style>

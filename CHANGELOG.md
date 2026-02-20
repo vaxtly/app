@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- Light/Dark/System theme support — three-way toggle persisted in settings, CSS variable foundation with `html.light` overrides, CodeMirror theme swap via Compartment, native dialog matching via `nativeTheme.themeSource`
+- Appearance section in Settings > General with Light/Dark/System picker
+- Theme cycle button in sidebar footer (moon → sun → monitor)
+- Custom method selector dropdown replacing native `<select>` in URL bar — colored LED dots, keyboard navigation, fixed positioning
+
+### Changed
+- All ~50 hardcoded hex colors replaced with theme-aware CSS variables (`--color-method-*`, `--color-success`, `--color-danger`, etc.)
+- `http-colors.ts` rewritten: `METHOD_COLORS`/`METHOD_BG_COLORS` constants replaced with `getMethodColor()`/`getStatusColor()` functions returning CSS variable strings
+- POST method color changed from yellow to cyan for better readability in both themes
+- Environment active indicators, sync status, and modal banners now use CSS variables instead of hardcoded Tailwind color classes
+
 ### Changed
 - Encryption upgraded from AES-256-CBC to AES-256-GCM with authenticated encryption (existing CBC data decrypted transparently)
 - SSL verification now defaults to on for new installs

@@ -1,4 +1,4 @@
-import { app, BrowserWindow, nativeImage } from 'electron'
+import { app, BrowserWindow, nativeImage, nativeTheme } from 'electron'
 import { join } from 'path'
 import { is } from '@electron-toolkit/utils'
 import { initEncryption } from './services/encryption'
@@ -59,8 +59,23 @@ function getAppIcon(): Electron.NativeImage {
   return image
 }
 
+function applyThemeSetting(): string {
+  const theme = getSetting('app.theme') ?? 'dark'
+  if (theme === 'light') {
+    nativeTheme.themeSource = 'light'
+    return '#ffffff'
+  } else if (theme === 'system') {
+    nativeTheme.themeSource = 'system'
+    return nativeTheme.shouldUseDarkColors ? '#0f172a' : '#ffffff'
+  } else {
+    nativeTheme.themeSource = 'dark'
+    return '#0f172a'
+  }
+}
+
 function createWindow(): void {
   const state = getWindowState()
+  const backgroundColor = applyThemeSetting()
 
   mainWindow = new BrowserWindow({
     width: state.width,
@@ -81,7 +96,7 @@ function createWindow(): void {
       nodeIntegration: false,
     },
     show: false,
-    backgroundColor: '#0f172a',
+    backgroundColor,
   })
 
   if (state.is_maximized) {

@@ -136,7 +136,7 @@
               <button
                 onclick={(e) => { e.stopPropagation(); handleDelete(ws.id) }}
                 aria-label="Delete workspace"
-                class="flex h-5 w-5 shrink-0 items-center justify-center rounded text-surface-500 opacity-0 hover:bg-red-900/50 hover:text-red-400 group-hover:opacity-100"
+                class="ws-delete-btn flex h-5 w-5 shrink-0 items-center justify-center rounded text-surface-500 opacity-0 group-hover:opacity-100"
               >
                 <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                   <path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -161,3 +161,10 @@
     </div>
   {/if}
 </div>
+
+<style>
+  .ws-delete-btn:hover {
+    color: var(--color-danger);
+    background: color-mix(in srgb, var(--color-danger) 15%, transparent);
+  }
+</style>

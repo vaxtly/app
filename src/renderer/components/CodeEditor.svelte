@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte'
   import { EditorView, keymap, placeholder as placeholderExt } from '@codemirror/view'
-  import { EditorState, type Extension } from '@codemirror/state'
+  import { EditorState, Compartment, type Extension } from '@codemirror/state'
   import { json } from '@codemirror/lang-json'
   import { html } from '@codemirror/lang-html'
   import { xml } from '@codemirror/lang-xml'
@@ -9,6 +9,7 @@
   import { defaultKeymap, history, historyKeymap } from '@codemirror/commands'
   import { basicSetup } from 'codemirror'
   import { variableHighlight, type ResolvedVariable } from '../lib/utils/variable-highlight'
+  import { settingsStore } from '../lib/stores/settings.svelte'
 
   interface Props {
     value?: string
@@ -32,6 +33,7 @@
 
   let container: HTMLDivElement
   let view: EditorView | undefined
+  const themeCompartment = new Compartment()
 
   function getLanguageExtension(lang: string): Extension {
     switch (lang) {
@@ -42,10 +44,17 @@
     }
   }
 
+  function resolveIsDark(): boolean {
+    const theme = settingsStore.get('app.theme')
+    if (theme === 'light') return false
+    if (theme === 'dark') return true
+    return window.matchMedia('(prefers-color-scheme: dark)').matches
+  }
+
   onMount(() => {
     const extensions: Extension[] = [
       basicSetup,
-      oneDark,
+      themeCompartment.of(resolveIsDark() ? oneDark : []),
       getLanguageExtension(language),
       EditorView.lineWrapping,
       keymap.of([...defaultKeymap, ...historyKeymap]),
@@ -94,6 +103,16 @@
         changes: { from: 0, to: view.state.doc.length, insert: value }
       })
     }
+  })
+
+  // Reactively swap CodeMirror theme when app theme changes
+  $effect(() => {
+    const _theme = settingsStore.get('app.theme')
+    if (!view) return
+    const isDark = resolveIsDark()
+    view.dispatch({
+      effects: themeCompartment.reconfigure(isDark ? oneDark : [])
+    })
   })
 </script>
 

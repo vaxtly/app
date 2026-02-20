@@ -192,7 +192,7 @@
 
     <!-- Sync indicator -->
     {#if syncEnabled}
-      <svg class="h-3 w-3 shrink-0 {isDirty ? 'text-yellow-500' : 'text-green-500'}" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" title={isDirty ? 'Unsaved changes' : 'Synced'}>
+      <svg class="h-3 w-3 shrink-0" style:color={isDirty ? 'var(--color-warning)' : 'var(--color-success)'} fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" title={isDirty ? 'Unsaved changes' : 'Synced'}>
         <path d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
       </svg>
     {:else}

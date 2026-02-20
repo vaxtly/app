@@ -4,7 +4,7 @@
   import ResponseBody from './ResponseBody.svelte'
   import ResponseHeaders from './ResponseHeaders.svelte'
   import ResponseCookies from './ResponseCookies.svelte'
-  import { getStatusColor, getStatusBgColor } from '../../lib/utils/http-colors'
+
   import { formatSize, formatTime } from '../../lib/utils/formatters'
 
   interface Props {
@@ -256,11 +256,11 @@
     flex-shrink: 0;
   }
 
-  .rv-status--success .rv-status-led { background: #4ade80; box-shadow: 0 0 6px rgba(74, 222, 128, 0.5); }
-  .rv-status--redirect .rv-status-led { background: #facc15; box-shadow: 0 0 6px rgba(250, 204, 21, 0.4); }
-  .rv-status--client-error .rv-status-led { background: #fb923c; box-shadow: 0 0 6px rgba(251, 146, 60, 0.5); }
-  .rv-status--server-error .rv-status-led { background: #f87171; box-shadow: 0 0 6px rgba(248, 113, 113, 0.5); }
-  .rv-status--error .rv-status-led { background: #f87171; box-shadow: 0 0 6px rgba(248, 113, 113, 0.5); }
+  .rv-status--success .rv-status-led { background: var(--color-status-success); box-shadow: 0 0 6px color-mix(in srgb, var(--color-status-success) 50%, transparent); }
+  .rv-status--redirect .rv-status-led { background: var(--color-status-redirect); box-shadow: 0 0 6px color-mix(in srgb, var(--color-status-redirect) 40%, transparent); }
+  .rv-status--client-error .rv-status-led { background: var(--color-status-client-error); box-shadow: 0 0 6px color-mix(in srgb, var(--color-status-client-error) 50%, transparent); }
+  .rv-status--server-error .rv-status-led { background: var(--color-danger-light); box-shadow: 0 0 6px color-mix(in srgb, var(--color-danger-light) 50%, transparent); }
+  .rv-status--error .rv-status-led { background: var(--color-danger-light); box-shadow: 0 0 6px color-mix(in srgb, var(--color-danger-light) 50%, transparent); }
 
   .rv-status-code {
     font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
@@ -269,11 +269,11 @@
     letter-spacing: 0.02em;
   }
 
-  .rv-status--success .rv-status-code { color: #4ade80; }
-  .rv-status--redirect .rv-status-code { color: #facc15; }
-  .rv-status--client-error .rv-status-code { color: #fb923c; }
-  .rv-status--server-error .rv-status-code { color: #f87171; }
-  .rv-status--error .rv-status-code { color: #f87171; }
+  .rv-status--success .rv-status-code { color: var(--color-status-success); }
+  .rv-status--redirect .rv-status-code { color: var(--color-status-redirect); }
+  .rv-status--client-error .rv-status-code { color: var(--color-status-client-error); }
+  .rv-status--server-error .rv-status-code { color: var(--color-danger-light); }
+  .rv-status--error .rv-status-code { color: var(--color-danger-light); }
 
   .rv-status-text {
     font-size: 12px;

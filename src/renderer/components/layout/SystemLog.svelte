@@ -74,19 +74,19 @@
 
   function getCategoryColor(category: SessionLogEntry['category']): string {
     switch (category) {
-      case 'http': return 'text-blue-400'
-      case 'sync': return 'text-purple-400'
-      case 'vault': return 'text-amber-400'
-      case 'system': return 'text-surface-400'
-      default: return 'text-surface-400'
+      case 'http': return 'var(--color-info)'
+      case 'sync': return 'var(--color-purple)'
+      case 'vault': return 'var(--color-warning)'
+      case 'system': return 'var(--color-surface-400)'
+      default: return 'var(--color-surface-400)'
     }
   }
 
   function getStatusColor(code: number | null): string {
-    if (!code || code === 0) return 'text-red-400'
-    if (code < 300) return 'text-green-400'
-    if (code < 400) return 'text-amber-400'
-    return 'text-red-400'
+    if (!code || code === 0) return 'var(--color-danger)'
+    if (code < 300) return 'var(--color-success)'
+    if (code < 400) return 'var(--color-warning)'
+    return 'var(--color-danger)'
   }
 </script>
 
@@ -163,9 +163,9 @@
           {#each logs as entry}
             <div class="flex items-start gap-2 border-b border-surface-800 px-3 py-1 hover:bg-surface-800/50">
               <span class="shrink-0 text-surface-600">{formatTime(entry.timestamp)}</span>
-              <span class="shrink-0 w-12 {getCategoryColor(entry.category)}">{entry.category === 'sync' ? 'git' : entry.category}</span>
+              <span class="shrink-0 w-12" style:color={getCategoryColor(entry.category)}>{entry.category === 'sync' ? 'git' : entry.category}</span>
               <span class="shrink-0 text-surface-500">{entry.type}</span>
-              <span class="{entry.success ? 'text-surface-300' : 'text-red-400'} min-w-0 truncate">
+              <span class="min-w-0 truncate" style:color={entry.success ? 'var(--color-surface-300)' : 'var(--color-danger)'}>
                 {entry.message}
               </span>
             </div>
@@ -184,7 +184,7 @@
             >
               <span class="shrink-0 text-surface-600">{formatTime(h.executed_at)}</span>
               <span class="shrink-0 text-xs font-medium text-surface-400">{h.method}</span>
-              <span class="{getStatusColor(h.status_code)} shrink-0">{h.status_code || 'ERR'}</span>
+              <span class="shrink-0" style:color={getStatusColor(h.status_code)}>{h.status_code || 'ERR'}</span>
               <span class="min-w-0 truncate text-surface-400">{h.url}</span>
               <span class="ml-auto shrink-0 text-surface-600">{h.duration_ms ? `${h.duration_ms}ms` : '-'}</span>
             </button>

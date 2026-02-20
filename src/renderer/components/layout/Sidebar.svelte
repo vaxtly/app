@@ -17,6 +17,7 @@
   let collectionSearch = $state('')
   let environmentSearch = $state('')
 
+  let theme = $derived(settingsStore.get('app.theme'))
   let layout = $derived(settingsStore.get('request.layout'))
   let hasExpanded = $derived(collectionsStore.expandedIds.size > 0)
 
@@ -34,6 +35,11 @@
 
   async function handleNewCollection(): Promise<void> {
     await collectionsStore.createCollection('New Collection', appStore.activeWorkspaceId ?? undefined)
+  }
+
+  function cycleTheme(): void {
+    const next = theme === 'dark' ? 'light' : theme === 'light' ? 'system' : 'dark'
+    settingsStore.set('app.theme', next)
   }
 
   async function handleNewEnvironment(): Promise<void> {
@@ -169,6 +175,32 @@
           <svg class="h-3 w-3" viewBox="0 0 28 20" fill="none">
             <rect x="1" y="1" width="26" height="8" rx="1.5" stroke="currentColor" stroke-width="1.5"/>
             <rect x="1" y="11" width="26" height="8" rx="1.5" stroke="currentColor" stroke-width="1.5"/>
+          </svg>
+        {/if}
+      </button>
+
+      <!-- Theme cycle -->
+      <button
+        onclick={cycleTheme}
+        class="flex h-5 w-5 items-center justify-center rounded text-surface-500 hover:bg-surface-700/50 hover:text-surface-300"
+        title={theme === 'dark' ? 'Theme: Dark' : theme === 'light' ? 'Theme: Light' : 'Theme: System'}
+      >
+        {#if theme === 'dark'}
+          <!-- Moon -->
+          <svg class="h-3 w-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+            <path d="M17 11.36A7.5 7.5 0 118.64 3 5.5 5.5 0 0017 11.36z"/>
+          </svg>
+        {:else if theme === 'light'}
+          <!-- Sun -->
+          <svg class="h-3 w-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+            <circle cx="10" cy="10" r="3.5"/>
+            <path d="M10 3V4.5M10 15.5V17M17 10H15.5M4.5 10H3M14.95 5.05L13.89 6.11M6.11 13.89L5.05 14.95M14.95 14.95L13.89 13.89M6.11 6.11L5.05 5.05"/>
+          </svg>
+        {:else}
+          <!-- Monitor -->
+          <svg class="h-3 w-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="14" height="10" rx="1.5"/>
+            <path d="M7 16h6M10 13v3"/>
           </svg>
         {/if}
       </button>

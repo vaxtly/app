@@ -86,10 +86,10 @@
   }
 
   .rc-tag--warn {
-    color: #fb923c;
+    color: var(--color-status-client-error);
   }
 
   .rc-tag--ok {
-    color: #4ade80;
+    color: var(--color-success);
   }
 </style>

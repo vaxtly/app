@@ -270,8 +270,8 @@
   }
 
   .kv-remove:hover {
-    color: #f87171;
-    background: color-mix(in srgb, #f87171 8%, transparent);
+    color: var(--color-danger-light);
+    background: color-mix(in srgb, var(--color-danger-light) 8%, transparent);
   }
 
   /* --- Add button --- */

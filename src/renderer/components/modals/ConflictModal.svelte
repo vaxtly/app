@@ -19,12 +19,12 @@
 
 <Modal title="Sync Conflict" {onclose} width="max-w-lg">
   <!-- Warning banner -->
-  <div class="mb-4 rounded border border-amber-800 bg-amber-900/30 px-3 py-2 text-xs text-amber-300">
+  <div class="warning-banner mb-4 rounded px-3 py-2 text-xs">
     <div class="flex items-center gap-2">
       <svg class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
         <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
       </svg>
-      <span>The collection <strong class="text-amber-200">{collection.name}</strong> has been modified both locally and remotely.</span>
+      <span>The collection <strong>{collection.name}</strong> has been modified both locally and remotely.</span>
     </div>
   </div>
 
@@ -71,3 +71,14 @@
     </button>
   </div>
 </Modal>
+
+<style>
+  .warning-banner {
+    color: var(--color-warning);
+    background: color-mix(in srgb, var(--color-warning) 12%, transparent);
+    border: 1px solid color-mix(in srgb, var(--color-warning) 25%, transparent);
+  }
+  .warning-banner strong {
+    color: var(--color-warning-light);
+  }
+</style>

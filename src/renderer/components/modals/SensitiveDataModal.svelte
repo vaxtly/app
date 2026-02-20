@@ -19,16 +19,17 @@
 
   let { findings, onclose, onsyncanyway, onsyncwithout }: Props = $props()
 
-  const sourceColors: Record<string, string> = {
-    header: 'bg-blue-900/50 text-blue-300',
-    query: 'bg-purple-900/50 text-purple-300',
-    body: 'bg-amber-900/50 text-amber-300',
-    auth: 'bg-red-900/50 text-red-300',
-    url: 'bg-green-900/50 text-green-300',
+  const sourceVars: Record<string, string> = {
+    header: '--color-info',
+    query: '--color-purple',
+    body: '--color-warning',
+    auth: '--color-danger',
+    url: '--color-success',
   }
 
-  function getSourceColor(source: string): string {
-    return sourceColors[source] ?? 'bg-surface-700 text-surface-300'
+  function getSourceStyle(source: string): string {
+    const v = sourceVars[source] ?? '--color-surface-400'
+    return `color: var(${v}); background: color-mix(in srgb, var(${v}) 15%, transparent);`
   }
 
   // Group findings by request
@@ -46,13 +47,13 @@
 
 <Modal title="Sensitive Data Detected" {onclose} width="max-w-lg">
   <!-- Warning -->
-  <div class="mb-4 rounded border border-amber-800 bg-amber-900/30 px-3 py-2 text-xs text-amber-300">
+  <div class="warning-banner mb-4 rounded px-3 py-2 text-xs">
     <div class="flex items-start gap-2">
       <svg class="mt-0.5 h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
         <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
       </svg>
       <span>
-        Found <strong class="text-amber-200">{findings.length}</strong> potentially sensitive
+        Found <strong>{findings.length}</strong> potentially sensitive
         {findings.length === 1 ? 'value' : 'values'} that would be pushed to the remote repository.
       </span>
     </div>
@@ -66,7 +67,7 @@
         <div class="space-y-1">
           {#each group.items as finding}
             <div class="flex items-center gap-2 rounded bg-surface-800/50 px-2 py-1.5">
-              <span class="rounded px-1.5 py-0.5 text-[10px] font-medium {getSourceColor(finding.source)}">
+              <span class="rounded px-1.5 py-0.5 text-[10px] font-medium" style={getSourceStyle(finding.source)}>
                 {finding.source}
               </span>
               <span class="text-xs text-surface-200">{finding.key}</span>
@@ -94,9 +95,26 @@
     </button>
     <button
       onclick={onsyncanyway}
-      class="rounded bg-amber-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-amber-500"
+      class="sync-anyway-btn rounded px-3 py-1.5 text-xs font-medium text-white"
     >
       Sync Anyway
     </button>
   </div>
 </Modal>
+
+<style>
+  .warning-banner {
+    color: var(--color-warning);
+    background: color-mix(in srgb, var(--color-warning) 12%, transparent);
+    border: 1px solid color-mix(in srgb, var(--color-warning) 25%, transparent);
+  }
+  .warning-banner strong {
+    color: var(--color-warning-light);
+  }
+  .sync-anyway-btn {
+    background: var(--color-warning);
+  }
+  .sync-anyway-btn:hover {
+    background: var(--color-warning-light);
+  }
+</style>

@@ -446,14 +446,14 @@
   }
   .status-banner:hover { opacity: 0.85; }
   .status-banner.is-success {
-    border-color: color-mix(in srgb, #4ade80 25%, transparent);
-    background: color-mix(in srgb, #4ade80 8%, transparent);
-    color: #86efac;
+    border-color: color-mix(in srgb, var(--color-success) 25%, transparent);
+    background: color-mix(in srgb, var(--color-success) 8%, transparent);
+    color: var(--color-banner-success);
   }
   .status-banner.is-error {
-    border-color: color-mix(in srgb, #f87171 25%, transparent);
-    background: color-mix(in srgb, #f87171 8%, transparent);
-    color: #fca5a5;
+    border-color: color-mix(in srgb, var(--color-danger-light) 25%, transparent);
+    background: color-mix(in srgb, var(--color-danger-light) 8%, transparent);
+    color: var(--color-banner-error);
   }
   .status-icon { flex-shrink: 0; width: 16px; height: 16px; }
   .status-icon svg { width: 16px; height: 16px; }
@@ -468,9 +468,9 @@
     gap: 8px;
     padding: 8px 10px;
     border-radius: 6px;
-    border: 1px solid color-mix(in srgb, #60a5fa 20%, transparent);
-    background: color-mix(in srgb, #60a5fa 6%, transparent);
-    color: #93bbfd;
+    border: 1px solid color-mix(in srgb, var(--color-info) 20%, transparent);
+    background: color-mix(in srgb, var(--color-info) 6%, transparent);
+    color: var(--color-info-muted);
     font-size: 11px;
     line-height: 1.4;
     animation: slideIn 0.2s ease-out;
@@ -504,8 +504,8 @@
   }
   .section-icon svg { width: 16px; height: 16px; }
   .connection-icon {
-    background: color-mix(in srgb, #34d399 12%, transparent);
-    color: #34d399;
+    background: color-mix(in srgb, var(--color-success-muted) 12%, transparent);
+    color: var(--color-success-muted);
   }
   .section-title {
     font-size: 13px;

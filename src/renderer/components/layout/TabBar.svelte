@@ -1,6 +1,6 @@
 <script lang="ts">
   import { appStore } from '../../lib/stores/app.svelte'
-  import { METHOD_COLORS } from '../../lib/utils/http-colors'
+  import { getMethodColor } from '../../lib/utils/http-colors'
   import ContextMenu from '../shared/ContextMenu.svelte'
   import EnvironmentSelector from './EnvironmentSelector.svelte'
   import type { Tab } from '../../lib/stores/app.svelte'
@@ -63,11 +63,11 @@
       {/if}
 
       {#if tab.type === 'request' && tab.method}
-        <span class="font-mono text-[9px] font-bold {METHOD_COLORS[tab.method] ?? 'text-surface-400'}">
+        <span class="font-mono text-[9px] font-bold" style:color={getMethodColor(tab.method ?? 'GET')}>
           {tab.method.slice(0, 3)}
         </span>
       {:else if tab.type === 'environment'}
-        <svg class="h-3 w-3 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <svg class="h-3 w-3" style="color: var(--color-success)" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
           <path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.573-1.066z" />
           <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
         </svg>

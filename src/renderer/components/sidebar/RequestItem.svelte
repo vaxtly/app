@@ -2,7 +2,7 @@
   import { collectionsStore, type TreeNode } from '../../lib/stores/collections.svelte'
   import { appStore } from '../../lib/stores/app.svelte'
   import { dragStore } from '../../lib/stores/drag.svelte'
-  import { METHOD_COLORS } from '../../lib/utils/http-colors'
+  import { getMethodColor } from '../../lib/utils/http-colors'
   import ContextMenu from '../shared/ContextMenu.svelte'
 
   interface Props {
@@ -113,7 +113,7 @@
     onclick={handleClick}
   >
     <!-- Method badge -->
-    <span class="w-9 shrink-0 text-right font-mono text-[10px] font-bold {METHOD_COLORS[node.method ?? 'GET'] ?? 'text-surface-400'}">
+    <span class="w-9 shrink-0 text-right font-mono text-[10px] font-bold" style:color={getMethodColor(node.method ?? 'GET')}>
       {(node.method ?? 'GET').slice(0, 4)}
     </span>
 

@@ -292,14 +292,14 @@
   }
 
   .env-led--on {
-    background: #4ade80;
-    box-shadow: 0 0 6px rgba(74, 222, 128, 0.5);
+    background: var(--color-success);
+    box-shadow: 0 0 6px color-mix(in srgb, var(--color-success) 50%, transparent);
     animation: led-pulse 2.5s ease-in-out infinite;
   }
 
   @keyframes led-pulse {
-    0%, 100% { box-shadow: 0 0 4px rgba(74, 222, 128, 0.4); }
-    50% { box-shadow: 0 0 8px rgba(74, 222, 128, 0.7); }
+    0%, 100% { box-shadow: 0 0 4px color-mix(in srgb, var(--color-success) 40%, transparent); }
+    50% { box-shadow: 0 0 8px color-mix(in srgb, var(--color-success) 70%, transparent); }
   }
 
   /* --- Label & chevron --- */
@@ -438,8 +438,8 @@
     width: 6px;
     height: 6px;
     border-radius: 50%;
-    background: #4ade80;
-    box-shadow: 0 0 5px rgba(74, 222, 128, 0.5);
+    background: var(--color-success);
+    box-shadow: 0 0 5px color-mix(in srgb, var(--color-success) 50%, transparent);
   }
 
   /* --- Name --- */
@@ -465,7 +465,7 @@
     font-size: 9px;
     text-transform: uppercase;
     letter-spacing: 0.06em;
-    color: #4ade80;
+    color: var(--color-success);
     opacity: 0.7;
     flex-shrink: 0;
   }
