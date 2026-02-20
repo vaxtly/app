@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ### Fixed
 - Git sync no longer blocks request send — HTTP fires immediately, sync runs in background
 - Repeated sends without changes no longer trigger unnecessary dirty marking or remote sync calls
+- Collections can now be collapsed in the sidebar even when a request inside them is active
 
 ## [0.1.4] - 2026-02-20
 

@@ -67,16 +67,23 @@
     if (sessionRestored) saveSession()
   })
 
-  // Auto-reveal active tab's entity in the sidebar + apply default environment
+  // Auto-reveal active tab's entity in the sidebar + apply default environment.
+  // Only fires when the active tab ID actually changes — not on every re-evaluation
+  // of activeTab (which re-fires when tab state is mutated, e.g. markTabSaved).
+  // This lets users collapse collections without the effect fighting back.
+  let lastRevealedTabId: string | undefined
   $effect(() => {
-    const tab = appStore.activeTab
+    const tabId = appStore.activeTabId
+    if (!tabId || tabId === lastRevealedTabId) return
+    lastRevealedTabId = tabId
+
+    const tab = untrack(() => appStore.activeTab)
     if (!tab) return
     if (tab.type === 'request') {
       appStore.setSidebarMode('collections')
       collectionsStore.revealRequest(tab.entityId)
 
-      // Auto-activate default environment only on tab switch — read activeEnvironmentId
-      // without tracking it so user selections don't re-trigger this effect
+      // Auto-activate default environment only on tab switch
       const defaultEnvId = collectionsStore.resolveDefaultEnvironment(tab.entityId)
       if (defaultEnvId) {
         const currentEnvId = untrack(() => environmentsStore.activeEnvironmentId)
