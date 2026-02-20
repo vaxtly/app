@@ -2,6 +2,7 @@
   import { appStore } from '../../lib/stores/app.svelte'
   import { collectionsStore } from '../../lib/stores/collections.svelte'
   import { environmentsStore } from '../../lib/stores/environments.svelte'
+  import { settingsStore } from '../../lib/stores/settings.svelte'
   import CollectionTree from '../sidebar/CollectionTree.svelte'
   import EnvironmentList from '../sidebar/EnvironmentList.svelte'
   import WorkspaceSwitcher from '../sidebar/WorkspaceSwitcher.svelte'
@@ -15,6 +16,9 @@
 
   let collectionSearch = $state('')
   let environmentSearch = $state('')
+
+  let layout = $derived(settingsStore.get('request.layout'))
+  let hasExpanded = $derived(collectionsStore.expandedIds.size > 0)
 
   let searchValue = $derived(appStore.sidebarMode === 'collections' ? collectionSearch : environmentSearch)
 
@@ -119,5 +123,88 @@
       <EnvironmentList searchFilter={searchValue} {onenvironmentclick} />
     </div>
   {/if}
+
+  <!-- Footer toolbar -->
+  <div class="flex h-7 shrink-0 items-center border-t border-surface-700 px-1.5">
+    <!-- Left group: mode icons -->
+    <div class="flex items-center gap-0.5">
+      <button
+        onclick={() => appStore.setSidebarMode('collections')}
+        class="flex h-5 w-5 items-center justify-center rounded hover:bg-surface-700/50
+          {appStore.sidebarMode === 'collections' ? 'text-brand-400' : 'text-surface-500 hover:text-surface-300'}"
+        title="Collections"
+      >
+        <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+        </svg>
+      </button>
+      <button
+        onclick={() => appStore.setSidebarMode('environments')}
+        class="flex h-5 w-5 items-center justify-center rounded hover:bg-surface-700/50
+          {appStore.sidebarMode === 'environments' ? 'text-brand-400' : 'text-surface-500 hover:text-surface-300'}"
+        title="Environments"
+      >
+        <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
+        </svg>
+      </button>
+    </div>
+
+    <div class="flex-1"></div>
+
+    <!-- Right group: layout, expand/collapse, settings -->
+    <div class="flex items-center gap-0.5">
+      <!-- Layout toggle -->
+      <button
+        onclick={() => settingsStore.set('request.layout', layout === 'columns' ? 'rows' : 'columns')}
+        class="flex h-5 w-5 items-center justify-center rounded text-surface-500 hover:bg-surface-700/50 hover:text-surface-300"
+        title={layout === 'columns' ? 'Switch to rows layout' : 'Switch to columns layout'}
+      >
+        {#if layout === 'columns'}
+          <svg class="h-3 w-3" viewBox="0 0 28 20" fill="none">
+            <rect x="1" y="1" width="12" height="18" rx="1.5" stroke="currentColor" stroke-width="1.5"/>
+            <rect x="15" y="1" width="12" height="18" rx="1.5" stroke="currentColor" stroke-width="1.5"/>
+          </svg>
+        {:else}
+          <svg class="h-3 w-3" viewBox="0 0 28 20" fill="none">
+            <rect x="1" y="1" width="26" height="8" rx="1.5" stroke="currentColor" stroke-width="1.5"/>
+            <rect x="1" y="11" width="26" height="8" rx="1.5" stroke="currentColor" stroke-width="1.5"/>
+          </svg>
+        {/if}
+      </button>
+
+      <!-- Expand/collapse all (collections mode only) -->
+      {#if appStore.sidebarMode === 'collections'}
+        <button
+          onclick={() => hasExpanded ? collectionsStore.collapseAll() : collectionsStore.expandAll()}
+          class="flex h-5 w-5 items-center justify-center rounded text-surface-500 hover:bg-surface-700/50 hover:text-surface-300"
+          title={hasExpanded ? 'Collapse all' : 'Expand all'}
+        >
+          {#if hasExpanded}
+            <!-- Chevrons up (collapse) -->
+            <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path d="M7 11l5-5 5 5M7 17l5-5 5 5" />
+            </svg>
+          {:else}
+            <!-- Chevrons down (expand) -->
+            <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path d="M7 7l5 5 5-5M7 13l5 5 5-5" />
+            </svg>
+          {/if}
+        </button>
+      {/if}
+
+      <!-- Settings -->
+      <button
+        onclick={() => appStore.openSettings()}
+        class="flex h-5 w-5 items-center justify-center rounded text-surface-500 hover:bg-surface-700/50 hover:text-surface-300"
+        title="Settings"
+      >
+        <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+        </svg>
+      </button>
+    </div>
+  </div>
 
 </div>

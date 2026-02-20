@@ -108,7 +108,7 @@ vaxtly/
 │       └── components/
 │           ├── CodeEditor.svelte       # CodeMirror 6 wrapper + optional variable highlight
 │           ├── layout/
-│           │   ├── Sidebar.svelte      # Mode tabs (Collections/Environments) + search + tree
+│           │   ├── Sidebar.svelte      # Mode tabs (Collections/Environments) + search + tree + footer toolbar
 │           │   ├── TabBar.svelte       # Horizontal tabs + env icon for environment tabs
 │           │   └── SystemLog.svelte    # Collapsible bottom panel: logs + request history
 │           ├── sidebar/
@@ -494,7 +494,7 @@ All stores use this pattern: module-level `$state` + `$derived` + exported objec
 
 **`TreeNode`**: `{ type: 'collection'|'folder'|'request', id, name, children, expanded, collectionId, parentId, method? }`
 
-**Actions**: `loadAll`, `rebuildTree`, `toggleExpanded`, `createCollection/Folder/Request`, `renameCollection/Folder/Request`, `deleteCollection/Folder/Request`, `reloadCollection`, `getRequestById`, `getCollectionById`, `revealRequest`, `resolveDefaultEnvironment`
+**Actions**: `loadAll`, `rebuildTree`, `toggleExpanded`, `expandAll`, `collapseAll`, `createCollection/Folder/Request`, `renameCollection/Folder/Request`, `deleteCollection/Folder/Request`, `reloadCollection`, `getRequestById`, `getCollectionById`, `revealRequest`, `resolveDefaultEnvironment`
 
 **`revealRequest(requestId)`**: Expands the collection and all ancestor folders so the request is visible in the sidebar tree.
 

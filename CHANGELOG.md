@@ -35,6 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Git sync not triggered on request save (Ctrl+S) — collection `is_dirty` flag was never set on request mutations, workspace ID was not passed to push (causing "Remote not configured"), and push failures were silently swallowed with no log entry
 - Manual "Push to Remote" from collection context menu failing with workspace-scoped sync settings (missing workspace ID)
 - Auto-sync on startup not running for workspace-scoped settings — only checked global settings, now resolves per-workspace (workspace setting → global fallback) and passes workspace ID to pull
+- Sidebar footer toolbar with mode switching icons, layout toggle, expand/collapse all, and settings shortcut
 
 ## [0.1.3] - 2026-02-19
 

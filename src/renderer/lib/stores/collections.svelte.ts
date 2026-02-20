@@ -251,6 +251,35 @@ function getRequestById(id: string): Request | undefined {
   return requests.find((r) => r.id === id)
 }
 
+/** Expand all collections and folders in the tree. */
+function expandAll(): void {
+  const ids = new Set<string>()
+  for (const col of collections) ids.add(col.id)
+  for (const f of folders) ids.add(f.id)
+  expandedIds = ids
+
+  function walkExpand(nodes: TreeNode[]): void {
+    for (const node of nodes) {
+      if (node.type !== 'request') node.expanded = true
+      if (node.children.length > 0) walkExpand(node.children)
+    }
+  }
+  walkExpand(tree)
+}
+
+/** Collapse all collections and folders in the tree. */
+function collapseAll(): void {
+  expandedIds = new Set()
+
+  function walkCollapse(nodes: TreeNode[]): void {
+    for (const node of nodes) {
+      node.expanded = false
+      if (node.children.length > 0) walkCollapse(node.children)
+    }
+  }
+  walkCollapse(tree)
+}
+
 /** Expand the collection and all ancestor folders so a request is visible in the sidebar. */
 function revealRequest(requestId: string): void {
   const req = requests.find((r) => r.id === requestId)
@@ -315,9 +344,12 @@ export const collectionsStore = {
   get collections() { return collections },
   get folders() { return folders },
   get requests() { return requests },
+  get expandedIds() { return expandedIds },
 
   loadAll,
   toggleExpanded,
+  expandAll,
+  collapseAll,
   createCollection,
   createFolder,
   createRequest,
