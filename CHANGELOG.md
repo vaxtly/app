@@ -12,6 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Repeated sends without changes no longer trigger unnecessary dirty marking or remote sync calls
 - Collections can now be collapsed in the sidebar even when a request inside them is active
 
+### Added
+- Sidebar scrolls to center the active request when switching tabs
+
 ## [0.1.4] - 2026-02-20
 
 ### Added

@@ -103,6 +103,7 @@
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
   class="group {dragStore.dragging?.id === node.id ? 'opacity-50' : ''}"
+  data-request-id={node.id}
   oncontextmenu={handleContextMenu}
   draggable="true"
   ondragstart={handleDragStart}

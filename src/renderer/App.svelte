@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount, untrack } from 'svelte'
+  import { onMount, tick, untrack } from 'svelte'
   import Sidebar from './components/layout/Sidebar.svelte'
   import TabBar from './components/layout/TabBar.svelte'
   import RequestBuilder from './components/request/RequestBuilder.svelte'
@@ -82,6 +82,12 @@
     if (tab.type === 'request') {
       appStore.setSidebarMode('collections')
       collectionsStore.revealRequest(tab.entityId)
+
+      // Scroll the request into view after the DOM updates from revealRequest
+      tick().then(() => {
+        const el = document.querySelector(`[data-request-id="${tab.entityId}"]`)
+        el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      })
 
       // Auto-activate default environment only on tab switch
       const defaultEnvId = collectionsStore.resolveDefaultEnvironment(tab.entityId)
