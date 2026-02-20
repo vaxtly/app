@@ -7,19 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.4] - 2026-02-20
+
 ### Added
 - Light/Dark/System theme support — three-way toggle persisted in settings, CSS variable foundation with `html.light` overrides, CodeMirror theme swap via Compartment, native dialog matching via `nativeTheme.themeSource`
 - Appearance section in Settings > General with Light/Dark/System picker
 - Theme cycle button in sidebar footer (moon → sun → monitor)
 - Custom method selector dropdown replacing native `<select>` in URL bar — colored LED dots, keyboard navigation, fixed positioning
+- Sidebar footer toolbar with mode switching icons, layout toggle, expand/collapse all, and settings shortcut
+- Content Security Policy meta tag on renderer HTML
+- Electron sandbox, navigation guards, permission request handler (deny all)
+- IPC input validation: URL scheme whitelist, HTTP method whitelist, timeout clamped 1–300s, response body 50MB limit, form-data file paths checked against dialog-approved set, import JSON size capped at 50MB
+- Settings IPC: readonly key denylist (`encryption.*`, `app.version`), sensitive keys filtered from `getAll` responses
+- Vault path traversal protection, sync conflict resolution validation, history retention clamped 1–365
+- UUID format validation on all YAML-imported entity IDs
+- `basic_username` added to encrypted auth fields
 
 ### Changed
 - All ~50 hardcoded hex colors replaced with theme-aware CSS variables (`--color-method-*`, `--color-success`, `--color-danger`, etc.)
-- `http-colors.ts` rewritten: `METHOD_COLORS`/`METHOD_BG_COLORS` constants replaced with `getMethodColor()`/`getStatusColor()` functions returning CSS variable strings
 - POST method color changed from yellow to cyan for better readability in both themes
-- Environment active indicators, sync status, and modal banners now use CSS variables instead of hardcoded Tailwind color classes
-
-### Changed
+- Dark mode background darkened for a deeper feel
 - Encryption upgraded from AES-256-CBC to AES-256-GCM with authenticated encryption (existing CBC data decrypted transparently)
 - SSL verification now defaults to on for new installs
 - `data:read-file` IPC replaced with dialog-based `data:pick-and-read` — renderer can no longer specify arbitrary file paths
@@ -28,26 +35,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Error responses return `error.message` only (no stack traces); session log uses template URL (no resolved secrets)
 - Code generator `esc()` now escapes backslashes and newlines; JS/Node body output uses string literals instead of code interpolation
 
-### Added
-- Content Security Policy meta tag on renderer HTML
-- Electron sandbox enabled (`sandbox: true`), navigation guards (`will-navigate` blocked, new windows denied), permission request handler (deny all)
-- IPC input validation: URL scheme whitelist (http/https), HTTP method whitelist, timeout clamped 1–300s, response body 50MB limit, form-data file paths checked against dialog-approved set, import JSON size capped at 50MB
-- Settings IPC: readonly key denylist (`encryption.*`, `app.version`), sensitive keys filtered from `getAll` responses
-- Vault path traversal protection (`..` and leading `/` blocked in migrate)
-- Sync conflict resolution value strict validation
-- History retention days clamped 1–365
-- UUID format validation on all YAML-imported entity IDs
-- `basic_username` added to encrypted auth fields
-
 ### Fixed
 - DevTools, reload, and force-reload menu items no longer available in production builds
 - Removed overly broad macOS entitlements (`allow-unsigned-executable-memory`, `allow-dyld-environment-variables`)
 - `VAXTLY_TEST_USERDATA` env var only honored in development builds
 - Sensitive data scanner crash when headers or variables are non-array
-- Git sync not triggered on request save (Ctrl+S) — collection `is_dirty` flag was never set on request mutations, workspace ID was not passed to push (causing "Remote not configured"), and push failures were silently swallowed with no log entry
-- Manual "Push to Remote" from collection context menu failing with workspace-scoped sync settings (missing workspace ID)
-- Auto-sync on startup not running for workspace-scoped settings — only checked global settings, now resolves per-workspace (workspace setting → global fallback) and passes workspace ID to pull
-- Sidebar footer toolbar with mode switching icons, layout toggle, expand/collapse all, and settings shortcut
+- Git sync not triggered on request save (Ctrl+S) — collection `is_dirty` flag was never set on request mutations
+- Auto-sync on startup not running for workspace-scoped settings — now resolves per-workspace with global fallback
 
 ## [0.1.3] - 2026-02-19
 
