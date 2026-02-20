@@ -61,6 +61,7 @@ jobs:
           CSC_LINK_SECRET: ${{ secrets.CSC_LINK }}
           CSC_KEY_PASSWORD_SECRET: ${{ secrets.CSC_KEY_PASSWORD }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_CREDENTIALS }}
         run: |
           VERSION="${{ inputs.version }}"
           VERSION="${VERSION#v}"
@@ -381,22 +382,3 @@ jobs:
           fi
 
           echo "Scoop bucket updated to v${VERSION}"
-
-  update-snapcraft:
-    needs: build
-    runs-on: ubuntu-latest
-    name: Publish to Snap Store
-    steps:
-      - name: Install snapcraft
-        run: sudo snap install snapcraft --classic
-
-      - name: Download snap artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: vaxtly-linux-x64
-          path: dist/
-
-      - name: Publish to Snap Store
-        env:
-          SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_CREDENTIALS }}
-        run: snapcraft upload dist/*.snap --release=stable
