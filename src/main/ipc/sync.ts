@@ -6,6 +6,7 @@ import * as syncService from '../sync/remote-sync-service'
 import * as collectionsRepo from '../database/repositories/collections'
 import * as requestsRepo from '../database/repositories/requests'
 import { scanCollection } from '../services/sensitive-data-scanner'
+import { logSync } from '../services/session-log'
 import type { KeyValueEntry } from '../../shared/types/models'
 
 export function registerSyncHandlers(): void {
@@ -30,6 +31,7 @@ export function registerSyncHandlers(): void {
         return { success: true, message: 'Pushed successfully', pulled: 0, pushed: 1 }
       } catch (e) {
         if (e instanceof syncService.SyncConflictError) {
+          logSync('push', collection.name, 'Conflict detected — both sides changed', false)
           return {
             success: false,
             message: 'Conflict detected',
@@ -42,7 +44,9 @@ export function registerSyncHandlers(): void {
             }],
           }
         }
-        return { success: false, message: (e as Error).message, pulled: 0, pushed: 0 }
+        const msg = (e as Error).message
+        logSync('push', collection.name, `Push failed: ${msg}`, false)
+        return { success: false, message: msg, pulled: 0, pushed: 0 }
       }
     },
   )

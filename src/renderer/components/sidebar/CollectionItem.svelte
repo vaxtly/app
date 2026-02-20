@@ -127,7 +127,8 @@
         showSensitiveModal = true
         return
       }
-      await window.api.sync.pushCollection(node.id)
+      const wsId = appStore.activeWorkspaceId ?? undefined
+      await window.api.sync.pushCollection(node.id, false, wsId)
       await collectionsStore.reloadCollection(node.id)
     } catch {
       // Handled by sync service / session log
@@ -137,7 +138,8 @@
   async function pushAnyway(): Promise<void> {
     showSensitiveModal = false
     try {
-      await window.api.sync.pushCollection(node.id, false)
+      const wsId = appStore.activeWorkspaceId ?? undefined
+      await window.api.sync.pushCollection(node.id, false, wsId)
       await collectionsStore.reloadCollection(node.id)
     } catch {
       // Handled by sync service / session log
@@ -147,7 +149,8 @@
   async function pushSanitized(): Promise<void> {
     showSensitiveModal = false
     try {
-      await window.api.sync.pushCollection(node.id, true)
+      const wsId = appStore.activeWorkspaceId ?? undefined
+      await window.api.sync.pushCollection(node.id, true, wsId)
       await collectionsStore.reloadCollection(node.id)
     } catch {
       // Handled by sync service / session log

@@ -32,6 +32,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Removed overly broad macOS entitlements (`allow-unsigned-executable-memory`, `allow-dyld-environment-variables`)
 - `VAXTLY_TEST_USERDATA` env var only honored in development builds
 - Sensitive data scanner crash when headers or variables are non-array
+- Git sync not triggered on request save (Ctrl+S) — collection `is_dirty` flag was never set on request mutations, workspace ID was not passed to push (causing "Remote not configured"), and push failures were silently swallowed with no log entry
+- Manual "Push to Remote" from collection context menu failing with workspace-scoped sync settings (missing workspace ID)
 
 ## [0.1.3] - 2026-02-19
 

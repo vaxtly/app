@@ -234,18 +234,23 @@
 
     // Trigger git sync if collection has sync enabled (scan for sensitive data first)
     if (currentCollectionId) {
+      await collectionsStore.reloadCollection(currentCollectionId)
       const collection = collectionsStore.getCollectionById(currentCollectionId)
       if (collection?.sync_enabled) {
-        window.api.sync.scanSensitive(currentCollectionId).then((findings) => {
+        try {
+          const findings = await window.api.sync.scanSensitive(currentCollectionId)
           if (findings.length === 0) {
-            window.api.sync.pushCollection(currentCollectionId!).catch(() => {
-              // Sync failure is non-blocking
-            })
+            const wsId = appStore.activeWorkspaceId ?? undefined
+            const result = await window.api.sync.pushCollection(currentCollectionId, false, wsId)
+            if (result.success) {
+              // Refresh store to clear dirty indicator after successful push
+              await collectionsStore.reloadCollection(currentCollectionId)
+            }
           }
           // If sensitive data found, skip auto-push — user can push manually via context menu
-        }).catch(() => {
-          // Scan failure is non-blocking
-        })
+        } catch {
+          // Scan failure is non-blocking (error already logged server-side)
+        }
       }
     }
   }
