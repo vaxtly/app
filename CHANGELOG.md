@@ -5,6 +5,34 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Changed
+- Encryption upgraded from AES-256-CBC to AES-256-GCM with authenticated encryption (existing CBC data decrypted transparently)
+- SSL verification now defaults to on for new installs
+- `data:read-file` IPC replaced with dialog-based `data:pick-and-read` — renderer can no longer specify arbitrary file paths
+- HtmlPreview iframe uses blob: URL with empty sandbox instead of `allow-same-origin` + `doc.write()`
+- Script execution uses per-chain stack instead of shared global (eliminates race condition)
+- Error responses return `error.message` only (no stack traces); session log uses template URL (no resolved secrets)
+- Code generator `esc()` now escapes backslashes and newlines; JS/Node body output uses string literals instead of code interpolation
+
+### Added
+- Content Security Policy meta tag on renderer HTML
+- Electron sandbox enabled (`sandbox: true`), navigation guards (`will-navigate` blocked, new windows denied), permission request handler (deny all)
+- IPC input validation: URL scheme whitelist (http/https), HTTP method whitelist, timeout clamped 1–300s, response body 50MB limit, form-data file paths checked against dialog-approved set, import JSON size capped at 50MB
+- Settings IPC: readonly key denylist (`encryption.*`, `app.version`), sensitive keys filtered from `getAll` responses
+- Vault path traversal protection (`..` and leading `/` blocked in migrate)
+- Sync conflict resolution value strict validation
+- History retention days clamped 1–365
+- UUID format validation on all YAML-imported entity IDs
+- `basic_username` added to encrypted auth fields
+
+### Fixed
+- DevTools, reload, and force-reload menu items no longer available in production builds
+- Removed overly broad macOS entitlements (`allow-unsigned-executable-memory`, `allow-dyld-environment-variables`)
+- `VAXTLY_TEST_USERDATA` env var only honored in development builds
+- Sensitive data scanner crash when headers or variables are non-array
+
 ## [0.1.3] - 2026-02-19
 
 ### Added
