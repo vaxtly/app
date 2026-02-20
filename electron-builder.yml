@@ -64,7 +64,11 @@ linux:
 snap:
   confinement: strict
   grade: stable
-  channel: stable
+  publish:
+    - provider: snapStore
+      channels:
+        - stable
+    - provider: github
   plugs:
     - default
     - removable-media
