@@ -154,31 +154,41 @@ function ensureDefaultWorkspace(): void {
   }
 }
 
+function isEnabled(value: string | undefined): boolean {
+  return value === '1' || value === 'true'
+}
+
 async function runAutoSync(): Promise<void> {
-  const vaultAutoSync = getSetting('vault.auto_sync')
-  const syncAutoSync = getSetting('sync.auto_sync')
+  // Resolve effective auto_sync per workspace (workspace setting → global fallback).
+  // This mirrors how getProvider() resolves credentials, so the pull uses the same
+  // config that the auto_sync toggle controls.
+  const workspaces = workspacesRepo.findAll()
 
-  if (vaultAutoSync === '1' || vaultAutoSync === 'true') {
-    logVault('auto-sync', 'vault', 'Starting vault auto-sync...')
-    try {
-      const result = await vaultSyncService.pullAll()
-      if (result.errors.length > 0) {
-        logVault('auto-sync', '/', `Completed with errors: ${result.errors.join('; ')}`, false)
-      } else {
-        logVault('auto-sync', '/', `Pulled ${result.created} new environment(s)`)
+  for (const ws of workspaces) {
+    const vaultAuto = workspacesRepo.getWorkspaceSetting(ws.id, 'vault.auto_sync') ?? getSetting('vault.auto_sync')
+    if (isEnabled(vaultAuto)) {
+      logVault('auto-sync', ws.name, 'Starting vault auto-sync...')
+      try {
+        const result = await vaultSyncService.pullAll(ws.id)
+        if (result.errors.length > 0) {
+          logVault('auto-sync', ws.name, `Completed with errors: ${result.errors.join('; ')}`, false)
+        } else {
+          logVault('auto-sync', ws.name, `Pulled ${result.created} new environment(s)`)
+        }
+      } catch (e) {
+        logVault('auto-sync', ws.name, `Failed: ${e instanceof Error ? e.message : String(e)}`, false)
       }
-    } catch (e) {
-      logVault('auto-sync', '/', `Failed: ${e instanceof Error ? e.message : String(e)}`, false)
     }
-  }
 
-  if (syncAutoSync === '1' || syncAutoSync === 'true') {
-    logSync('auto-sync', 'git', 'Starting git auto-sync...')
-    try {
-      const result = await remoteSyncService.pull()
-      logSync('auto-sync', '/', result.message ?? `Pulled ${result.pulled ?? 0} collection(s)`, result.success)
-    } catch (e) {
-      logSync('auto-sync', '/', `Failed: ${e instanceof Error ? e.message : String(e)}`, false)
+    const syncAuto = workspacesRepo.getWorkspaceSetting(ws.id, 'sync.auto_sync') ?? getSetting('sync.auto_sync')
+    if (isEnabled(syncAuto)) {
+      logSync('auto-sync', ws.name, 'Starting git auto-sync...')
+      try {
+        const result = await remoteSyncService.pull(ws.id)
+        logSync('auto-sync', ws.name, result.message ?? `Pulled ${result.pulled ?? 0} collection(s)`, result.success)
+      } catch (e) {
+        logSync('auto-sync', ws.name, `Failed: ${e instanceof Error ? e.message : String(e)}`, false)
+      }
     }
   }
 }

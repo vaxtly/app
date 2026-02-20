@@ -760,7 +760,7 @@ Three `$effect` hooks in `App.svelte` drive cross-cutting UX behaviors:
 7. buildMenu()                   — Set native application menu (using IPC.MENU_* constants)
 8. initUpdater()                 — Configure electron-updater (no-op in dev; macOS: notify only; Win/Linux: auto-download)
 9. createWindow()                — BrowserWindow (sandbox: true, CSP, navigation guards, permission deny-all)
-10. runAutoSync()                — On ready-to-show: vault pullAll + git pull if auto_sync enabled
+10. runAutoSync()                — On ready-to-show: iterates all workspaces, resolves effective auto_sync setting (workspace → global fallback), runs vault pullAll + git pull per workspace
 11. checkForUpdates()            — On ready-to-show: check for available updates
 ```
 
