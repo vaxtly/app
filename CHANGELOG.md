@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.1.3] - 2026-02-19
+
+### Added
+- Scoop package manager support for Windows — own bucket repo (`vaxtly/scoop-bucket`), CI auto-updates the manifest on release
+- Install source detection (`getInstallSource()`) returning `'brew' | 'scoop' | 'standalone'`
+- New IPC channel `update:install-source` exposed as `api.updater.installSource()`
+- `update-scoop` CI job in `build.yml` (parallel with `update-homebrew`)
+
+### Changed
+- Update banner is now install-source-aware: Scoop installs show `scoop update vaxtly` with copy button, matching the existing Homebrew behavior on macOS
+- Auto-download and quit-and-install are disabled for all package-managed installs (Homebrew + Scoop), not just macOS
+
 ## [0.1.2] - 2026-02-19
 
 ### Added
