@@ -296,3 +296,83 @@ jobs:
           fi
 
           echo "Homebrew tap updated to v${VERSION}"
+
+  update-scoop:
+    needs: build
+    runs-on: ubuntu-latest
+    name: Update Scoop bucket
+    steps:
+      - name: Wait for setup exe
+        shell: bash
+        run: |
+          VERSION="${{ inputs.version }}"
+          VERSION="${VERSION#v}"
+          for i in $(seq 1 30); do
+            STATUS=$(curl -sL -o /dev/null -w '%{http_code}' \
+              "https://github.com/vaxtly/app/releases/download/v${VERSION}/Vaxtly-${VERSION}-setup.exe")
+            if [[ "$STATUS" == "200" ]]; then
+              echo "Setup exe available"
+              break
+            fi
+            echo "Waiting for setup exe... (attempt $i)"
+            sleep 10
+          done
+
+      - name: Compute SHA256 and update manifest
+        env:
+          GH_TOKEN: ${{ secrets.SCOOP_BUCKET_TOKEN }}
+        shell: bash
+        run: |
+          VERSION="${{ inputs.version }}"
+          VERSION="${VERSION#v}"
+
+          SHA256=$(curl -sL "https://github.com/vaxtly/app/releases/download/v${VERSION}/Vaxtly-${VERSION}-setup.exe" | sha256sum | awk '{print $1}')
+
+          MANIFEST=$(cat <<EOF
+          {
+            "version": "${VERSION}",
+            "description": "API testing tool",
+            "homepage": "https://vaxtly.github.io",
+            "license": "MIT",
+            "architecture": {
+              "64bit": {
+                "url": "https://github.com/vaxtly/app/releases/download/v${VERSION}/Vaxtly-${VERSION}-setup.exe",
+                "hash": "${SHA256}"
+              }
+            },
+            "installer": {
+              "script": ["Start-Process \\"\\$dir\\\\\\$fname\\" '/S' -Wait"]
+            },
+            "uninstaller": {
+              "script": ["Start-Process \\"\\$env:LOCALAPPDATA\\\\Programs\\\\vaxtly\\\\Uninstall vaxtly.exe\\" '/S' -Wait"]
+            }
+          }
+          EOF
+          )
+
+          # Remove leading whitespace from heredoc
+          MANIFEST=$(echo "$MANIFEST" | sed 's/^          //')
+
+          # Get current file SHA for update
+          FILE_SHA=$(gh api repos/vaxtly/scoop-bucket/contents/bucket/vaxtly.json --jq '.sha' 2>/dev/null || echo "")
+
+          ENCODED=$(echo "$MANIFEST" | base64 -w0)
+
+          if [[ -n "$FILE_SHA" ]]; then
+            gh api repos/vaxtly/scoop-bucket/contents/bucket/vaxtly.json \
+              -X PUT \
+              -f message="Update Vaxtly to v${VERSION}" \
+              -f committer[name]="vaxtly" \
+              -f committer[email]="vaxtly.app@gmail.com" \
+              -f content="$ENCODED" \
+              -f sha="$FILE_SHA"
+          else
+            gh api repos/vaxtly/scoop-bucket/contents/bucket/vaxtly.json \
+              -X PUT \
+              -f message="Update Vaxtly to v${VERSION}" \
+              -f committer[name]="vaxtly" \
+              -f committer[email]="vaxtly.app@gmail.com" \
+              -f content="$ENCODED"
+          fi
+
+          echo "Scoop bucket updated to v${VERSION}"

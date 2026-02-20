@@ -124,6 +124,7 @@ export const IPC = {
   UPDATE_ERROR: 'update:error',
   UPDATE_CHECK: 'update:check',
   UPDATE_INSTALL: 'update:install',
+  UPDATE_INSTALL_SOURCE: 'update:install-source',
 } as const
 
 export type IpcChannel = (typeof IPC)[keyof typeof IPC]

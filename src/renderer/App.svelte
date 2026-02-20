@@ -23,14 +23,15 @@
   let updateDownloaded = $state(false)
   let updateProgress: number | null = $state(null)
   let updateDismissed = $state(false)
-  const isMac = navigator.userAgent.includes('Macintosh')
+  let installSource: 'brew' | 'scoop' | 'standalone' = $state('standalone')
 
   function dismissUpdate(): void {
     updateDismissed = true
   }
 
-  function copyBrewCommand(): void {
-    navigator.clipboard.writeText('brew upgrade vaxtly')
+  function copyUpdateCommand(): void {
+    const cmd = installSource === 'brew' ? 'brew upgrade vaxtly' : 'scoop update vaxtly'
+    navigator.clipboard.writeText(cmd)
   }
 
   function restartToUpdate(): void {
@@ -168,6 +169,9 @@
   }
 
   onMount(async () => {
+    // Detect install source (brew / scoop / standalone)
+    installSource = await window.api.updater.installSource()
+
     // Load settings
     await settingsStore.loadAll()
 
@@ -263,13 +267,20 @@
   <!-- Update notification banner -->
   {#if updateAvailable && !updateDismissed}
     <div class="update-banner">
-      {#if isMac}
+      {#if installSource === 'brew'}
         <span class="update-text">
           Vaxtly v{updateAvailable.version} is available — run
           <code class="update-code">brew upgrade vaxtly</code>
           to update
         </span>
-        <button class="update-btn" onclick={copyBrewCommand}>Copy command</button>
+        <button class="update-btn" onclick={copyUpdateCommand}>Copy command</button>
+      {:else if installSource === 'scoop'}
+        <span class="update-text">
+          Vaxtly v{updateAvailable.version} is available — run
+          <code class="update-code">scoop update vaxtly</code>
+          to update
+        </span>
+        <button class="update-btn" onclick={copyUpdateCommand}>Copy command</button>
       {:else if updateDownloaded}
         <span class="update-text">
           Vaxtly v{updateAvailable.version} is ready — restart to update

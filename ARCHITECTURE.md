@@ -63,7 +63,7 @@ vaxtly/
 │   │   │   ├── sync.ts                # Git sync: test, pull, push, resolve, scan
 │   │   │   ├── vault.ts               # Vault: test, pull, push, fetch/push vars, delete, migrate
 │   │   │   ├── data-import-export.ts  # Data export/import + Postman import
-│   │   │   ├── updater.ts            # Auto-update: check + install
+│   │   │   ├── updater.ts            # Auto-update: check, install, install-source
 │   │   │   └── settings.ts
 │   │   ├── services/
 │   │   │   ├── encryption.ts           # safeStorage master key + AES-256-CBC
@@ -76,7 +76,7 @@ vaxtly/
 │   │   │   ├── sensitive-data-scanner.ts # Scan/sanitize sensitive data in requests & variables
 │   │   │   ├── data-export-import.ts  # Export/import collections, environments, config
 │   │   │   ├── postman-import.ts      # Import Postman collections/environments (3 formats)
-│   │   │   └── updater.ts            # electron-updater: init, check, quit-and-install
+│   │   │   └── updater.ts            # electron-updater: init, check, quit-and-install, install-source detection
 │   │   ├── vault/
 │   │   │   ├── secrets-provider.interface.ts # SecretsProvider interface
 │   │   │   ├── hashicorp-vault-provider.ts   # HashiCorp Vault KV v2 provider
@@ -406,6 +406,7 @@ Pattern: `ipcMain.handle('domain:action', handler)` in main, `ipcRenderer.invoke
 
 | `update:check` | ipc/updater.ts | `checkForUpdates()` | `api.updater.check()` |
 | `update:install` | ipc/updater.ts | `quitAndInstall()` | `api.updater.install()` |
+| `update:install-source` | ipc/updater.ts | `getInstallSource()` | `api.updater.installSource()` |
 | `update:available` | — (main→renderer push) | — | `api.on.updateAvailable(cb)` |
 | `update:progress` | — (main→renderer push) | — | `api.on.updateProgress(cb)` |
 | `update:downloaded` | — (main→renderer push) | — | `api.on.updateDownloaded(cb)` |
@@ -667,16 +668,21 @@ All stores use this pattern: module-level `$state` + `$derived` + exported objec
 ### Auto-Updater (`services/updater.ts`)
 - Uses `electron-updater` (`autoUpdater`) for update detection across all platforms
 - **Dev guard**: `initUpdater()` and `checkForUpdates()` are no-ops when `!app.isPackaged`
-- **macOS**: `autoDownload = false` — only notifies the user; installation is via Homebrew (`brew upgrade vaxtly`)
-- **Windows/Linux**: `autoDownload = true` — downloads in background, then offers quit-and-install
+- **Install source detection**: `getInstallSource()` returns `'brew' | 'scoop' | 'standalone'`
+  - macOS always returns `'brew'`
+  - Windows: checks `app.getPath('exe')` for `scoop\apps` → `'scoop'`, otherwise `'standalone'`
+  - Linux always returns `'standalone'`
+- **Package-managed installs** (Homebrew / Scoop): `autoDownload = false`, `autoInstallOnAppQuit = false`, `quitAndInstall()` is a no-op — user updates via their package manager
+- **Standalone installs**: `autoDownload = true` — downloads in background, then offers quit-and-install
 - Events pushed to renderer via `BrowserWindow.getAllWindows()`:
   - `update:available` → `{ version, releaseName }`
-  - `update:progress` → `{ percent }` (Win/Linux only)
+  - `update:progress` → `{ percent }` (standalone only)
   - `update:downloaded` → `{ version }`
   - `update:error` → error message string
 - `checkForUpdates()` called automatically on `ready-to-show` and manually via menu/settings
-- **App.svelte banner**: platform-aware top banner — macOS shows brew command + copy button; Win/Linux shows download progress bar → "Restart now" button; dismissible
+- **App.svelte banner**: install-source-aware top banner — Homebrew shows `brew upgrade vaxtly` + copy button; Scoop shows `scoop update vaxtly` + copy button; standalone shows download progress bar → "Restart now" button; dismissible
 - **GeneralTab**: "Check for updates" button in About section with checking/available/up-to-date/error states; 15s timeout assumes up-to-date if no event received
+- **CI**: `update-scoop` job in `build.yml` computes SHA256 of `Vaxtly-{version}-setup.exe` and pushes manifest to `vaxtly/scoop-bucket/bucket/vaxtly.json` (mirrors the `update-homebrew` pattern)
 
 ### CodeMirror Variable Highlighting (`lib/utils/variable-highlight.ts`)
 - `variableHighlight(getResolved)` → CodeMirror `Extension` (decoration + tooltip)

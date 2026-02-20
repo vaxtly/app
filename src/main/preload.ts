@@ -179,6 +179,8 @@ const api = {
       ipcRenderer.invoke(IPC.UPDATE_CHECK),
     install: (): Promise<void> =>
       ipcRenderer.invoke(IPC.UPDATE_INSTALL),
+    installSource: (): Promise<'brew' | 'scoop' | 'standalone'> =>
+      ipcRenderer.invoke(IPC.UPDATE_INSTALL_SOURCE),
   },
 
   settings: {

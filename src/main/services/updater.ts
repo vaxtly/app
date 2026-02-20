@@ -8,11 +8,23 @@ function pushToAllWindows(channel: string, ...args: unknown[]): void {
   }
 }
 
+function isScoopInstall(): boolean {
+  if (process.platform !== 'win32') return false
+  return app.getPath('exe').toLowerCase().includes('scoop\\apps')
+}
+
+export function getInstallSource(): 'brew' | 'scoop' | 'standalone' {
+  if (process.platform === 'darwin') return 'brew'
+  if (isScoopInstall()) return 'scoop'
+  return 'standalone'
+}
+
 export function initUpdater(): void {
   if (!app.isPackaged) return
 
-  autoUpdater.autoDownload = process.platform !== 'darwin'
-  autoUpdater.autoInstallOnAppQuit = process.platform !== 'darwin'
+  const isPackageManaged = getInstallSource() !== 'standalone'
+  autoUpdater.autoDownload = !isPackageManaged
+  autoUpdater.autoInstallOnAppQuit = !isPackageManaged
 
   autoUpdater.on('update-available', (info) => {
     pushToAllWindows(IPC.UPDATE_AVAILABLE, {
@@ -40,6 +52,6 @@ export function checkForUpdates(): void {
 }
 
 export function quitAndInstall(): void {
-  if (process.platform === 'darwin') return
+  if (getInstallSource() !== 'standalone') return
   autoUpdater.quitAndInstall()
 }
