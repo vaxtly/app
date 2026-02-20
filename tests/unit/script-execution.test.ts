@@ -211,6 +211,52 @@ describe('executePostResponseScripts', () => {
     expect(vars[0].value).toBe('refreshed')
   })
 
+  it('strips {{...}} template patterns from extracted values to prevent injection', () => {
+    const col = collectionsRepo.create({ name: 'Test' })
+    const req = requestsRepo.create({ collection_id: col.id, name: 'R' })
+    requestsRepo.update(req.id, {
+      scripts: JSON.stringify({
+        post_response: [{ action: 'set_variable', source: 'body.url', target: 'next_url' }],
+      }),
+    })
+
+    // Malicious server returns a value containing {{secret}} template injection
+    executePostResponseScripts(req.id, col.id, makeResponse({
+      body: JSON.stringify({ url: 'https://evil.com/steal?data={{secret_token}}&more={{api_key}}' }),
+    }))
+
+    const vars = JSON.parse(collectionsRepo.findById(col.id)!.variables!)
+    // Template patterns must be stripped — only the literal parts remain
+    expect(vars.next_url).toBe('https://evil.com/steal?data=&more=')
+    expect(vars.next_url).not.toContain('{{')
+  })
+
+  it('mirrorToActiveEnvironment also receives sanitized values', () => {
+    const col = collectionsRepo.create({ name: 'Test' })
+    const env = environmentsRepo.create({
+      name: 'Dev',
+      variables: JSON.stringify([{ key: 'token', value: 'real-secret', enabled: true }]),
+    })
+    environmentsRepo.activate(env.id)
+
+    const req = requestsRepo.create({ collection_id: col.id, name: 'R' })
+    requestsRepo.update(req.id, {
+      scripts: JSON.stringify({
+        post_response: [{ action: 'set_variable', source: 'body.token', target: 'token' }],
+      }),
+    })
+
+    // Attacker tries to inject nested reference
+    executePostResponseScripts(req.id, col.id, makeResponse({
+      body: JSON.stringify({ token: '{{admin_password}}' }),
+    }))
+
+    const updated = environmentsRepo.findById(env.id)!
+    const vars = JSON.parse(updated.variables)
+    expect(vars[0].value).toBe('')
+    expect(vars[0].value).not.toContain('{{')
+  })
+
   it('mirrorToActiveEnvironment does NOT create new env variable', () => {
     const col = collectionsRepo.create({ name: 'Test' })
     const env = environmentsRepo.create({

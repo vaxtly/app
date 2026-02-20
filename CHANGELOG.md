@@ -7,19 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.5] - 2026-02-20
+
+### Added
+- Export single collection from sidebar context menu — downloads a JSON file compatible with the existing importer
+- Feedback tab in Settings with Bug Report and Feature Request buttons linking to GitHub Issues
+- "Report a Problem" option in the Help menu — opens bug report with OS and version pre-filled
+- GitHub issue templates for bug reports and feature requests
+- Sidebar scrolls to center the active request when switching tabs
+- Whitelisted external URL opener for GitHub links via `shell.openExternal`
+
 ### Changed
 - Send no longer auto-saves or syncs — only explicit Save (Ctrl+S) persists to DB and triggers git sync
 - Environment editor header redesigned to match the request builder's pill-style URL bar
-- Sidebar footer toolbar and icons slightly enlarged for better visibility
+- Sidebar and log panel slightly enlarged for better visibility (sidebar width, footer toolbar, icons)
 
 ### Fixed
 - Git sync no longer blocks request send — HTTP fires immediately, sync runs in background
 - Repeated sends without changes no longer trigger unnecessary dirty marking or remote sync calls
 - Collections can now be collapsed in the sidebar even when a request inside them is active
 
-### Added
-- Sidebar scrolls to center the active request when switching tabs
-- Export single collection from sidebar context menu — downloads a JSON file compatible with the existing importer
+### Security
+- Strip `{{...}}` template patterns from server response values in post-response scripts to prevent nested variable injection that could exfiltrate secrets
 
 ## [0.1.4] - 2026-02-20
 

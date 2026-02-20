@@ -76,7 +76,10 @@ export function executePostResponseScripts(
   for (const script of scripts.post_response) {
     if (script.action !== 'set_variable' || !script.source || !script.target) continue
 
-    const value = extractValue(script.source, response.status, response.body, response.headers)
+    const rawValue = extractValue(script.source, response.status, response.body, response.headers)
+    // Sanitize: strip {{...}} template patterns from server-controlled values
+    // to prevent nested variable injection that could exfiltrate secrets
+    const value = rawValue !== null ? rawValue.replace(/\{\{[\w\-.]+\}\}/g, '') : null
     logHttp('post-script', requestId, `Extract "${script.source}" → ${value !== null ? `"${value.slice(0, 50)}..."` : 'null'}, target: "${script.target}"`)
     if (value !== null) {
       setCollectionVariable(collectionId, script.target, value)
