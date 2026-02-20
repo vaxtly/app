@@ -52,6 +52,7 @@ linux:
   target:
     - AppImage
     - deb
+    - snap
   category: Development
   artifactName: Vaxtly-${version}-${arch}.${ext}
   icon: build/icons
@@ -59,3 +60,10 @@ linux:
   extraResources:
     - from: build/icon.png
       to: icon.png
+
+snap:
+  confinement: strict
+  grade: stable
+  plugs:
+    - default
+    - removable-media
