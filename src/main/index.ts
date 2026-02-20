@@ -66,10 +66,10 @@ function applyThemeSetting(): string {
     return '#ffffff'
   } else if (theme === 'system') {
     nativeTheme.themeSource = 'system'
-    return nativeTheme.shouldUseDarkColors ? '#0f172a' : '#ffffff'
+    return nativeTheme.shouldUseDarkColors ? '#060c18' : '#ffffff'
   } else {
     nativeTheme.themeSource = 'dark'
-    return '#0f172a'
+    return '#060c18'
   }
 }
 
