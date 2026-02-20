@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+- Git sync no longer blocks request send — HTTP fires immediately, sync runs in background
+- Repeated sends without changes no longer trigger unnecessary dirty marking or remote sync calls
+
 ## [0.1.4] - 2026-02-20
 
 ### Added

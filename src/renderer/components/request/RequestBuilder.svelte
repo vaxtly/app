@@ -147,8 +147,8 @@
   async function sendRequest(): Promise<void> {
     if (!state?.url?.trim()) return
 
-    // Auto-save before sending so scripts and latest changes are in DB
-    await saveRequest()
+    // Fast DB-only save (no sync) so scripts and latest changes are persisted
+    await saveToDb()
     update({ loading: true, response: null })
 
     // Build headers map
@@ -190,6 +190,9 @@
       // Refresh resolved variables and environment store — post-response scripts may have set new values
       refreshResolvedVars()
       environmentsStore.loadAll(appStore.activeWorkspaceId ?? undefined)
+
+      // Background sync — fire-and-forget so it never blocks the user
+      syncIfNeeded()
     } catch (error) {
       update({
         loading: false,
@@ -211,7 +214,8 @@
     update({ loading: false })
   }
 
-  async function saveRequest(): Promise<void> {
+  /** Persist current state to DB only (no sync). Fast path for send. */
+  async function saveToDb(): Promise<void> {
     if (!state) return
 
     const bodyToSave = state.body_type === 'form-data'
@@ -231,8 +235,35 @@
     })
     appStore.markTabSaved(tabId)
     appStore.updateTabLabel(tabId, state.name, state.method)
+  }
 
-    // Trigger git sync if collection has sync enabled (scan for sensitive data first)
+  /** Fire-and-forget git sync if the collection has sync enabled. */
+  function syncIfNeeded(): void {
+    if (!currentCollectionId) return
+
+    collectionsStore.reloadCollection(currentCollectionId).then(async () => {
+      const collection = collectionsStore.getCollectionById(currentCollectionId!)
+      if (!collection?.sync_enabled) return
+      try {
+        const findings = await window.api.sync.scanSensitive(currentCollectionId!)
+        if (findings.length === 0) {
+          const wsId = appStore.activeWorkspaceId ?? undefined
+          const result = await window.api.sync.pushCollection(currentCollectionId!, false, wsId)
+          if (result.success) {
+            await collectionsStore.reloadCollection(currentCollectionId!)
+          }
+        }
+        // If sensitive data found, skip auto-push — user can push manually via context menu
+      } catch {
+        // Scan failure is non-blocking (error already logged server-side)
+      }
+    })
+  }
+
+  /** Full save: DB write + immediate sync. Used by Ctrl+S explicit save. */
+  async function saveRequest(): Promise<void> {
+    await saveToDb()
+    // Sync inline so Ctrl+S gives immediate feedback
     if (currentCollectionId) {
       await collectionsStore.reloadCollection(currentCollectionId)
       const collection = collectionsStore.getCollectionById(currentCollectionId)
@@ -243,13 +274,11 @@
             const wsId = appStore.activeWorkspaceId ?? undefined
             const result = await window.api.sync.pushCollection(currentCollectionId, false, wsId)
             if (result.success) {
-              // Refresh store to clear dirty indicator after successful push
               await collectionsStore.reloadCollection(currentCollectionId)
             }
           }
-          // If sensitive data found, skip auto-push — user can push manually via context menu
         } catch {
-          // Scan failure is non-blocking (error already logged server-side)
+          // Scan failure is non-blocking
         }
       }
     }

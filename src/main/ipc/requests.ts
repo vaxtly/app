@@ -19,6 +19,15 @@ export function registerRequestHandlers(): void {
   })
 
   ipcMain.handle(IPC.REQUESTS_UPDATE, (_event, id: string, data: Record<string, unknown>) => {
+    const existing = requestsRepo.findById(id)
+    if (!existing) return null
+
+    // Skip update + markDirty when nothing actually changed
+    const changed = Object.keys(data).some(
+      (key) => JSON.stringify((existing as Record<string, unknown>)[key]) !== JSON.stringify(data[key])
+    )
+    if (!changed) return existing
+
     const result = requestsRepo.update(id, data)
     if (result) collectionsRepo.markDirty(result.collection_id)
     return result
