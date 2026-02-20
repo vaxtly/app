@@ -350,7 +350,7 @@
   <div class="flex min-h-0 flex-1">
     <!-- Sidebar -->
     {#if !appStore.sidebarCollapsed}
-      <div class="w-60 shrink-0 border-r border-surface-700">
+      <div class="w-[244px] shrink-0 border-r border-surface-700">
         <Sidebar onrequestclick={handleRequestClick} onenvironmentclick={handleEnvironmentClick} />
       </div>
     {/if}

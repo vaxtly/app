@@ -84,6 +84,7 @@ export const IPC = {
 
   // Data Import/Export
   DATA_EXPORT: 'data:export',
+  DATA_EXPORT_COLLECTION: 'data:export-collection',
   DATA_IMPORT: 'data:import',
   DATA_PICK_AND_READ: 'data:pick-and-read',
   POSTMAN_IMPORT: 'postman:import',

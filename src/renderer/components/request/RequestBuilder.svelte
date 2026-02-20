@@ -147,8 +147,6 @@
   async function sendRequest(): Promise<void> {
     if (!state?.url?.trim()) return
 
-    // Fast DB-only save (no sync) so scripts and latest changes are persisted
-    await saveToDb()
     update({ loading: true, response: null })
 
     // Build headers map
@@ -190,9 +188,6 @@
       // Refresh resolved variables and environment store — post-response scripts may have set new values
       refreshResolvedVars()
       environmentsStore.loadAll(appStore.activeWorkspaceId ?? undefined)
-
-      // Background sync — fire-and-forget so it never blocks the user
-      syncIfNeeded()
     } catch (error) {
       update({
         loading: false,

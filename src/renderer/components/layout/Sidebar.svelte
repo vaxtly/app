@@ -131,26 +131,26 @@
   {/if}
 
   <!-- Footer toolbar -->
-  <div class="flex h-7 shrink-0 items-center border-t border-surface-700 px-1.5">
+  <div class="flex h-8 shrink-0 items-center border-t border-surface-700 px-1.5">
     <!-- Left group: mode icons -->
     <div class="flex items-center gap-0.5">
       <button
         onclick={() => appStore.setSidebarMode('collections')}
-        class="flex h-5 w-5 items-center justify-center rounded hover:bg-surface-700/50
+        class="flex h-6 w-6 items-center justify-center rounded hover:bg-surface-700/50
           {appStore.sidebarMode === 'collections' ? 'text-brand-400' : 'text-surface-500 hover:text-surface-300'}"
         title="Collections"
       >
-        <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
           <path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
         </svg>
       </button>
       <button
         onclick={() => appStore.setSidebarMode('environments')}
-        class="flex h-5 w-5 items-center justify-center rounded hover:bg-surface-700/50
+        class="flex h-6 w-6 items-center justify-center rounded hover:bg-surface-700/50
           {appStore.sidebarMode === 'environments' ? 'text-brand-400' : 'text-surface-500 hover:text-surface-300'}"
         title="Environments"
       >
-        <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
           <path d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
         </svg>
       </button>
@@ -163,16 +163,16 @@
       <!-- Layout toggle -->
       <button
         onclick={() => settingsStore.set('request.layout', layout === 'columns' ? 'rows' : 'columns')}
-        class="flex h-5 w-5 items-center justify-center rounded text-surface-500 hover:bg-surface-700/50 hover:text-surface-300"
+        class="flex h-6 w-6 items-center justify-center rounded text-surface-500 hover:bg-surface-700/50 hover:text-surface-300"
         title={layout === 'columns' ? 'Switch to rows layout' : 'Switch to columns layout'}
       >
         {#if layout === 'columns'}
-          <svg class="h-3 w-3" viewBox="0 0 28 20" fill="none">
+          <svg class="h-3.5 w-3.5" viewBox="0 0 28 20" fill="none">
             <rect x="1" y="1" width="12" height="18" rx="1.5" stroke="currentColor" stroke-width="1.5"/>
             <rect x="15" y="1" width="12" height="18" rx="1.5" stroke="currentColor" stroke-width="1.5"/>
           </svg>
         {:else}
-          <svg class="h-3 w-3" viewBox="0 0 28 20" fill="none">
+          <svg class="h-3.5 w-3.5" viewBox="0 0 28 20" fill="none">
             <rect x="1" y="1" width="26" height="8" rx="1.5" stroke="currentColor" stroke-width="1.5"/>
             <rect x="1" y="11" width="26" height="8" rx="1.5" stroke="currentColor" stroke-width="1.5"/>
           </svg>
@@ -182,23 +182,23 @@
       <!-- Theme cycle -->
       <button
         onclick={cycleTheme}
-        class="flex h-5 w-5 items-center justify-center rounded text-surface-500 hover:bg-surface-700/50 hover:text-surface-300"
+        class="flex h-6 w-6 items-center justify-center rounded text-surface-500 hover:bg-surface-700/50 hover:text-surface-300"
         title={theme === 'dark' ? 'Theme: Dark' : theme === 'light' ? 'Theme: Light' : 'Theme: System'}
       >
         {#if theme === 'dark'}
           <!-- Moon -->
-          <svg class="h-3 w-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+          <svg class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
             <path d="M17 11.36A7.5 7.5 0 118.64 3 5.5 5.5 0 0017 11.36z"/>
           </svg>
         {:else if theme === 'light'}
           <!-- Sun -->
-          <svg class="h-3 w-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+          <svg class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
             <circle cx="10" cy="10" r="3.5"/>
             <path d="M10 3V4.5M10 15.5V17M17 10H15.5M4.5 10H3M14.95 5.05L13.89 6.11M6.11 13.89L5.05 14.95M14.95 14.95L13.89 13.89M6.11 6.11L5.05 5.05"/>
           </svg>
         {:else}
           <!-- Monitor -->
-          <svg class="h-3 w-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <svg class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
             <rect x="3" y="3" width="14" height="10" rx="1.5"/>
             <path d="M7 16h6M10 13v3"/>
           </svg>
@@ -209,17 +209,17 @@
       {#if appStore.sidebarMode === 'collections'}
         <button
           onclick={() => hasExpanded ? collectionsStore.collapseAll() : collectionsStore.expandAll()}
-          class="flex h-5 w-5 items-center justify-center rounded text-surface-500 hover:bg-surface-700/50 hover:text-surface-300"
+          class="flex h-6 w-6 items-center justify-center rounded text-surface-500 hover:bg-surface-700/50 hover:text-surface-300"
           title={hasExpanded ? 'Collapse all' : 'Expand all'}
         >
           {#if hasExpanded}
             <!-- Chevrons up (collapse) -->
-            <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
               <path d="M7 11l5-5 5 5M7 17l5-5 5 5" />
             </svg>
           {:else}
             <!-- Chevrons down (expand) -->
-            <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
               <path d="M7 7l5 5 5-5M7 13l5 5 5-5" />
             </svg>
           {/if}
@@ -229,10 +229,10 @@
       <!-- Settings -->
       <button
         onclick={() => appStore.openSettings()}
-        class="flex h-5 w-5 items-center justify-center rounded text-surface-500 hover:bg-surface-700/50 hover:text-surface-300"
+        class="flex h-6 w-6 items-center justify-center rounded text-surface-500 hover:bg-surface-700/50 hover:text-surface-300"
         title="Settings"
       >
-        <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
           <path d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
         </svg>
       </button>

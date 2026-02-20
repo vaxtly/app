@@ -95,7 +95,7 @@
 <div
   class="flex shrink-0 flex-col bg-surface-900"
   class:select-none={dragging}
-  style="height: {expanded ? panelHeight : 28}px"
+  style="height: {expanded ? panelHeight : 32}px"
 >
   <!-- Drag handle -->
   {#if expanded}
@@ -112,7 +112,7 @@
   {/if}
 
   <!-- Header bar (always visible) -->
-  <div class="flex h-7 shrink-0 items-center border-b border-surface-700 px-1">
+  <div class="flex h-8 shrink-0 items-center border-b border-surface-700 px-1">
     <button
       onclick={() => { if (expanded && activeLogTab === 'logs') { expanded = false } else { expanded = true; activeLogTab = 'logs' } }}
       class="flex items-center gap-1.5 px-2 h-full text-[11px] font-medium transition-colors {activeLogTab === 'logs' && expanded

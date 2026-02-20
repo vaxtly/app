@@ -167,49 +167,37 @@
 {#if environment}
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div class="flex h-full flex-col" onkeydown={handleKeydown}>
-    <!-- Header -->
-    <div class="flex shrink-0 items-center gap-3 border-b border-surface-700 px-4 py-3">
-      <!-- Active toggle -->
-      <button
-        onclick={toggleActive}
-        class="flex items-center gap-2 rounded-full px-3 py-1 text-xs transition-colors
-          {environment.is_active
-            ? ''
-            : 'bg-surface-800 text-surface-400 hover:text-surface-200'}"
-        style={environment.is_active ? 'color: var(--color-success); background: color-mix(in srgb, var(--color-success) 15%, transparent)' : ''}
-      >
-        <span class="h-2 w-2 rounded-full {environment.is_active ? '' : 'bg-surface-600'}" style={environment.is_active ? 'background: var(--color-success)' : ''}></span>
-        {environment.is_active ? 'Active' : 'Inactive'}
-      </button>
+    <!-- Header bar (matches UrlBar pill style) -->
+    <div class="env-bar">
+      <div class="env-bar-inner">
+        <!-- Active/Inactive toggle -->
+        <button class="env-status" class:env-status--active={environment.is_active} onclick={toggleActive}>
+          <span class="env-status-led" class:env-status-led--active={environment.is_active}></span>
+          <span class="env-status-text">{environment.is_active ? 'Active' : 'Inactive'}</span>
+        </button>
 
-      <!-- Name input -->
-      <input
-        type="text"
-        value={name}
-        oninput={(e) => handleNameChange(e.currentTarget.value)}
-        class="h-8 min-w-0 flex-1 rounded border border-surface-700 bg-surface-800/50 px-3 text-sm font-medium text-surface-100 placeholder-surface-500 focus:border-brand-500 focus:outline-none"
-        placeholder="Environment name"
-      />
+        <!-- Name input -->
+        <input
+          type="text"
+          value={name}
+          oninput={(e) => handleNameChange(e.currentTarget.value)}
+          class="env-name-input"
+          placeholder="Environment name..."
+        />
 
-      <!-- Save button -->
-      <button
-        onclick={save}
-        disabled={!isDirty || saving}
-        class="flex items-center gap-1.5 rounded px-3 py-1.5 text-xs font-medium transition-colors
-          {isDirty
-            ? 'bg-brand-600 text-white hover:bg-brand-500'
-            : 'bg-surface-800 text-surface-500 cursor-default'}"
-      >
-        {#if saving}
-          <span class="inline-block h-3 w-3 animate-spin rounded-full border-[1.5px] border-white/25 border-t-white"></span>
-          {vaultSynced ? 'Saving & pushing...' : 'Saving...'}
-        {:else}
-          <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-            <path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-          Save{#if isDirty && vaultSynced}&ensp;&middot;&ensp;Vault{/if}
-        {/if}
-      </button>
+        <!-- Save button -->
+        <button class="env-save" class:env-save--dirty={isDirty} disabled={!isDirty || saving} onclick={save}>
+          {#if saving}
+            <span class="env-save-spinner"></span>
+            <span class="env-save-label">{vaultSynced ? 'Pushing...' : 'Saving...'}</span>
+          {:else}
+            <svg class="env-save-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M5 13l4 4L19 7" />
+            </svg>
+            <span class="env-save-label">Save{#if isDirty && vaultSynced}&ensp;&middot;&ensp;Vault{/if}</span>
+          {/if}
+        </button>
+      </div>
     </div>
 
     <!-- Variables editor -->
@@ -269,3 +257,158 @@
     <p class="text-sm text-surface-500">Environment not found</p>
   </div>
 {/if}
+
+<style>
+  .env-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+    flex-shrink: 0;
+  }
+
+  .env-bar-inner {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    background: var(--color-surface-800);
+    border: 1px solid var(--color-surface-600);
+    border-radius: 10px;
+    overflow: hidden;
+    transition: border-color 0.15s;
+  }
+
+  .env-bar-inner:focus-within {
+    border-color: var(--color-brand-500);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-brand-500) 20%, transparent);
+  }
+
+  /* --- Status toggle (like method selector) --- */
+  .env-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 14px;
+    height: 38px;
+    border: none;
+    border-right: 1px solid var(--color-surface-600);
+    background: color-mix(in srgb, var(--color-surface-900) 50%, transparent);
+    color: var(--color-surface-400);
+    cursor: pointer;
+    outline: none;
+    flex-shrink: 0;
+    transition: background 0.15s, color 0.15s;
+  }
+
+  .env-status:hover {
+    background: color-mix(in srgb, var(--color-surface-700) 50%, transparent);
+  }
+
+  .env-status--active {
+    color: var(--color-success);
+  }
+
+  .env-status-led {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--color-surface-600);
+    flex-shrink: 0;
+    transition: background 0.2s, box-shadow 0.2s;
+  }
+
+  .env-status-led--active {
+    background: var(--color-success);
+    box-shadow: 0 0 6px color-mix(in srgb, var(--color-success) 50%, transparent);
+  }
+
+  .env-status-text {
+    font-size: 12px;
+    font-weight: 700;
+    font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+  }
+
+  /* --- Name input (like URL input) --- */
+  .env-name-input {
+    width: 100%;
+    height: 38px;
+    padding: 0 12px;
+    border: none;
+    background: transparent;
+    color: var(--color-surface-100);
+    font-size: 13px;
+    font-weight: 500;
+    outline: none;
+  }
+
+  .env-name-input::placeholder {
+    color: var(--color-surface-500);
+  }
+
+  /* --- Save button (like send button) --- */
+  .env-save {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 0 16px 0 14px;
+    height: 38px;
+    border: none;
+    border-left: 1px solid var(--color-surface-600);
+    background: transparent;
+    color: var(--color-surface-500);
+    cursor: default;
+    white-space: nowrap;
+    flex-shrink: 0;
+    transition: all 0.2s ease;
+  }
+
+  .env-save:disabled {
+    opacity: 0.4;
+    cursor: default;
+  }
+
+  .env-save--dirty {
+    background: color-mix(in srgb, var(--color-success) 10%, transparent);
+    color: var(--color-success);
+    border-left-color: color-mix(in srgb, var(--color-success) 20%, var(--color-surface-600));
+    cursor: pointer;
+  }
+
+  .env-save--dirty:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--color-success) 20%, transparent);
+  }
+
+  .env-save--dirty:active:not(:disabled) {
+    background: color-mix(in srgb, var(--color-success) 28%, transparent);
+  }
+
+  .env-save-icon {
+    flex-shrink: 0;
+  }
+
+  .env-save-label {
+    font-size: 11px;
+    font-weight: 700;
+    font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .env-save-spinner {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    border: 1.5px solid color-mix(in srgb, var(--color-success) 25%, transparent);
+    border-top-color: var(--color-success);
+    animation: env-spin 0.6s linear infinite;
+    flex-shrink: 0;
+  }
+
+  @keyframes env-spin {
+    to { transform: rotate(360deg); }
+  }
+</style>

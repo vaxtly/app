@@ -85,6 +85,25 @@ export function exportCollections(workspaceId?: string): ExportWrapper {
   })
 }
 
+export function exportSingleCollection(collectionId: string): ExportWrapper {
+  const collection = collectionsRepo.findById(collectionId)
+  if (!collection) throw new Error(`Collection not found: ${collectionId}`)
+
+  const folders = foldersRepo.findByCollection(collection.id)
+  const rootRequests = requestsRepo.findByFolder(null, collection.id)
+
+  const data: CollectionExport = {
+    name: collection.name,
+    description: collection.description,
+    order: collection.order,
+    variables: collection.variables ? safeJsonParse(collection.variables, []) : [],
+    folders: buildFoldersTree(collection.id, folders, null),
+    requests: buildRequestsData(rootRequests),
+  }
+
+  return wrap('collections', { collections: [data] })
+}
+
 export function exportEnvironments(workspaceId?: string): ExportWrapper {
   return wrap('environments', {
     environments: buildEnvironmentsData(workspaceId),

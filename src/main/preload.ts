@@ -154,6 +154,8 @@ const api = {
   data: {
     export: (type: 'all' | 'collections' | 'environments' | 'config', workspaceId?: string): Promise<Record<string, unknown>> =>
       ipcRenderer.invoke(IPC.DATA_EXPORT, type, workspaceId),
+    exportCollection: (collectionId: string): Promise<Record<string, unknown>> =>
+      ipcRenderer.invoke(IPC.DATA_EXPORT_COLLECTION, collectionId),
     pickAndRead: (): Promise<{ content: string; name: string } | null> =>
       ipcRenderer.invoke(IPC.DATA_PICK_AND_READ),
     import: (json: string, workspaceId?: string): Promise<{ collections: number; environments: number; config: boolean; errors: string[] }> =>

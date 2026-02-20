@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+- Send no longer auto-saves or syncs — only explicit Save (Ctrl+S) persists to DB and triggers git sync
+- Environment editor header redesigned to match the request builder's pill-style URL bar
+- Sidebar footer toolbar and icons slightly enlarged for better visibility
+
 ### Fixed
 - Git sync no longer blocks request send — HTTP fires immediately, sync runs in background
 - Repeated sends without changes no longer trigger unnecessary dirty marking or remote sync calls
@@ -14,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 - Sidebar scrolls to center the active request when switching tabs
+- Export single collection from sidebar context menu — downloads a JSON file compatible with the existing importer
 
 ## [0.1.4] - 2026-02-20
 

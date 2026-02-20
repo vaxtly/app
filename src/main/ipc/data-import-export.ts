@@ -25,6 +25,10 @@ export function registerDataImportExportHandlers(): void {
     },
   )
 
+  ipcMain.handle(IPC.DATA_EXPORT_COLLECTION, async (_event, collectionId: string) => {
+    return dataService.exportSingleCollection(collectionId)
+  })
+
   ipcMain.handle(IPC.DATA_PICK_AND_READ, async () => {
     const result = await dialog.showOpenDialog({
       properties: ['openFile'],

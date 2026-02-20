@@ -118,6 +118,24 @@
     }
   }
 
+  async function exportCollection(): Promise<void> {
+    try {
+      const data = await window.api.data.exportCollection(node.id)
+      const json = JSON.stringify(data, null, 2)
+      const slug = node.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+      const date = new Date().toISOString().slice(0, 10)
+      const blob = new Blob([json], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `vaxtly-collection-${slug}-${date}.json`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch {
+      // Handled by session log
+    }
+  }
+
   async function pushCollection(): Promise<void> {
     try {
       // Scan for sensitive data first
@@ -165,6 +183,7 @@
     { label: 'Set Environments', action: () => { showEnvModal = true } },
     { label: syncEnabled ? 'Disable Sync' : 'Enable Sync', action: toggleSync },
     ...(syncEnabled ? [{ label: 'Push to Remote', action: pushCollection }] : []),
+    { label: 'Export', action: exportCollection },
     { label: '', action: () => {}, separator: true },
     { label: 'Delete', action: handleDelete, danger: true },
   ])
