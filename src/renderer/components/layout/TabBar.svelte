@@ -6,6 +6,15 @@
   import type { Tab } from '../../lib/stores/app.svelte'
 
   let contextMenu = $state<{ x: number; y: number; tabId: string } | null>(null)
+  let scrollEl = $state<HTMLElement | null>(null)
+
+  function handleWheel(e: WheelEvent): void {
+    if (!scrollEl) return
+    if (e.deltaY !== 0) {
+      e.preventDefault()
+      scrollEl.scrollLeft += e.deltaY
+    }
+  }
 
   function handleTabClick(tabId: string): void {
     appStore.setActiveTab(tabId)
@@ -40,7 +49,9 @@
   }
 </script>
 
-<div class="flex h-9 shrink-0 items-end overflow-x-auto border-b border-surface-700 bg-surface-900/50 px-1">
+<div class="flex h-9 shrink-0 items-end border-b border-surface-700 bg-surface-900/50 px-1">
+  <!-- svelte-ignore a11y_no_static_element_interactions -->
+  <div class="tab-scroll flex flex-1 items-end min-w-0 overflow-x-auto" bind:this={scrollEl} onwheel={handleWheel}>
   {#each appStore.openTabs as tab (tab.id)}
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div
@@ -94,11 +105,16 @@
       {/if}
     </div>
   {/each}
-
-  <div class="flex-1 min-w-0"></div>
+  </div>
 
   <EnvironmentSelector />
 </div>
+
+<style>
+  .tab-scroll::-webkit-scrollbar { height: 3px; }
+  .tab-scroll::-webkit-scrollbar-track { background: transparent; }
+  .tab-scroll::-webkit-scrollbar-thumb { background: var(--color-surface-600); border-radius: 1.5px; }
+</style>
 
 {#if contextMenu}
   <ContextMenu
