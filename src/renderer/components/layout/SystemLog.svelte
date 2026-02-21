@@ -184,6 +184,9 @@
               <span class="shrink-0 w-18 text-surface-600" style="font-variant-numeric: tabular-nums">{formatTime(entry.timestamp)}</span>
               <span class="sl-badge" style="--cat-color: {getCategoryColor(entry.category)}">{getCategoryLabel(entry.category)}</span>
               <span class="shrink-0 w-16 text-surface-500">{entry.type}</span>
+              {#if entry.target}
+                <span class="shrink-0 max-w-40 truncate text-surface-200">{entry.target}</span>
+              {/if}
               <span class="flex-1 min-w-0 overflow-hidden text-ellipsis whitespace-nowrap {entry.success ? 'text-surface-300' : 'text-danger'}">
                 {#each formatLogMessage(entry.message) as seg, i (i)}
                   {#if seg.type === 'code'}

@@ -587,7 +587,7 @@ export async function pushSingleRequest(
       is_dirty: 0,
     })
 
-    logSync('push', collection.name, `Pushed request '${request.name}'`)
+    logSync('push', request.name, `Pushed to ${collection.name}`)
     return true
   } catch (e) {
     const statusCode = (e as any).statusCode ?? 0

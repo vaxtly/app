@@ -243,8 +243,8 @@
         const findings = await window.api.sync.scanSensitive(currentCollectionId!)
         if (findings.length === 0) {
           const wsId = appStore.activeWorkspaceId ?? undefined
-          const result = await window.api.sync.pushCollection(currentCollectionId!, false, wsId)
-          if (result.success) {
+          const pushed = await window.api.sync.pushRequest(currentCollectionId!, requestId, false, wsId)
+          if (pushed) {
             await collectionsStore.reloadCollection(currentCollectionId!)
           }
         }
@@ -267,8 +267,8 @@
           const findings = await window.api.sync.scanSensitive(currentCollectionId)
           if (findings.length === 0) {
             const wsId = appStore.activeWorkspaceId ?? undefined
-            const result = await window.api.sync.pushCollection(currentCollectionId, false, wsId)
-            if (result.success) {
+            const pushed = await window.api.sync.pushRequest(currentCollectionId, requestId, false, wsId)
+            if (pushed) {
               await collectionsStore.reloadCollection(currentCollectionId)
             }
           }
