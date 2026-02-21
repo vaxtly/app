@@ -14,7 +14,7 @@
   import { settingsStore } from './lib/stores/settings.svelte'
 
   // Track the active RequestBuilder for save/send shortcuts
-  let activeBuilder: { save: () => Promise<void>; send: () => Promise<void> } | undefined
+  let activeBuilder = $state<{ save: () => Promise<void>; send: () => Promise<void> } | undefined>(undefined)
   let showWelcome = $state(false)
   let sessionRestored = $state(false)
   let sidebarDragging = $state(false)
