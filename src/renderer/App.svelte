@@ -471,7 +471,7 @@
   .sidebar-divider:hover,
   .sidebar-divider--dragging {
     width: 3px;
-    background: var(--color-brand-500);
+    background: color-mix(in srgb, var(--color-brand-500) 20%, transparent);
   }
 
   .update-banner {

@@ -483,7 +483,7 @@
   .rb-divider:hover,
   .rb-split--dragging .rb-divider {
     width: 3px;
-    background: var(--color-brand-500);
+    background: color-mix(in srgb, var(--color-brand-500) 20%, transparent);
   }
 
   /* --- Rows layout overrides --- */
