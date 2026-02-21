@@ -50,7 +50,7 @@
 
 <div class="flex h-full flex-col bg-surface-900">
   <!-- Workspace switcher -->
-  <div class="drag-region shrink-0 border-b border-surface-700 px-2" style="padding-top: {window.navigator.userAgent.includes('Macintosh') ? 'calc(2rem + 6px)' : '6px'}; padding-bottom: 5px">
+  <div class="drag-region shrink-0 border-b border-surface-700" style="padding-top: {window.navigator.userAgent.includes('Macintosh') ? 'calc(2rem + 6px)' : '0'}">
     <WorkspaceSwitcher />
   </div>
 
@@ -59,7 +59,7 @@
     <div class="flex items-center gap-0.5 px-2 py-1">
       <button
         onclick={() => appStore.setSidebarMode('collections')}
-        class="rounded px-2 py-1 text-[10px] font-medium uppercase tracking-wider transition-colors
+        class="rounded-md px-2.5 py-1.5 text-[11px] font-medium uppercase tracking-wider transition-colors
           {appStore.sidebarMode === 'collections'
             ? 'bg-surface-800 text-surface-200'
             : 'text-surface-500 hover:text-surface-300'}"
@@ -68,7 +68,7 @@
       </button>
       <button
         onclick={() => appStore.setSidebarMode('environments')}
-        class="rounded px-2 py-1 text-[10px] font-medium uppercase tracking-wider transition-colors
+        class="rounded-md px-2.5 py-1.5 text-[11px] font-medium uppercase tracking-wider transition-colors
           {appStore.sidebarMode === 'environments'
             ? 'bg-surface-800 text-surface-200'
             : 'text-surface-500 hover:text-surface-300'}"
@@ -113,7 +113,7 @@
         value={searchValue}
         oninput={handleSearchInput}
         placeholder="Search..."
-        class="h-7 w-full rounded border border-surface-700 bg-surface-800/50 pl-7 pr-2 text-xs text-surface-200 placeholder-surface-500 focus:border-brand-500 focus:outline-none"
+        class="sidebar-search h-7 w-full rounded-md bg-surface-800/50 pl-7 pr-2 text-xs text-surface-200 placeholder-surface-500 focus:outline-none"
       />
     </div>
   </div>
@@ -131,7 +131,7 @@
   {/if}
 
   <!-- Footer toolbar -->
-  <div class="flex h-8 shrink-0 items-center border-t border-surface-700 px-1.5">
+  <div class="flex h-8 shrink-0 items-center px-1.5" style="border-top: 1px solid var(--border-subtle)">
     <!-- Left group: mode icons -->
     <div class="flex items-center gap-0.5">
       <button
@@ -240,3 +240,13 @@
   </div>
 
 </div>
+
+<style>
+  .sidebar-search {
+    border: 1px solid var(--border-subtle);
+    transition: border-color 0.15s;
+  }
+  .sidebar-search:focus {
+    border-color: var(--border-focus);
+  }
+</style>

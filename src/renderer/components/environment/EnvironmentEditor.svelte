@@ -274,7 +274,7 @@
     align-items: center;
     background: var(--color-surface-800);
     border: 1px solid var(--color-surface-600);
-    border-radius: 10px;
+    border-radius: var(--radius-xl);
     overflow: hidden;
     transition: border-color 0.15s;
   }
@@ -326,7 +326,8 @@
   .env-status-text {
     font-size: 12px;
     font-weight: 700;
-    font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+    font-family: var(--font-mono);
+    font-feature-settings: var(--font-feature-mono);
     letter-spacing: 0.02em;
     white-space: nowrap;
   }
@@ -392,7 +393,8 @@
   .env-save-label {
     font-size: 11px;
     font-weight: 700;
-    font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+    font-family: var(--font-mono);
+    font-feature-settings: var(--font-feature-mono);
     letter-spacing: 0.06em;
     text-transform: uppercase;
   }

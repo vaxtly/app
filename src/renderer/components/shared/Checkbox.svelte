@@ -64,7 +64,7 @@
   .cb-box {
     width: 16px;
     height: 16px;
-    border-radius: 4px;
+    border-radius: var(--radius-sm);
     border: 1.5px solid var(--color-surface-500);
     background: transparent;
     display: flex;

@@ -133,7 +133,8 @@
     text-transform: uppercase;
     letter-spacing: 0.06em;
     color: var(--color-surface-500);
-    font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+    font-family: var(--font-mono);
+    font-feature-settings: var(--font-feature-mono);
     padding: 0 8px;
   }
 
@@ -169,7 +170,7 @@
     align-items: center;
     gap: 1px;
     padding: 0 2px;
-    border-bottom: 1px solid color-mix(in srgb, var(--color-surface-700) 50%, transparent);
+    border-bottom: 1px solid var(--border-subtle);
     transition: background 0.1s;
   }
 
@@ -221,7 +222,7 @@
     min-width: 0;
     padding: 0 8px;
     border: none;
-    border-left: 1px solid color-mix(in srgb, var(--color-surface-700) 50%, transparent);
+    border-left: 1px solid var(--border-subtle);
     background: transparent;
     color: var(--color-surface-100);
     font-size: 12px;
@@ -257,7 +258,7 @@
     height: 24px;
     flex-shrink: 0;
     border: none;
-    border-radius: 4px;
+    border-radius: var(--radius-sm);
     background: transparent;
     color: var(--color-surface-600);
     cursor: pointer;

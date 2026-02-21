@@ -491,15 +491,25 @@
 
   .rb-divider {
     flex-shrink: 0;
-    width: 5px;
+    width: 1px;
     background: var(--color-surface-700);
     cursor: col-resize;
     position: relative;
-    transition: background 0.12s;
+    transition: background 0.12s, width 0.12s;
+  }
+
+  .rb-divider::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: -3px;
+    right: -3px;
   }
 
   .rb-divider:hover,
   .rb-split--dragging .rb-divider {
+    width: 3px;
     background: var(--color-brand-500);
   }
 
@@ -518,8 +528,21 @@
 
   .rb-split--rows > .rb-divider {
     width: auto;
-    height: 5px;
+    height: 1px;
     cursor: row-resize;
+  }
+
+  .rb-split--rows > .rb-divider::after {
+    left: 0;
+    right: 0;
+    top: -3px;
+    bottom: -3px;
+  }
+
+  .rb-split--rows > .rb-divider:hover,
+  .rb-split--rows.rb-split--dragging > .rb-divider {
+    width: auto;
+    height: 3px;
   }
 
   /* --- Sub-tabs --- */
@@ -574,7 +597,8 @@
   }
 
   .rb-tab--code {
-    font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+    font-family: var(--font-mono);
+    font-feature-settings: var(--font-feature-mono);
     font-size: 11px;
     color: var(--color-surface-500);
     letter-spacing: -0.02em;
@@ -596,7 +620,7 @@
     font-size: 10px;
     line-height: 1;
     padding: 2px 5px;
-    border-radius: 8px;
+    border-radius: var(--radius-full);
     background: color-mix(in srgb, var(--color-surface-600) 60%, transparent);
     color: var(--color-surface-300);
     font-weight: 500;

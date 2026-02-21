@@ -172,7 +172,7 @@
     justify-content: center;
     width: 48px;
     height: 48px;
-    border-radius: 12px;
+    border-radius: var(--radius-2xl);
     background: color-mix(in srgb, var(--color-surface-700) 30%, transparent);
     color: var(--color-surface-600);
     margin-bottom: 12px;
@@ -263,7 +263,8 @@
   .rv-status--error .rv-status-led { background: var(--color-danger-light); box-shadow: 0 0 6px color-mix(in srgb, var(--color-danger-light) 50%, transparent); }
 
   .rv-status-code {
-    font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+    font-family: var(--font-mono);
+    font-feature-settings: var(--font-feature-mono);
     font-size: 12px;
     font-weight: 700;
     letter-spacing: 0.02em;
@@ -305,7 +306,8 @@
   }
 
   .rv-metric-value {
-    font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+    font-family: var(--font-mono);
+    font-feature-settings: var(--font-feature-mono);
     font-size: 11px;
     color: var(--color-surface-300);
   }
@@ -372,7 +374,7 @@
     font-size: 10px;
     line-height: 1;
     padding: 2px 5px;
-    border-radius: 8px;
+    border-radius: var(--radius-full);
     background: color-mix(in srgb, var(--color-surface-600) 60%, transparent);
     color: var(--color-surface-300);
     font-weight: 500;

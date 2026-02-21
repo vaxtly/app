@@ -446,7 +446,8 @@
   }
 
   .se-picker-method {
-    font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+    font-family: var(--font-mono);
+    font-feature-settings: var(--font-feature-mono);
     font-size: 10px;
     font-weight: 700;
     letter-spacing: 0.02em;
@@ -569,7 +570,8 @@
   }
 
   .se-picker-item-method {
-    font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+    font-family: var(--font-mono);
+    font-feature-settings: var(--font-feature-mono);
     font-size: 10px;
     font-weight: 700;
     letter-spacing: 0.02em;

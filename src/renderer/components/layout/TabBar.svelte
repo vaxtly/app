@@ -46,7 +46,7 @@
     <div
       class="group relative flex h-8 shrink-0 cursor-pointer items-center gap-1.5 rounded-t border border-b-0 px-3 text-xs transition-colors
         {appStore.activeTabId === tab.id
-          ? 'border-surface-700 bg-surface-800 text-surface-100'
+          ? 'border-surface-700 bg-surface-800 text-surface-100 shadow-[inset_0_-2px_0_0_var(--color-brand-500)]'
           : 'border-transparent text-surface-400 hover:bg-surface-800/50 hover:text-surface-200'}"
       role="tab"
       tabindex="0"
@@ -63,7 +63,7 @@
       {/if}
 
       {#if tab.type === 'request' && tab.method}
-        <span class="font-mono text-[9px] font-bold" style:color={getMethodColor(tab.method ?? 'GET')}>
+        <span class="font-mono text-[9px] font-bold" style:color={getMethodColor(tab.method ?? 'GET')} style:font-feature-settings="'tnum' 1, 'zero' 1">
           {tab.method.slice(0, 3)}
         </span>
       {:else if tab.type === 'environment'}

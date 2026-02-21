@@ -214,9 +214,9 @@
     transform: translate(-50%, calc(-100% - 8px));
     background: var(--color-surface-800);
     border: 1px solid var(--color-surface-600);
-    border-radius: 8px;
+    border-radius: var(--radius-lg);
     padding: 6px 10px;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+    box-shadow: var(--shadow-md);
     pointer-events: auto;
     animation: vi-tooltip-in 0.12s ease-out;
     max-width: 320px;
@@ -238,7 +238,8 @@
 
   .vi-tooltip-value {
     font-size: 12px;
-    font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+    font-family: var(--font-mono);
+    font-feature-settings: var(--font-feature-mono);
     color: var(--color-var-resolved);
     word-break: break-all;
     cursor: text;

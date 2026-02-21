@@ -73,7 +73,8 @@
     border-radius: 4px;
     background: color-mix(in srgb, var(--color-surface-800) 40%, transparent);
     font-size: 11px;
-    font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+    font-family: var(--font-mono);
+    font-feature-settings: var(--font-feature-mono);
   }
 
   .he-auto-key {

@@ -228,7 +228,7 @@
     gap: 0;
     background: var(--color-surface-800);
     border: 1px solid var(--color-surface-600);
-    border-radius: 10px;
+    border-radius: var(--radius-xl);
     overflow: hidden;
     transition: border-color 0.15s;
   }
@@ -269,7 +269,8 @@
   .method-text {
     font-size: 12px;
     font-weight: 700;
-    font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+    font-family: var(--font-mono);
+    font-feature-settings: var(--font-feature-mono);
     letter-spacing: 0.02em;
   }
 
@@ -314,7 +315,7 @@
     padding: 4px;
     background: var(--color-surface-800);
     border: 1px solid var(--color-surface-600);
-    border-radius: 8px;
+    border-radius: var(--radius-lg);
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3), 0 2px 8px rgba(0, 0, 0, 0.15);
     animation: dropdown-in 0.12s ease-out;
   }
@@ -337,7 +338,7 @@
     width: 100%;
     padding: 6px 10px;
     border: none;
-    border-radius: 5px;
+    border-radius: var(--radius-md);
     background: transparent;
     cursor: pointer;
     outline: none;
@@ -363,7 +364,8 @@
   .method-item-label {
     font-size: 12px;
     font-weight: 700;
-    font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+    font-family: var(--font-mono);
+    font-feature-settings: var(--font-feature-mono);
     letter-spacing: 0.02em;
     flex: 1;
     text-align: left;
@@ -384,7 +386,8 @@
     background: transparent;
     color: var(--color-surface-100);
     font-size: 13px;
-    font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+    font-family: var(--font-mono);
+    font-feature-settings: var(--font-feature-mono);
     outline: none;
   }
 
@@ -401,7 +404,7 @@
     width: 38px;
     height: 38px;
     border: 1px solid var(--color-surface-600);
-    border-radius: 10px;
+    border-radius: var(--radius-xl);
     background: var(--color-surface-800);
     color: var(--color-surface-500);
     cursor: default;
@@ -451,7 +454,8 @@
   .btn-label {
     font-size: 11px;
     font-weight: 700;
-    font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+    font-family: var(--font-mono);
+    font-feature-settings: var(--font-feature-mono);
     letter-spacing: 0.06em;
     text-transform: uppercase;
   }

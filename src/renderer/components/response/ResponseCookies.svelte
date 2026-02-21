@@ -57,7 +57,8 @@
     display: flex;
     align-items: baseline;
     gap: 8px;
-    font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+    font-family: var(--font-mono);
+    font-feature-settings: var(--font-feature-mono);
     font-size: 12px;
   }
 

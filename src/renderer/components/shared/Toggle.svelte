@@ -67,7 +67,7 @@
     position: relative;
     width: 28px;
     height: 16px;
-    border-radius: 8px;
+    border-radius: var(--radius-full);
     background: var(--color-surface-600);
     transition: background 0.2s ease;
   }

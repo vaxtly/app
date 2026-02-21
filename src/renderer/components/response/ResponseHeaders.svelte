@@ -38,7 +38,8 @@
 
   .rh-key {
     flex-shrink: 0;
-    font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+    font-family: var(--font-mono);
+    font-feature-settings: var(--font-feature-mono);
     font-size: 12px;
     font-weight: 600;
     color: var(--color-brand-400);
@@ -47,7 +48,8 @@
   .rh-value {
     min-width: 0;
     word-break: break-all;
-    font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+    font-family: var(--font-mono);
+    font-feature-settings: var(--font-feature-mono);
     font-size: 12px;
     color: var(--color-surface-300);
   }

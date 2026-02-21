@@ -82,6 +82,31 @@
     }
   }
 
+  function getCategoryLabel(category: SessionLogEntry['category']): string {
+    return category === 'sync' ? 'git' : category
+  }
+
+  /** Parse and highlight git refs, URLs, and paths in log messages */
+  function formatLogMessage(message: string): Array<{ text: string; type: 'text' | 'code' | 'url' }> {
+    const segments: Array<{ text: string; type: 'text' | 'code' | 'url' }> = []
+    // Match git refs (origin/main, HEAD, sha-like), paths (/foo/bar), and URLs
+    const pattern = /(\b(?:origin\/[\w\-.]+|HEAD|main|master|[a-f0-9]{7,40})\b|https?:\/\/[^\s]+)/g
+    let lastIndex = 0
+    let match: RegExpExecArray | null
+    while ((match = pattern.exec(message)) !== null) {
+      if (match.index > lastIndex) {
+        segments.push({ text: message.slice(lastIndex, match.index), type: 'text' })
+      }
+      const isUrl = match[0].startsWith('http')
+      segments.push({ text: match[0], type: isUrl ? 'url' : 'code' })
+      lastIndex = match.index + match[0].length
+    }
+    if (lastIndex < message.length) {
+      segments.push({ text: message.slice(lastIndex), type: 'text' })
+    }
+    return segments.length > 0 ? segments : [{ text: message, type: 'text' }]
+  }
+
   function getStatusColor(code: number | null): string {
     if (!code || code === 0) return 'var(--color-danger)'
     if (code < 300) return 'var(--color-success)'
@@ -93,7 +118,7 @@
 <!-- Collapsible bottom panel -->
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
-  class="flex shrink-0 flex-col bg-surface-900"
+  class="sl-root"
   class:select-none={dragging}
   style="height: {expanded ? panelHeight : 32}px"
 >
@@ -101,105 +126,106 @@
   {#if expanded}
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div
-      class="h-1 shrink-0 cursor-ns-resize border-t border-surface-700 hover:bg-brand-500/20 active:bg-brand-500/30 transition-colors"
+      class="sl-drag"
       onpointerdown={onDragStart}
       onpointermove={onDragMove}
       onpointerup={onDragEnd}
       onpointercancel={onDragEnd}
     ></div>
   {:else}
-    <div class="h-0 shrink-0 border-t border-surface-700"></div>
+    <div class="sl-drag-collapsed"></div>
   {/if}
 
   <!-- Header bar (always visible) -->
-  <div class="flex h-8 shrink-0 items-center border-b border-surface-700 px-1">
+  <div class="sl-header">
     <button
       onclick={() => { if (expanded && activeLogTab === 'logs') { expanded = false } else { expanded = true; activeLogTab = 'logs' } }}
-      class="flex items-center gap-1.5 px-2 h-full text-[11px] font-medium transition-colors {activeLogTab === 'logs' && expanded
-        ? 'text-brand-400'
-        : 'text-surface-400 hover:text-surface-200'}"
+      class="sl-tab"
+      class:sl-tab--active={activeLogTab === 'logs' && expanded}
     >
       <svg
-        class="h-3 w-3 transition-transform {expanded ? 'rotate-180' : ''}"
+        class="sl-tab-chevron"
+        class:sl-tab-chevron--open={expanded}
         fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"
       >
         <path d="M5 15l7-7 7 7" />
       </svg>
       Logs
       {#if logs.length > 0}
-        <span class="rounded-full bg-surface-700 px-1.5 text-[10px] text-surface-300">{logs.length}</span>
+        <span class="sl-count">{logs.length}</span>
       {/if}
     </button>
 
     <button
       onclick={() => { if (expanded && activeLogTab === 'history') { expanded = false } else { expanded = true; activeLogTab = 'history' } }}
-      class="flex items-center px-2 h-full text-[11px] font-medium transition-colors {activeLogTab === 'history' && expanded
-        ? 'text-brand-400'
-        : 'text-surface-500 hover:text-surface-300'}"
+      class="sl-tab"
+      class:sl-tab--active={activeLogTab === 'history' && expanded}
     >
       History
     </button>
 
-    <div class="flex-1"></div>
+    <div class="sl-spacer"></div>
 
     {#if expanded && activeLogTab === 'logs'}
-      <button
-        onclick={clearLogs}
-        class="px-2 text-[11px] text-surface-500 hover:text-surface-300 transition-colors"
-      >
-        Clear
-      </button>
+      <button onclick={clearLogs} class="sl-clear">Clear</button>
     {/if}
   </div>
 
   {#if expanded}
-
     <!-- Content -->
-    <div class="flex-1 overflow-auto font-mono text-[11px]">
+    <div class="sl-content">
       {#if activeLogTab === 'logs'}
         {#if logs.length === 0}
-          <div class="flex h-full items-center justify-center text-surface-600">No log entries</div>
+          <div class="sl-empty">No log entries</div>
         {:else}
           {#each logs as entry}
-            <div class="flex items-start gap-2 border-b border-surface-800 px-3 py-1 hover:bg-surface-800/50">
-              <span class="shrink-0 text-surface-600">{formatTime(entry.timestamp)}</span>
-              <span class="shrink-0 w-12" style:color={getCategoryColor(entry.category)}>{entry.category === 'sync' ? 'git' : entry.category}</span>
-              <span class="shrink-0 text-surface-500">{entry.type}</span>
-              <span class="min-w-0 truncate" style:color={entry.success ? 'var(--color-surface-300)' : 'var(--color-danger)'}>
-                {entry.message}
+            <div class="sl-row">
+              <span class="sl-time">{formatTime(entry.timestamp)}</span>
+              <span class="sl-badge" style="--cat-color: {getCategoryColor(entry.category)}">{getCategoryLabel(entry.category)}</span>
+              <span class="sl-type">{entry.type}</span>
+              <span class="sl-msg" class:sl-msg--error={!entry.success}>
+                {#each formatLogMessage(entry.message) as seg}
+                  {#if seg.type === 'code'}
+                    <span class="sl-code">{seg.text}</span>
+                  {:else if seg.type === 'url'}
+                    <span class="sl-code">{seg.text}</span>
+                  {:else}
+                    {seg.text}
+                  {/if}
+                {/each}
               </span>
             </div>
           {/each}
         {/if}
       {:else}
         {#if !activeRequestId}
-          <div class="flex h-full items-center justify-center text-surface-600">Select a request to view history</div>
+          <div class="sl-empty">Select a request to view history</div>
         {:else if histories.length === 0}
-          <div class="flex h-full items-center justify-center text-surface-600">No history for this request</div>
+          <div class="sl-empty">No history for this request</div>
         {:else}
           {#each histories as h}
             <button
               onclick={() => selectedHistoryId = selectedHistoryId === h.id ? null : h.id}
-              class="flex w-full items-center gap-2 border-b border-surface-800 px-3 py-1.5 text-left hover:bg-surface-800/50"
+              class="sl-history-row"
             >
-              <span class="shrink-0 text-surface-600">{formatTime(h.executed_at)}</span>
-              <span class="shrink-0 text-xs font-medium text-surface-400">{h.method}</span>
-              <span class="shrink-0" style:color={getStatusColor(h.status_code)}>{h.status_code || 'ERR'}</span>
-              <span class="min-w-0 truncate text-surface-400">{h.url}</span>
-              <span class="ml-auto shrink-0 text-surface-600">{h.duration_ms ? `${h.duration_ms}ms` : '-'}</span>
+              <span class="sl-time">{formatTime(h.executed_at)}</span>
+              <span class="sl-history-method">{h.method}</span>
+              <span class="sl-history-status" style:color={getStatusColor(h.status_code)}>{h.status_code || 'ERR'}</span>
+              <span class="sl-history-url">{h.url}</span>
+              <span class="sl-history-duration">{h.duration_ms ? `${h.duration_ms}ms` : '-'}</span>
             </button>
             {#if selectedHistoryId === h.id}
-              <div class="border-b border-surface-700 bg-surface-800/30 px-3 py-2 text-[10px]">
-                <div class="mb-1 text-surface-500">Request Headers:</div>
-                <pre class="mb-2 whitespace-pre-wrap text-surface-400">{h.request_headers ?? 'None'}</pre>
+              <div class="sl-history-detail">
+                <div class="sl-detail-label">Request Headers:</div>
+                <pre class="sl-detail-pre">{h.request_headers ?? 'None'}</pre>
                 {#if h.request_body}
-                  <div class="mb-1 text-surface-500">Request Body:</div>
-                  <pre class="mb-2 max-h-24 overflow-auto whitespace-pre-wrap text-surface-400">{h.request_body}</pre>
+                  <div class="sl-detail-label">Request Body:</div>
+                  <pre class="sl-detail-pre sl-detail-pre--short">{h.request_body}</pre>
                 {/if}
-                <div class="mb-1 text-surface-500">Response Headers:</div>
-                <pre class="mb-2 whitespace-pre-wrap text-surface-400">{h.response_headers ?? 'None'}</pre>
-                <div class="mb-1 text-surface-500">Response Body:</div>
-                <pre class="max-h-32 overflow-auto whitespace-pre-wrap text-surface-400">{h.response_body ?? 'None'}</pre>
+                <div class="sl-detail-label">Response Headers:</div>
+                <pre class="sl-detail-pre">{h.response_headers ?? 'None'}</pre>
+                <div class="sl-detail-label">Response Body:</div>
+                <pre class="sl-detail-pre sl-detail-pre--tall">{h.response_body ?? 'None'}</pre>
               </div>
             {/if}
           {/each}
@@ -208,3 +234,263 @@
     </div>
   {/if}
 </div>
+
+<style>
+  .sl-root {
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    background: var(--color-surface-900);
+  }
+
+  /* --- Drag handle --- */
+  .sl-drag {
+    height: 4px;
+    flex-shrink: 0;
+    cursor: ns-resize;
+    border-top: 1px solid var(--border-default);
+    transition: background 0.12s;
+  }
+
+  .sl-drag:hover {
+    background: color-mix(in srgb, var(--color-brand-500) 20%, transparent);
+  }
+
+  .sl-drag:active {
+    background: color-mix(in srgb, var(--color-brand-500) 30%, transparent);
+  }
+
+  .sl-drag-collapsed {
+    height: 0;
+    flex-shrink: 0;
+    border-top: 1px solid var(--border-default);
+  }
+
+  /* --- Header --- */
+  .sl-header {
+    display: flex;
+    align-items: center;
+    height: 32px;
+    flex-shrink: 0;
+    border-bottom: 1px solid var(--border-default);
+    padding: 0 4px;
+  }
+
+  .sl-tab {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 8px;
+    height: 100%;
+    border: none;
+    background: transparent;
+    font-family: var(--font-mono);
+    font-feature-settings: var(--font-feature-mono);
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--color-surface-400);
+    cursor: pointer;
+    transition: color 0.12s;
+  }
+
+  .sl-tab:hover {
+    color: var(--color-surface-200);
+  }
+
+  .sl-tab--active {
+    color: var(--color-brand-400);
+  }
+
+  .sl-tab-chevron {
+    width: 12px;
+    height: 12px;
+    transition: transform 0.15s;
+  }
+
+  .sl-tab-chevron--open {
+    transform: rotate(180deg);
+  }
+
+  .sl-count {
+    padding: 1px 6px;
+    border-radius: var(--radius-full);
+    background: var(--color-surface-700);
+    font-size: 10px;
+    font-weight: 500;
+    color: var(--color-surface-300);
+  }
+
+  .sl-spacer {
+    flex: 1;
+  }
+
+  .sl-clear {
+    padding: 0 8px;
+    border: none;
+    background: transparent;
+    font-size: 11px;
+    color: var(--color-surface-500);
+    cursor: pointer;
+    transition: color 0.12s;
+  }
+
+  .sl-clear:hover {
+    color: var(--color-surface-300);
+  }
+
+  /* --- Content --- */
+  .sl-content {
+    flex: 1;
+    overflow: auto;
+    font-family: var(--font-mono);
+    font-feature-settings: var(--font-feature-mono);
+    font-size: 11px;
+  }
+
+  .sl-empty {
+    display: flex;
+    height: 100%;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-surface-600);
+  }
+
+  /* --- Log rows --- */
+  .sl-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 28px;
+    padding: 0 12px;
+    border-bottom: 1px solid var(--border-muted);
+    transition: background 0.1s;
+  }
+
+  .sl-row:hover {
+    background: color-mix(in srgb, var(--color-surface-800) 50%, transparent);
+  }
+
+  .sl-time {
+    flex-shrink: 0;
+    width: 72px;
+    color: var(--color-surface-600);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .sl-badge {
+    flex-shrink: 0;
+    width: 48px;
+    text-align: center;
+    padding: 1px 6px;
+    border-radius: var(--radius-sm);
+    font-size: 10px;
+    font-weight: 500;
+    color: var(--cat-color);
+    background: color-mix(in srgb, var(--cat-color) 12%, transparent);
+  }
+
+  .sl-type {
+    flex-shrink: 0;
+    width: 64px;
+    color: var(--color-surface-500);
+  }
+
+  .sl-msg {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--color-surface-300);
+  }
+
+  .sl-msg--error {
+    color: var(--color-danger);
+  }
+
+  .sl-code {
+    padding: 1px 5px;
+    border-radius: var(--radius-xs);
+    background: color-mix(in srgb, var(--color-surface-700) 50%, transparent);
+    color: var(--color-brand-400);
+    font-size: 10px;
+  }
+
+  /* --- History rows --- */
+  .sl-history-row {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    gap: 8px;
+    height: 28px;
+    padding: 0 12px;
+    border: none;
+    border-bottom: 1px solid var(--border-muted);
+    background: transparent;
+    text-align: left;
+    cursor: pointer;
+    transition: background 0.1s;
+    font-family: var(--font-mono);
+    font-feature-settings: var(--font-feature-mono);
+    font-size: 11px;
+  }
+
+  .sl-history-row:hover {
+    background: color-mix(in srgb, var(--color-surface-800) 50%, transparent);
+  }
+
+  .sl-history-method {
+    flex-shrink: 0;
+    font-weight: 500;
+    color: var(--color-surface-400);
+  }
+
+  .sl-history-status {
+    flex-shrink: 0;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .sl-history-url {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--color-surface-400);
+  }
+
+  .sl-history-duration {
+    flex-shrink: 0;
+    color: var(--color-surface-600);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* --- History detail --- */
+  .sl-history-detail {
+    border-bottom: 1px solid var(--border-default);
+    background: color-mix(in srgb, var(--color-surface-800) 30%, transparent);
+    padding: 8px 12px;
+    font-size: 10px;
+  }
+
+  .sl-detail-label {
+    margin-bottom: 4px;
+    color: var(--color-surface-500);
+  }
+
+  .sl-detail-pre {
+    white-space: pre-wrap;
+    color: var(--color-surface-400);
+    margin-bottom: 8px;
+  }
+
+  .sl-detail-pre--short {
+    max-height: 96px;
+    overflow: auto;
+  }
+
+  .sl-detail-pre--tall {
+    max-height: 128px;
+    overflow: auto;
+  }
+</style>
