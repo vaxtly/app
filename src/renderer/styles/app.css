@@ -63,12 +63,20 @@
   --font-feature-default: "kern" 1, "liga" 1;
   --font-feature-mono: "kern" 1, "liga" 0, "tnum" 1, "zero" 1;
 
-  /* Border tokens (reference other vars) */
-  --border-default: color-mix(in srgb, var(--color-surface-600) 65%, transparent);
-  --border-subtle: color-mix(in srgb, var(--color-surface-600) 50%, transparent);
-  --border-muted: color-mix(in srgb, var(--color-surface-600) 35%, transparent);
+  /* Glass surface tokens */
+  --glass-bg: rgba(17, 24, 39, 0.65);
+  --glass-bg-heavy: rgba(17, 24, 39, 0.80);
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --glass-highlight: rgba(255, 255, 255, 0.05);
+  --glass-blur: 16px;
+  --glass-blur-heavy: 24px;
+
+  /* Border tokens */
+  --border-default: rgba(255, 255, 255, 0.08);
+  --border-subtle: rgba(255, 255, 255, 0.06);
+  --border-muted: rgba(255, 255, 255, 0.04);
   --border-focus: var(--color-brand-500);
-  --border-dropdown: color-mix(in srgb, var(--color-surface-600) 65%, transparent);
+  --border-dropdown: rgba(255, 255, 255, 0.08);
 }
 
 /* ── Light theme overrides ──────────────────────────────────────────── */
@@ -128,14 +136,25 @@ html.light {
   --color-banner-success: #16a34a;
   --color-banner-error: #dc2626;
 
-  --shadow-dropdown: 0 12px 36px rgba(0, 0, 0, 0.16), 0 4px 16px rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(0, 0, 0, 0.08);
-  --border-dropdown: color-mix(in srgb, var(--color-surface-700) 60%, transparent);
+  /* Light theme glass tokens */
+  --glass-bg: rgba(255, 255, 255, 0.65);
+  --glass-bg-heavy: rgba(255, 255, 255, 0.80);
+  --glass-border: rgba(0, 0, 0, 0.08);
+  --glass-highlight: rgba(255, 255, 255, 0.5);
 
-  /* Light theme shadow/border overrides */
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.06);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.04);
-  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.06);
-  --shadow-xl: 0 12px 40px rgba(0, 0, 0, 0.16), 0 4px 12px rgba(0, 0, 0, 0.08);
+  --border-default: rgba(0, 0, 0, 0.08);
+  --border-subtle: rgba(0, 0, 0, 0.06);
+  --border-muted: rgba(0, 0, 0, 0.04);
+  --border-dropdown: rgba(0, 0, 0, 0.10);
+
+  --shadow-dropdown: 0 16px 48px rgba(0, 0, 0, 0.12), 0 4px 16px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+
+  /* Light theme shadow overrides */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06), 0 0 1px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.08), 0 1px 4px rgba(0, 0, 0, 0.04);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.06);
+  --shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.16), 0 4px 12px rgba(0, 0, 0, 0.08);
+  --shadow-glass: 0 8px 32px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.8);
 }
 
 @theme {
@@ -201,20 +220,21 @@ html.light {
   --color-banner-error: #fca5a5;
 
   /* ── Border-radius ──────────────────────────────────────────────── */
-  --radius-xs: 2px;
-  --radius-sm: 4px;
-  --radius-md: 6px;
-  --radius-lg: 8px;
-  --radius-xl: 10px;
-  --radius-2xl: 12px;
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 14px;
+  --radius-2xl: 16px;
   --radius-full: 9999px;
 
   /* ── Shadows ────────────────────────────────────────────────────── */
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.15);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.2), 0 1px 3px rgba(0, 0, 0, 0.1);
-  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.3), 0 2px 8px rgba(0, 0, 0, 0.15);
-  --shadow-xl: 0 12px 40px rgba(0, 0, 0, 0.4), 0 4px 12px rgba(0, 0, 0, 0.2);
-  --shadow-dropdown: 0 12px 32px rgba(0, 0, 0, 0.4), 0 4px 12px rgba(0, 0, 0, 0.25);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.12), 0 0 1px rgba(0, 0, 0, 0.08);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.16), 0 1px 4px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.2), 0 2px 8px rgba(0, 0, 0, 0.1);
+  --shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.28), 0 4px 16px rgba(0, 0, 0, 0.12);
+  --shadow-glass: 0 8px 32px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  --shadow-dropdown: 0 16px 48px rgba(0, 0, 0, 0.35), 0 4px 16px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.06);
 
   /* ── Fonts ──────────────────────────────────────────────────────── */
   --font-sans: 'Geist', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
@@ -230,6 +250,23 @@ html.light {
   -webkit-app-region: no-drag;
 }
 
+/* ── Glass utility ─────────────────────────────────────────────────── */
+.glass {
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
+  box-shadow: inset 0 1px 0 var(--glass-highlight);
+}
+
+.glass-heavy {
+  background: var(--glass-bg-heavy);
+  backdrop-filter: blur(var(--glass-blur-heavy));
+  -webkit-backdrop-filter: blur(var(--glass-blur-heavy));
+  border: 1px solid var(--glass-border);
+  box-shadow: inset 0 1px 0 var(--glass-highlight);
+}
+
 /* ── Scrollbar styling ─────────────────────────────────────────────── */
 ::-webkit-scrollbar {
   width: 6px;
@@ -241,28 +278,30 @@ html.light {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--color-surface-600);
-  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.10);
+  border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--color-surface-500);
+  background: rgba(255, 255, 255, 0.16);
 }
 
 /* ── Shared animations ─────────────────────────────────────────────── */
 @keyframes modal-backdrop-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from { opacity: 0; backdrop-filter: blur(0); }
+  to { opacity: 1; backdrop-filter: blur(4px); }
 }
 
 @keyframes modal-content-in {
-  from { opacity: 0; transform: scale(0.97) translateY(4px); }
-  to { opacity: 1; transform: scale(1) translateY(0); }
+  0% { opacity: 0; transform: scale(0.94) translateY(8px); }
+  60% { opacity: 1; transform: scale(1.005) translateY(-1px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
 }
 
 @keyframes dropdown-in {
-  from { opacity: 0; transform: translateY(-4px) scale(0.97); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
+  0% { opacity: 0; transform: translateY(-6px) scale(0.96); }
+  60% { opacity: 1; transform: translateY(1px) scale(1.005); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 @keyframes spin-360 {

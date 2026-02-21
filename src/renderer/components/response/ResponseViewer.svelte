@@ -68,9 +68,9 @@
 
   {:else if response}
     <!-- Status bar -->
-    <div class="rv-status--{statusClass} flex items-center justify-between shrink-0 px-3 py-1.5 border-b border-white/[0.12] gap-3">
+    <div class="rv-status--{statusClass} flex items-center justify-between shrink-0 px-3 py-1.5 gap-3" style="border-bottom: 1px solid var(--glass-border); background: rgba(255, 255, 255, 0.02)">
       <div class="flex items-center gap-2 min-w-0">
-        <span class="rv-status-led w-1.5 h-1.5 rounded-full shrink-0"></span>
+        <span class="rv-status-led w-2 h-2 rounded-full shrink-0"></span>
         <span
           class="rv-status-code font-mono text-xs font-bold tracking-wide"
           style="font-feature-settings: var(--font-feature-mono)"
@@ -98,16 +98,16 @@
     </div>
 
     <!-- Response tabs -->
-    <div class="flex items-stretch shrink-0 h-9 border-b border-white/[0.12] px-1 gap-px">
+    <div class="flex items-stretch shrink-0 h-9 px-1 gap-px" style="border-bottom: 1px solid var(--glass-border)">
       <button
-        class="rv-tab flex items-center gap-[5px] px-2.5 border-none bg-transparent text-surface-400 text-xs font-medium cursor-pointer relative whitespace-nowrap transition-colors duration-[120ms] hover:text-surface-200 hover:bg-surface-700/30"
+        class="rv-tab flex items-center gap-[5px] px-2.5 my-1 border-none bg-transparent text-surface-400 text-xs font-medium cursor-pointer relative whitespace-nowrap rounded-lg transition-all duration-150 hover:text-surface-200 hover:bg-white/[0.04]"
         class:rv-tab--active={activeTab === 'body'}
         onclick={() => activeTab = 'body'}
       >
         Body
       </button>
       <button
-        class="rv-tab flex items-center gap-[5px] px-2.5 border-none bg-transparent text-surface-400 text-xs font-medium cursor-pointer relative whitespace-nowrap transition-colors duration-[120ms] hover:text-surface-200 hover:bg-surface-700/30"
+        class="rv-tab flex items-center gap-[5px] px-2.5 my-1 border-none bg-transparent text-surface-400 text-xs font-medium cursor-pointer relative whitespace-nowrap rounded-lg transition-all duration-150 hover:text-surface-200 hover:bg-white/[0.04]"
         class:rv-tab--active={activeTab === 'headers'}
         onclick={() => activeTab = 'headers'}
       >
@@ -116,7 +116,7 @@
       </button>
       {#if cookieCount > 0}
         <button
-          class="rv-tab flex items-center gap-[5px] px-2.5 border-none bg-transparent text-surface-400 text-xs font-medium cursor-pointer relative whitespace-nowrap transition-colors duration-[120ms] hover:text-surface-200 hover:bg-surface-700/30"
+          class="rv-tab flex items-center gap-[5px] px-2.5 my-1 border-none bg-transparent text-surface-400 text-xs font-medium cursor-pointer relative whitespace-nowrap rounded-lg transition-all duration-150 hover:text-surface-200 hover:bg-white/[0.04]"
           class:rv-tab--active={activeTab === 'cookies'}
           onclick={() => activeTab = 'cookies'}
         >
@@ -126,7 +126,7 @@
       {/if}
       {#if isHtml}
         <button
-          class="rv-tab flex items-center gap-[5px] px-2.5 border-none bg-transparent text-surface-400 text-xs font-medium cursor-pointer relative whitespace-nowrap transition-colors duration-[120ms] hover:text-surface-200 hover:bg-surface-700/30"
+          class="rv-tab flex items-center gap-[5px] px-2.5 my-1 border-none bg-transparent text-surface-400 text-xs font-medium cursor-pointer relative whitespace-nowrap rounded-lg transition-all duration-150 hover:text-surface-200 hover:bg-white/[0.04]"
           class:rv-tab--active={activeTab === 'preview'}
           onclick={() => activeTab = 'preview'}
         >
@@ -182,11 +182,11 @@
   }
 
   /* --- Status LED glow cascade --- */
-  .rv-status--success .rv-status-led { background: var(--color-status-success); box-shadow: 0 0 6px color-mix(in srgb, var(--color-status-success) 50%, transparent); }
-  .rv-status--redirect .rv-status-led { background: var(--color-status-redirect); box-shadow: 0 0 6px color-mix(in srgb, var(--color-status-redirect) 40%, transparent); }
-  .rv-status--client-error .rv-status-led { background: var(--color-status-client-error); box-shadow: 0 0 6px color-mix(in srgb, var(--color-status-client-error) 50%, transparent); }
-  .rv-status--server-error .rv-status-led { background: var(--color-danger-light); box-shadow: 0 0 6px color-mix(in srgb, var(--color-danger-light) 50%, transparent); }
-  .rv-status--error .rv-status-led { background: var(--color-danger-light); box-shadow: 0 0 6px color-mix(in srgb, var(--color-danger-light) 50%, transparent); }
+  .rv-status--success .rv-status-led { background: var(--color-status-success); box-shadow: 0 0 8px color-mix(in srgb, var(--color-status-success) 40%, transparent), 0 0 2px color-mix(in srgb, var(--color-status-success) 60%, transparent); }
+  .rv-status--redirect .rv-status-led { background: var(--color-status-redirect); box-shadow: 0 0 8px color-mix(in srgb, var(--color-status-redirect) 35%, transparent), 0 0 2px color-mix(in srgb, var(--color-status-redirect) 50%, transparent); }
+  .rv-status--client-error .rv-status-led { background: var(--color-status-client-error); box-shadow: 0 0 8px color-mix(in srgb, var(--color-status-client-error) 40%, transparent), 0 0 2px color-mix(in srgb, var(--color-status-client-error) 60%, transparent); }
+  .rv-status--server-error .rv-status-led { background: var(--color-danger-light); box-shadow: 0 0 8px color-mix(in srgb, var(--color-danger-light) 40%, transparent), 0 0 2px color-mix(in srgb, var(--color-danger-light) 60%, transparent); }
+  .rv-status--error .rv-status-led { background: var(--color-danger-light); box-shadow: 0 0 8px color-mix(in srgb, var(--color-danger-light) 40%, transparent), 0 0 2px color-mix(in srgb, var(--color-danger-light) 60%, transparent); }
 
   /* --- Status code color cascade --- */
   .rv-status--success .rv-status-code { color: var(--color-status-success); }
@@ -195,24 +195,16 @@
   .rv-status--server-error .rv-status-code { color: var(--color-danger-light); }
   .rv-status--error .rv-status-code { color: var(--color-danger-light); }
 
-  /* --- Active tab indicator --- */
+  /* --- Active tab indicator (glass pill) --- */
   .rv-tab--active {
     color: var(--color-brand-400);
+    background: rgba(255, 255, 255, 0.08);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
   }
 
   .rv-tab--active:hover {
     color: var(--color-brand-400);
-  }
-
-  .rv-tab--active::after {
-    content: '';
-    position: absolute;
-    bottom: 0;
-    left: 6px;
-    right: 6px;
-    height: 2px;
-    background: var(--color-brand-500);
-    border-radius: 1px 1px 0 0;
+    background: rgba(255, 255, 255, 0.08);
   }
 
   /* --- Active tab badge color change --- */

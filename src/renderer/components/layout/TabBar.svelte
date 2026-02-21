@@ -49,16 +49,16 @@
   }
 </script>
 
-<div class="flex h-9 shrink-0 items-end border-b border-white/[0.12] bg-surface-900/50 px-1">
+<div class="flex h-9 shrink-0 items-end px-1" style="border-bottom: 1px solid var(--glass-border); background: var(--glass-bg); backdrop-filter: blur(var(--glass-blur)); -webkit-backdrop-filter: blur(var(--glass-blur))">
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div class="tab-scroll flex flex-1 items-end min-w-0 overflow-x-auto" bind:this={scrollEl} onwheel={handleWheel}>
   {#each appStore.openTabs as tab (tab.id)}
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div
-      class="group relative flex h-8 shrink-0 cursor-pointer items-center gap-1.5 rounded-t border border-b-0 px-3 text-xs transition-colors
+      class="group relative flex h-7 shrink-0 cursor-pointer items-center gap-1.5 rounded-lg px-3 mb-0.5 text-xs transition-all duration-150
         {appStore.activeTabId === tab.id
-          ? 'border-surface-700 bg-surface-800 text-surface-100 shadow-[inset_0_-2px_0_0_var(--color-brand-500)]'
-          : 'border-transparent text-surface-400 hover:bg-surface-800/50 hover:text-surface-200'}"
+          ? 'bg-white/[0.10] text-surface-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]'
+          : 'text-surface-400 hover:bg-white/[0.05] hover:text-surface-200'}"
       role="tab"
       tabindex="0"
       aria-selected={appStore.activeTabId === tab.id}
@@ -96,7 +96,7 @@
         <button
           onclick={(e) => handleTabClose(e, tab.id)}
           aria-label="Close tab"
-          class="flex h-4 w-4 shrink-0 items-center justify-center rounded text-surface-500 opacity-0 hover:bg-surface-600 hover:text-surface-200 group-hover:opacity-100"
+          class="flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-surface-500 opacity-0 transition-all duration-150 hover:bg-white/[0.10] hover:text-surface-200 group-hover:opacity-100"
         >
           <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
             <path d="M6 18L18 6M6 6l12 12" />

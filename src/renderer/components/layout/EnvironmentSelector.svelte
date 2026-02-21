@@ -156,11 +156,11 @@
   {#if open}
     <div
       bind:this={panelEl}
-      class="fixed z-100 w-60 bg-surface-800 rounded-2xl shadow-dropdown overflow-hidden animate-[dropdown-in_0.12s_ease-out]"
-      style="{panelStyle} border: 1px solid var(--border-dropdown);"
+      class="fixed z-100 w-60 rounded-xl overflow-hidden animate-[dropdown-in_0.15s_ease-out]"
+      style="{panelStyle} background: var(--glass-bg-heavy); backdrop-filter: blur(var(--glass-blur-heavy)); -webkit-backdrop-filter: blur(var(--glass-blur-heavy)); border: 1px solid var(--glass-border); box-shadow: var(--shadow-dropdown);"
     >
       <!-- Search -->
-      <div class="flex items-center gap-1.5 px-2.5 py-2 border-b border-surface-700/50">
+      <div class="flex items-center gap-1.5 px-2.5 py-2" style="border-bottom: 1px solid var(--glass-border)">
         <svg class="shrink-0 text-surface-500" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <circle cx="11" cy="11" r="8"/>
           <path d="m21 21-4.35-4.35"/>
@@ -176,7 +176,7 @@
 
       <!-- Scope indicator -->
       {#if hasAssociatedEnvs && !showAll}
-        <div class="flex items-center gap-[5px] px-3 py-[5px] text-[10px] text-surface-400 bg-brand-500/[0.06] border-b border-surface-700/50 tracking-[0.02em]">
+        <div class="flex items-center gap-[5px] px-3 py-[5px] text-[10px] text-surface-400 bg-brand-500/[0.06] tracking-[0.02em]" style="border-bottom: 1px solid var(--glass-border)">
           <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
             <path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/>
           </svg>
@@ -189,7 +189,7 @@
         <!-- No Environment option -->
         <button
           onclick={handleDeactivate}
-          class="env-item flex items-center gap-2 w-full px-3 py-1.5 border-none bg-transparent text-surface-200 text-xs font-sans cursor-pointer text-left transition-[background,color] duration-100 hover:bg-surface-700 hover:text-surface-100"
+          class="env-item flex items-center gap-2 w-full px-3 py-1.5 border-none bg-transparent text-surface-200 text-xs font-sans cursor-pointer text-left rounded-lg mx-1 transition-[background,color] duration-100 hover:bg-white/[0.06] hover:text-surface-100" style="width: calc(100% - 8px)"
           class:env-item--selected={!environmentsStore.activeEnvironmentId}
         >
           <span class="w-3.5 h-3.5 flex items-center justify-center shrink-0">
@@ -200,13 +200,13 @@
           <span class="env-item-name--muted overflow-hidden text-ellipsis whitespace-nowrap flex-1 min-w-0">No Environment</span>
         </button>
 
-        <div class="h-px bg-surface-700 my-1"></div>
+        <div class="h-px my-1 mx-2" style="background: var(--glass-border)"></div>
 
         {#each visibleEnvironments as env (env.id)}
           {@const selected = environmentsStore.activeEnvironmentId === env.id}
           <button
             onclick={() => handleSelect(env)}
-            class="env-item flex items-center gap-2 w-full px-3 py-1.5 border-none bg-transparent text-surface-200 text-xs font-sans cursor-pointer text-left transition-[background,color] duration-100 hover:bg-surface-700 hover:text-surface-100"
+            class="env-item flex items-center gap-2 w-full px-3 py-1.5 border-none bg-transparent text-surface-200 text-xs font-sans cursor-pointer text-left rounded-lg mx-1 transition-[background,color] duration-100 hover:bg-white/[0.06] hover:text-surface-100" style="width: calc(100% - 8px)"
             class:env-item--selected={selected}
           >
             <span class="w-3.5 h-3.5 flex items-center justify-center shrink-0">
@@ -230,7 +230,8 @@
       {#if hasAssociatedEnvs}
         <button
           onclick={() => showAll = !showAll}
-          class="env-show-all flex items-center gap-1.5 w-full px-3 py-[7px] border-none border-t border-surface-700/50 bg-transparent text-brand-400 text-[11px] font-sans cursor-pointer transition-[background,color] duration-100"
+          class="env-show-all flex items-center gap-1.5 w-full px-3 py-[7px] border-none bg-transparent text-brand-400 text-[11px] font-sans cursor-pointer transition-[background,color] duration-100"
+          style="border-top: 1px solid var(--glass-border)"
         >
           {#if showAll}
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -254,17 +255,17 @@
 <style>
   /* --- Trigger: hover / active / open states --- */
   .env-trigger:hover {
-    background: color-mix(in srgb, var(--color-surface-700) 40%, transparent);
+    background: rgba(255, 255, 255, 0.04);
     color: var(--color-surface-200);
   }
 
   .env-trigger--active {
     color: var(--color-surface-200);
-    border-left-color: var(--color-surface-700);
+    border-left-color: var(--glass-border);
   }
 
   .env-trigger--open {
-    background: color-mix(in srgb, var(--color-surface-700) 50%, transparent);
+    background: rgba(255, 255, 255, 0.06);
     color: var(--color-surface-100);
   }
 

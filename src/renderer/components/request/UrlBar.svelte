@@ -105,9 +105,9 @@
 </script>
 
 <div class="flex items-center gap-2 px-3 py-2.5">
-  <div class="url-bar-inner flex-1 min-w-0 flex items-center bg-surface-800 border border-surface-600 rounded-xl overflow-hidden transition-[border-color] duration-150" style:--method-color={getMethodColor(method)}>
+  <div class="url-bar-inner flex-1 min-w-0 flex items-center rounded-2xl overflow-hidden transition-[border-color,box-shadow] duration-150" style="background: var(--glass-bg); border: 1px solid var(--glass-border); box-shadow: inset 0 1px 0 var(--glass-highlight); --method-color: {getMethodColor(method)}">
     <!-- Method selector -->
-    <div class="relative flex items-center shrink-0 border-r border-surface-600">
+    <div class="relative flex items-center shrink-0" style="border-right: 1px solid var(--glass-border)">
       <button
         bind:this={triggerEl}
         onclick={openMethodDropdown}
@@ -160,7 +160,8 @@
   <button
     onclick={handleSave}
     disabled={!unsaved && !saveFeedback}
-    class="btn-save flex items-center justify-center w-[38px] h-[38px] border border-surface-600 rounded-xl bg-surface-800 text-surface-500 cursor-default shrink-0 transition-[color,background,border-color,box-shadow] duration-200 disabled:opacity-50 disabled:cursor-default"
+    class="btn-save flex items-center justify-center w-[38px] h-[38px] rounded-2xl text-surface-500 cursor-default shrink-0 transition-[color,background,border-color,box-shadow] duration-200 disabled:opacity-50 disabled:cursor-default"
+    style="background: var(--glass-bg); border: 1px solid var(--glass-border)"
     class:btn-save--active={unsaved}
     class:btn-save--saved={!!saveFeedback}
     title="Save (Cmd+S)"
@@ -183,8 +184,8 @@
 {#if methodOpen}
   <div
     bind:this={dropdownEl}
-    class="fixed z-100 min-w-[120px] p-1 bg-surface-800 border border-surface-600 rounded-lg animate-[dropdown-in_0.12s_ease-out]"
-    style="top: {dropdownPos.top}px; left: {dropdownPos.left}px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3), 0 2px 8px rgba(0, 0, 0, 0.15)"
+    class="fixed z-100 min-w-[120px] p-1 rounded-xl animate-[dropdown-in_0.15s_ease-out]"
+    style="top: {dropdownPos.top}px; left: {dropdownPos.left}px; background: var(--glass-bg-heavy); backdrop-filter: blur(var(--glass-blur-heavy)); -webkit-backdrop-filter: blur(var(--glass-blur-heavy)); border: 1px solid var(--glass-border); box-shadow: var(--shadow-dropdown)"
     role="listbox"
     tabindex="-1"
     aria-label="HTTP Method"
@@ -195,7 +196,7 @@
         role="option"
         aria-selected={m === method}
         data-selected={m === method ? '' : undefined}
-        class="method-item flex items-center gap-2 w-full py-1.5 px-2.5 border-none rounded-md bg-transparent cursor-pointer outline-none transition-[background] duration-100 hover:bg-surface-700 focus-visible:bg-surface-700"
+        class="method-item flex items-center gap-2 w-full py-1.5 px-2.5 border-none rounded-lg bg-transparent cursor-pointer outline-none transition-[background] duration-100 hover:bg-white/[0.08] focus-visible:bg-white/[0.08]"
         class:method-item--active={m === method}
         onclick={() => selectMethod(m)}
         tabindex={-1}
@@ -215,17 +216,17 @@
 <style>
   /* --- Focus ring glow (method-colored) --- */
   .url-bar-inner:focus-within {
-    border-color: var(--method-color);
-    box-shadow: 0 0 0 1px color-mix(in srgb, var(--method-color) 20%, transparent);
+    border-color: color-mix(in srgb, var(--method-color) 40%, transparent);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--method-color) 15%, transparent), inset 0 1px 0 var(--glass-highlight);
   }
 
-  /* --- Method trigger (color-mix backgrounds) --- */
+  /* --- Method trigger (glass backgrounds) --- */
   .method-trigger {
-    background: color-mix(in srgb, var(--color-surface-900) 50%, transparent);
+    background: transparent;
   }
 
   .method-trigger:hover {
-    background: color-mix(in srgb, var(--color-surface-700) 50%, transparent);
+    background: rgba(255, 255, 255, 0.04);
   }
 
   .method-trigger:hover svg {
@@ -254,7 +255,7 @@
 
   /* --- Method dropdown active item --- */
   .method-item--active {
-    background: color-mix(in srgb, var(--color-surface-700) 50%, transparent);
+    background: rgba(255, 255, 255, 0.06);
   }
 
   /* --- URL input (targets VarInput internals) --- */
@@ -276,21 +277,21 @@
   /* --- Save button state cascade (color-mix combinations) --- */
   .btn-save--active {
     color: var(--color-success);
-    border-color: color-mix(in srgb, var(--color-success) 30%, var(--color-surface-600));
-    background: color-mix(in srgb, var(--color-success) 8%, var(--color-surface-800));
+    border-color: color-mix(in srgb, var(--color-success) 25%, transparent);
+    background: color-mix(in srgb, var(--color-success) 8%, var(--glass-bg));
     cursor: pointer;
   }
 
   .btn-save--active:hover {
-    background: color-mix(in srgb, var(--color-success) 15%, var(--color-surface-800));
-    border-color: color-mix(in srgb, var(--color-success) 50%, var(--color-surface-600));
-    box-shadow: 0 0 8px color-mix(in srgb, var(--color-success) 15%, transparent);
+    background: color-mix(in srgb, var(--color-success) 15%, var(--glass-bg));
+    border-color: color-mix(in srgb, var(--color-success) 40%, transparent);
+    box-shadow: 0 0 12px color-mix(in srgb, var(--color-success) 12%, transparent);
   }
 
   .btn-save--saved {
     color: var(--color-success);
-    border-color: color-mix(in srgb, var(--color-success) 40%, var(--color-surface-600));
-    background: color-mix(in srgb, var(--color-success) 12%, var(--color-surface-800));
+    border-color: color-mix(in srgb, var(--color-success) 30%, transparent);
+    background: color-mix(in srgb, var(--color-success) 12%, var(--glass-bg));
     cursor: default;
   }
 
@@ -298,7 +299,7 @@
   .btn-send {
     background: color-mix(in srgb, var(--method-color) 10%, transparent);
     color: var(--method-color);
-    border-left: 1px solid color-mix(in srgb, var(--method-color) 20%, var(--color-surface-600));
+    border-left: 1px solid var(--glass-border);
   }
 
   .btn-send:hover:not(:disabled) {
@@ -323,7 +324,7 @@
   .btn-cancel {
     background: color-mix(in srgb, var(--color-danger) 10%, transparent);
     color: var(--color-danger-light);
-    border-left: 1px solid color-mix(in srgb, var(--color-danger) 20%, var(--color-surface-600));
+    border-left: 1px solid var(--glass-border);
   }
 
   .btn-cancel:hover {

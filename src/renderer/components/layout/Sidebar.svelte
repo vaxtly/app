@@ -48,30 +48,30 @@
   }
 </script>
 
-<div class="flex h-full flex-col bg-surface-900">
+<div class="flex h-full flex-col glass">
   <!-- Workspace switcher -->
   <div class="drag-region shrink-0" style="padding-top: {window.navigator.userAgent.includes('Macintosh') ? 'calc(2rem + 6px)' : '0'}">
     <WorkspaceSwitcher />
   </div>
 
   <!-- Header with mode tabs -->
-  <div class="flex shrink-0 flex-col border-b border-white/[0.12]">
+  <div class="flex shrink-0 flex-col" style="border-bottom: 1px solid var(--glass-border)">
     <div class="flex items-center gap-0.5 px-2 py-1">
       <button
         onclick={() => appStore.setSidebarMode('collections')}
-        class="min-w-0 truncate rounded-md px-1.5 py-1.5 text-[11px] font-medium uppercase tracking-wider transition-colors
+        class="min-w-0 truncate rounded-full px-2.5 py-1.5 text-[11px] font-medium uppercase tracking-wider transition-all duration-150
           {appStore.sidebarMode === 'collections'
-            ? 'bg-surface-800 text-surface-200'
-            : 'text-surface-500 hover:text-surface-300'}"
+            ? 'bg-white/[0.08] text-surface-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]'
+            : 'text-surface-500 hover:text-surface-300 hover:bg-white/[0.04]'}"
       >
         Collections
       </button>
       <button
         onclick={() => appStore.setSidebarMode('environments')}
-        class="min-w-0 truncate rounded-md px-1.5 py-1.5 text-[11px] font-medium uppercase tracking-wider transition-colors
+        class="min-w-0 truncate rounded-full px-2.5 py-1.5 text-[11px] font-medium uppercase tracking-wider transition-all duration-150
           {appStore.sidebarMode === 'environments'
-            ? 'bg-surface-800 text-surface-200'
-            : 'text-surface-500 hover:text-surface-300'}"
+            ? 'bg-white/[0.08] text-surface-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]'
+            : 'text-surface-500 hover:text-surface-300 hover:bg-white/[0.04]'}"
       >
         Environments
       </button>
@@ -81,7 +81,7 @@
       {#if appStore.sidebarMode === 'collections'}
         <button
           onclick={handleNewCollection}
-          class="flex h-5 w-5 shrink-0 items-center justify-center rounded text-surface-400 hover:bg-surface-700 hover:text-brand-400"
+          class="flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-surface-400 transition-all duration-150 hover:bg-white/[0.06] hover:text-brand-400"
           title="New Collection"
         >
           <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -91,7 +91,7 @@
       {:else}
         <button
           onclick={handleNewEnvironment}
-          class="flex h-5 w-5 shrink-0 items-center justify-center rounded text-surface-400 hover:bg-surface-700 hover:text-brand-400"
+          class="flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-surface-400 transition-all duration-150 hover:bg-white/[0.06] hover:text-brand-400"
           title="New Environment"
         >
           <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -113,7 +113,7 @@
         value={searchValue}
         oninput={handleSearchInput}
         placeholder="Search..."
-        class="h-7 w-full rounded-md border border-surface-700/50 bg-surface-800/50 pl-7 pr-2 text-xs text-surface-200 placeholder-surface-500 transition-[border-color] duration-150 focus:border-brand-500 focus:outline-none"
+        class="h-7 w-full rounded-lg border border-white/[0.06] bg-white/[0.04] pl-7 pr-2 text-xs text-surface-200 placeholder-surface-500 transition-[border-color,background] duration-150 focus:border-brand-500/50 focus:bg-white/[0.06] focus:outline-none"
       />
     </div>
   </div>
@@ -131,13 +131,13 @@
   {/if}
 
   <!-- Footer toolbar -->
-  <div class="flex h-8 shrink-0 items-center px-1.5">
+  <div class="flex h-8 shrink-0 items-center px-1.5" style="border-top: 1px solid var(--glass-border)">
     <!-- Left group: mode icons -->
     <div class="flex items-center gap-0.5">
       <button
         onclick={() => appStore.setSidebarMode('collections')}
-        class="flex h-7 w-7 items-center justify-center rounded hover:bg-surface-700/50
-          {appStore.sidebarMode === 'collections' ? 'text-brand-400' : 'text-surface-500 hover:text-surface-300'}"
+        class="flex h-7 w-7 items-center justify-center rounded-lg transition-all duration-150
+          {appStore.sidebarMode === 'collections' ? 'text-brand-400 bg-white/[0.08]' : 'text-surface-500 hover:text-surface-300 hover:bg-white/[0.04]'}"
         title="Collections"
       >
         <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -146,8 +146,8 @@
       </button>
       <button
         onclick={() => appStore.setSidebarMode('environments')}
-        class="flex h-7 w-7 items-center justify-center rounded hover:bg-surface-700/50
-          {appStore.sidebarMode === 'environments' ? 'text-brand-400' : 'text-surface-500 hover:text-surface-300'}"
+        class="flex h-7 w-7 items-center justify-center rounded-lg transition-all duration-150
+          {appStore.sidebarMode === 'environments' ? 'text-brand-400 bg-white/[0.08]' : 'text-surface-500 hover:text-surface-300 hover:bg-white/[0.04]'}"
         title="Environments"
       >
         <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -163,7 +163,7 @@
       <!-- Layout toggle -->
       <button
         onclick={() => settingsStore.set('request.layout', layout === 'columns' ? 'rows' : 'columns')}
-        class="flex h-7 w-7 items-center justify-center rounded text-surface-500 hover:bg-surface-700/50 hover:text-surface-300"
+        class="flex h-7 w-7 items-center justify-center rounded-lg text-surface-500 transition-all duration-150 hover:bg-white/[0.04] hover:text-surface-300"
         title={layout === 'columns' ? 'Switch to rows layout' : 'Switch to columns layout'}
       >
         {#if layout === 'columns'}
@@ -182,7 +182,7 @@
       <!-- Theme cycle -->
       <button
         onclick={cycleTheme}
-        class="flex h-7 w-7 items-center justify-center rounded text-surface-500 hover:bg-surface-700/50 hover:text-surface-300"
+        class="flex h-7 w-7 items-center justify-center rounded-lg text-surface-500 transition-all duration-150 hover:bg-white/[0.04] hover:text-surface-300"
         title={theme === 'dark' ? 'Theme: Dark' : theme === 'light' ? 'Theme: Light' : 'Theme: System'}
       >
         {#if theme === 'dark'}
@@ -209,7 +209,7 @@
       {#if appStore.sidebarMode === 'collections'}
         <button
           onclick={() => hasExpanded ? collectionsStore.collapseAll() : collectionsStore.expandAll()}
-          class="flex h-7 w-7 items-center justify-center rounded text-surface-500 hover:bg-surface-700/50 hover:text-surface-300"
+          class="flex h-7 w-7 items-center justify-center rounded-lg text-surface-500 transition-all duration-150 hover:bg-white/[0.04] hover:text-surface-300"
           title={hasExpanded ? 'Collapse all' : 'Expand all'}
         >
           {#if hasExpanded}
@@ -229,7 +229,7 @@
       <!-- Settings -->
       <button
         onclick={() => appStore.openSettings()}
-        class="flex h-7 w-7 items-center justify-center rounded text-surface-500 hover:bg-surface-700/50 hover:text-surface-300"
+        class="flex h-7 w-7 items-center justify-center rounded-lg text-surface-500 transition-all duration-150 hover:bg-white/[0.04] hover:text-surface-300"
         title="Settings"
       >
         <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">

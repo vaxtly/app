@@ -52,18 +52,18 @@
 
 <div
   bind:this={menuEl}
-  class="fixed z-[100] min-w-[160px] overflow-hidden rounded-2xl border border-surface-700 bg-surface-800 shadow-dropdown animate-[dropdown-in_0.12s_ease-out]"
-  style="left: {x}px; top: {y}px"
+  class="fixed z-[100] min-w-[160px] overflow-hidden rounded-xl p-1 shadow-dropdown animate-[dropdown-in_0.15s_ease-out]"
+  style="left: {x}px; top: {y}px; background: var(--glass-bg-heavy); backdrop-filter: blur(var(--glass-blur-heavy)); -webkit-backdrop-filter: blur(var(--glass-blur-heavy)); border: 1px solid var(--glass-border); box-shadow: var(--shadow-dropdown)"
 >
   {#each items as item}
     {#if item.separator}
-      <div class="my-1 border-t border-surface-700"></div>
+      <div class="my-1" style="border-top: 1px solid var(--glass-border)"></div>
     {:else}
       <button
         onclick={() => { item.action(); onclose() }}
         disabled={item.disabled}
-        class="flex w-full items-center px-3 py-1.5 text-left text-xs transition-colors
-          {item.danger ? 'ctx-danger text-danger' : 'text-surface-200 hover:bg-surface-700'}
+        class="flex w-full items-center rounded-lg px-2.5 py-1.5 text-left text-xs transition-all duration-100
+          {item.danger ? 'ctx-danger text-danger' : 'text-surface-200 hover:bg-white/[0.08]'}
           {item.disabled ? 'cursor-not-allowed opacity-40' : ''}"
       >
         {item.label}
@@ -74,6 +74,6 @@
 
 <style>
   .ctx-danger:hover {
-    background: color-mix(in srgb, var(--color-danger) 10%, transparent);
+    background: color-mix(in srgb, var(--color-danger) 12%, transparent);
   }
 </style>

@@ -455,10 +455,22 @@
   .sidebar-divider {
     flex-shrink: 0;
     width: 1px;
-    background: color-mix(in srgb, var(--color-surface-600) 60%, transparent);
+    background: var(--border-subtle);
     cursor: col-resize;
     position: relative;
-    transition: background 0.12s, width 0.12s;
+    transition: background 0.15s, width 0.15s;
+  }
+  .sidebar-divider::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 3px;
+    height: 24px;
+    border-radius: 9999px;
+    background: transparent;
+    transition: background 0.15s;
   }
   .sidebar-divider::after {
     content: '';
@@ -471,7 +483,11 @@
   .sidebar-divider:hover,
   .sidebar-divider--dragging {
     width: 3px;
-    background: color-mix(in srgb, var(--color-brand-500) 20%, transparent);
+    background: rgba(255, 255, 255, 0.04);
+  }
+  .sidebar-divider:hover::before,
+  .sidebar-divider--dragging::before {
+    background: color-mix(in srgb, var(--color-brand-500) 40%, transparent);
   }
 
   .update-banner {
@@ -479,8 +495,10 @@
     align-items: center;
     gap: 10px;
     padding: 6px 12px;
-    background: color-mix(in srgb, var(--color-brand-500) 12%, var(--color-surface-800));
-    border-bottom: 1px solid color-mix(in srgb, var(--color-brand-500) 25%, transparent);
+    background: var(--glass-bg);
+    backdrop-filter: blur(var(--glass-blur));
+    -webkit-backdrop-filter: blur(var(--glass-blur));
+    border-bottom: 1px solid var(--glass-border);
     font-size: 12px;
     color: var(--color-surface-200);
     flex-shrink: 0;
@@ -499,9 +517,9 @@
   }
   .update-btn {
     padding: 3px 10px;
-    border-radius: 4px;
-    border: 1px solid var(--color-surface-600);
-    background: var(--color-surface-700);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--glass-border);
+    background: rgba(255, 255, 255, 0.06);
     color: var(--color-surface-200);
     font-size: 11px;
     cursor: pointer;
@@ -509,7 +527,7 @@
     transition: background 0.12s;
   }
   .update-btn:hover {
-    background: var(--color-surface-600);
+    background: rgba(255, 255, 255, 0.10);
   }
   .update-btn-primary {
     border-color: var(--color-brand-500);
@@ -539,16 +557,17 @@
     justify-content: center;
     width: 20px;
     height: 20px;
-    border-radius: 4px;
+    border-radius: var(--radius-md);
     border: none;
     background: transparent;
     color: var(--color-surface-400);
     cursor: pointer;
     flex-shrink: 0;
-    transition: color 0.12s;
+    transition: color 0.12s, background 0.12s;
   }
   .update-dismiss:hover {
     color: var(--color-surface-200);
+    background: rgba(255, 255, 255, 0.06);
   }
   .update-dismiss svg {
     width: 14px;

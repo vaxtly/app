@@ -118,16 +118,16 @@
 <!-- Collapsible bottom panel -->
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
-  class="flex flex-col shrink-0 bg-surface-900"
+  class="flex flex-col shrink-0"
   class:select-none={dragging}
-  style="height: {expanded ? panelHeight : 32}px"
+  style="background: var(--glass-bg); backdrop-filter: blur(var(--glass-blur)); -webkit-backdrop-filter: blur(var(--glass-blur)); height: {expanded ? panelHeight : 32}px"
 >
   <!-- Drag handle -->
   {#if expanded}
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div
-      class="sl-drag h-1 shrink-0 cursor-ns-resize transition-colors duration-100"
-      style="border-top: 1px solid var(--border-default)"
+      class="sl-drag h-1 shrink-0 cursor-ns-resize transition-colors duration-150"
+      style="border-top: 1px solid var(--glass-border)"
       onpointerdown={onDragStart}
       onpointermove={onDragMove}
       onpointerup={onDragEnd}
@@ -136,7 +136,7 @@
   {/if}
 
   <!-- Header bar (always visible) -->
-  <div class="flex items-center h-8 shrink-0 px-1" style={expanded ? undefined : `border-top: 1px solid var(--border-default)`}>
+  <div class="flex items-center h-8 shrink-0 px-1" style={expanded ? undefined : `border-top: 1px solid var(--glass-border)`}>
     <button
       onclick={() => { if (expanded && activeLogTab === 'logs') { expanded = false } else { expanded = true; activeLogTab = 'logs' } }}
       class="flex items-center gap-1.5 px-2 h-full border-none bg-transparent font-mono text-[11px] font-medium cursor-pointer transition-colors duration-100 {activeLogTab === 'logs' && expanded ? 'text-brand-400' : 'text-surface-400 hover:text-surface-200'}"
@@ -179,7 +179,7 @@
         {:else}
           {#each logs as entry (entry.timestamp + entry.message)}
             <div
-              class="flex items-center gap-2 h-7 px-3 transition-colors duration-100 hover:bg-surface-800/50"
+              class="flex items-center gap-2 h-7 px-3 transition-colors duration-100 hover:bg-white/[0.03]"
               style="border-bottom: 1px solid var(--border-muted)"
             >
               <span class="shrink-0 w-18 text-surface-600" style="font-variant-numeric: tabular-nums">{formatTime(entry.timestamp)}</span>
@@ -208,7 +208,7 @@
           {#each histories as h (h.id)}
             <button
               onclick={() => selectedHistoryId = selectedHistoryId === h.id ? null : h.id}
-              class="flex w-full items-center gap-2 h-7 px-3 border-none bg-transparent text-left cursor-pointer transition-colors duration-100 font-mono text-[11px] hover:bg-surface-800/50"
+              class="flex w-full items-center gap-2 h-7 px-3 border-none bg-transparent text-left cursor-pointer transition-colors duration-100 font-mono text-[11px] hover:bg-white/[0.03]"
               style="border-bottom: 1px solid var(--border-muted); font-feature-settings: var(--font-feature-mono)"
             >
               <span class="shrink-0 w-18 text-surface-600" style="font-variant-numeric: tabular-nums">{formatTime(h.executed_at)}</span>
@@ -239,13 +239,13 @@
 </div>
 
 <style>
-  /* Drag handle hover/active — uses color-mix with brand */
+  /* Drag handle hover/active — soft glass tint */
   .sl-drag:hover {
-    background: color-mix(in srgb, var(--color-brand-500) 20%, transparent);
+    background: color-mix(in srgb, var(--color-brand-500) 15%, transparent);
   }
 
   .sl-drag:active {
-    background: color-mix(in srgb, var(--color-brand-500) 30%, transparent);
+    background: color-mix(in srgb, var(--color-brand-500) 25%, transparent);
   }
 
   /* Chevron rotation transition */

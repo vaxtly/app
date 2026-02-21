@@ -355,13 +355,13 @@
       <!-- Request section -->
       <div class="flex flex-col min-w-0 min-h-0 overflow-hidden" style="flex: {splitPercent} 0 0%;">
         <!-- Sub-tabs -->
-        <div class="flex items-stretch shrink-0 h-9 border-b border-white/[0.12] px-1 gap-px">
+        <div class="flex items-stretch shrink-0 h-9 px-1 gap-px" style="border-bottom: 1px solid var(--glass-border)">
           {#each requestTabs as tab (tab.key)}
             {@const count = tab.key === 'params' ? paramCount : tab.key === 'headers' ? headerCount : 0}
             {@const isActive = activeRequestTab === tab.key}
             <button
               onclick={() => activeRequestTab = tab.key}
-              class="rb-tab flex items-center gap-[5px] px-2.5 border-none bg-transparent text-xs font-inherit cursor-pointer relative whitespace-nowrap transition-[color,background] duration-[0.12s] {isActive ? 'rb-tab--active text-brand-400 hover:text-brand-400' : 'text-surface-400 hover:text-surface-200 hover:bg-surface-700/30'}"
+              class="rb-tab flex items-center gap-[5px] px-2.5 my-1 border-none bg-transparent text-xs font-inherit cursor-pointer relative whitespace-nowrap rounded-lg transition-all duration-150 {isActive ? 'rb-tab--active text-brand-400 bg-white/[0.08] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] hover:text-brand-400' : 'text-surface-400 hover:text-surface-200 hover:bg-white/[0.04]'}"
             >
               <span class="font-medium">{tab.label}</span>
               {#if count}
@@ -374,7 +374,7 @@
 
           <button
             onclick={() => showCodeSnippet = true}
-            class="rb-tab flex items-center gap-[5px] px-2.5 border-none bg-transparent font-mono text-[11px] tracking-[-0.02em] text-surface-500 cursor-pointer relative whitespace-nowrap transition-[color,background] duration-[0.12s] hover:text-surface-200 hover:bg-surface-700/30"
+            class="rb-tab flex items-center gap-[5px] px-2.5 my-1 border-none bg-transparent font-mono text-[11px] tracking-[-0.02em] text-surface-500 cursor-pointer relative whitespace-nowrap rounded-lg transition-all duration-150 hover:text-surface-200 hover:bg-white/[0.04]"
             style="font-feature-settings: var(--font-feature-mono)"
             title="Generate code snippet"
           >
@@ -465,10 +465,23 @@
   .rb-divider {
     flex-shrink: 0;
     width: 1px;
-    background: color-mix(in srgb, var(--color-surface-600) 60%, transparent);
+    background: var(--border-subtle);
     cursor: col-resize;
     position: relative;
-    transition: background 0.12s, width 0.12s;
+    transition: background 0.15s, width 0.15s;
+  }
+
+  .rb-divider::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 3px;
+    height: 24px;
+    border-radius: 9999px;
+    background: transparent;
+    transition: background 0.15s;
   }
 
   .rb-divider::after {
@@ -483,7 +496,12 @@
   .rb-divider:hover,
   .rb-split--dragging .rb-divider {
     width: 3px;
-    background: color-mix(in srgb, var(--color-brand-500) 20%, transparent);
+    background: rgba(255, 255, 255, 0.04);
+  }
+
+  .rb-divider:hover::before,
+  .rb-split--dragging .rb-divider::before {
+    background: color-mix(in srgb, var(--color-brand-500) 40%, transparent);
   }
 
   /* --- Rows layout overrides --- */
@@ -510,15 +528,10 @@
     height: 3px;
   }
 
-  /* --- Tab active indicator (pseudo-element) --- */
-  .rb-tab--active::after {
-    content: '';
-    position: absolute;
-    bottom: 0;
-    left: 6px;
-    right: 6px;
-    height: 2px;
-    background: var(--color-brand-500);
-    border-radius: 1px 1px 0 0;
+  .rb-split--rows > .rb-divider::before {
+    width: 24px;
+    height: 3px;
   }
+
+  /* Glass pill active indicator — no underline needed */
 </style>

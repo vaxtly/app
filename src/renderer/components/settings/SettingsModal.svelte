@@ -35,7 +35,8 @@
   <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
   <!-- svelte-ignore a11y_interactive_supports_focus -->
   <div
-    class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 animate-[modal-backdrop-in_0.15s_ease-out]"
+    class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 animate-[modal-backdrop-in_0.2s_ease-out]"
+    style="backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px)"
     role="dialog"
     aria-modal="true"
     onkeydown={handleKeydown}
@@ -44,11 +45,11 @@
     <button class="absolute inset-0" onclick={onclose} aria-label="Close"></button>
 
     <!-- Modal -->
-    <div class="relative z-10 flex max-h-[80vh] w-full max-w-2xl flex-col rounded-2xl border border-surface-700/50 bg-surface-900 shadow-xl animate-[modal-content-in_0.2s_ease-out]">
+    <div class="relative z-10 flex max-h-[80vh] w-full max-w-2xl flex-col rounded-[20px] shadow-glass animate-[modal-content-in_0.25s_cubic-bezier(0.34,1.56,0.64,1)]" style="background: var(--glass-bg-heavy); backdrop-filter: blur(var(--glass-blur-heavy)); -webkit-backdrop-filter: blur(var(--glass-blur-heavy)); border: 1px solid var(--glass-border)">
       <!-- Header -->
-      <div class="flex shrink-0 items-center justify-between border-b border-surface-700/50 px-4 py-3">
+      <div class="flex shrink-0 items-center justify-between px-4 py-3" style="border-bottom: 1px solid var(--glass-border)">
         <h2 class="text-sm font-semibold text-surface-200">Settings</h2>
-        <button onclick={onclose} class="text-surface-500 hover:text-surface-200" aria-label="Close">
+        <button onclick={onclose} class="flex h-6 w-6 items-center justify-center rounded-lg text-surface-400 transition-all duration-150 hover:bg-white/[0.08] hover:text-surface-200" aria-label="Close">
           <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
             <path d="M6 18L18 6M6 6l12 12" />
           </svg>
@@ -56,13 +57,13 @@
       </div>
 
       <!-- Tab navigation -->
-      <div class="flex shrink-0 gap-1 border-b border-surface-700/50 px-4">
+      <div class="flex shrink-0 gap-1 px-4 py-1.5" style="border-bottom: 1px solid var(--glass-border)">
         {#each tabs as tab}
           <button
             onclick={() => { activeTab = tab.key }}
-            class="flex items-center gap-1.5 px-3 py-2 text-xs transition-colors {activeTab === tab.key
-              ? 'border-b-2 border-brand-500 text-brand-400'
-              : 'text-surface-400 hover:text-surface-200'}"
+            class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs transition-all duration-150 {activeTab === tab.key
+              ? 'bg-white/[0.08] text-brand-400 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]'
+              : 'text-surface-400 hover:text-surface-200 hover:bg-white/[0.04]'}"
           >
             <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
               <path d={tab.icon} />
