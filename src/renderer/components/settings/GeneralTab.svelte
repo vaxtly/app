@@ -372,7 +372,7 @@
     justify-content: center;
     width: 42px;
     height: 32px;
-    border-radius: 6px;
+    border-radius: 8px;
     border: 1px solid var(--border-subtle);
     background: transparent;
     color: var(--color-surface-500);
@@ -380,7 +380,8 @@
     transition: all 0.12s ease;
   }
   .layout-option:hover {
-    border-color: var(--color-surface-600);
+    border-color: var(--glass-border);
+    background: var(--tint-subtle);
     color: var(--color-surface-300);
   }
   .layout-option.is-active {
@@ -404,7 +405,7 @@
     justify-content: center;
     width: 42px;
     height: 32px;
-    border-radius: 6px;
+    border-radius: 8px;
     border: 1px solid var(--border-subtle);
     background: transparent;
     color: var(--color-surface-500);
@@ -412,7 +413,8 @@
     transition: all 0.12s ease;
   }
   .theme-option:hover {
-    border-color: var(--color-surface-600);
+    border-color: var(--glass-border);
+    background: var(--tint-subtle);
     color: var(--color-surface-300);
   }
   .theme-option.is-active {
@@ -435,9 +437,9 @@
     width: 56px;
     height: 28px;
     padding: 0 8px;
-    border-radius: 6px;
+    border-radius: 8px;
     border: 1px solid var(--border-subtle);
-    background: var(--color-surface-800);
+    background: var(--tint-muted);
     color: var(--color-surface-100);
     font-size: 12px;
     text-align: right;
@@ -460,9 +462,9 @@
   .select-input {
     height: 28px;
     padding: 0 8px;
-    border-radius: 6px;
+    border-radius: 8px;
     border: 1px solid var(--border-subtle);
-    background: var(--color-surface-800);
+    background: var(--tint-muted);
     color: var(--color-surface-100);
     font-size: 12px;
     outline: none;
@@ -476,7 +478,7 @@
   /* Divider */
   .divider {
     height: 1px;
-    background: var(--color-surface-700);
+    background: var(--glass-border);
   }
 
   /* About */
@@ -485,9 +487,9 @@
     align-items: center;
     gap: 12px;
     padding: 12px;
-    border-radius: 8px;
-    border: 1px solid var(--border-subtle);
-    background: color-mix(in srgb, var(--color-surface-800) 30%, transparent);
+    border-radius: 10px;
+    border: 1px solid var(--glass-border);
+    background: var(--tint-subtle);
   }
   .about-icon {
     flex-shrink: 0;
@@ -524,17 +526,17 @@
   }
   .check-update-btn {
     padding: 4px 12px;
-    border-radius: 6px;
-    border: 1px solid var(--color-surface-600);
-    background: var(--color-surface-700);
+    border-radius: 8px;
+    border: 1px solid var(--glass-border);
+    background: var(--tint-muted);
     color: var(--color-surface-200);
     font-size: 11px;
     cursor: pointer;
     transition: all 0.12s ease;
   }
   .check-update-btn:hover {
-    border-color: var(--color-surface-500);
-    background: var(--color-surface-600);
+    border-color: var(--border-default);
+    background: var(--tint-active);
   }
   .update-status {
     font-size: 11px;

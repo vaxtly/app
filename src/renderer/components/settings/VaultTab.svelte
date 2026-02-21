@@ -343,7 +343,7 @@
     gap: 8px;
     width: 100%;
     padding: 8px 10px;
-    border-radius: 6px;
+    border-radius: 8px;
     border: 1px solid;
     font-size: 12px;
     line-height: 1.4;
@@ -375,7 +375,7 @@
     align-items: center;
     gap: 8px;
     padding: 8px 10px;
-    border-radius: 6px;
+    border-radius: 8px;
     border: 1px solid color-mix(in srgb, var(--color-info) 20%, transparent);
     background: color-mix(in srgb, var(--color-info) 6%, transparent);
     color: var(--color-info-muted);
@@ -474,7 +474,7 @@
   }
   .auth-option:hover {
     color: var(--color-surface-300);
-    background: var(--color-surface-800);
+    background: var(--tint-active);
   }
   .auth-option.is-active {
     background: color-mix(in srgb, var(--color-brand-500) 12%, transparent);
@@ -506,9 +506,9 @@
     height: 32px;
     width: 100%;
     padding: 0 10px;
-    border-radius: 6px;
+    border-radius: 8px;
     border: 1px solid var(--border-subtle);
-    background: var(--color-surface-800);
+    background: var(--tint-muted);
     color: var(--color-surface-100);
     font-size: 12px;
     outline: none;
@@ -538,7 +538,7 @@
     justify-content: center;
     gap: 5px;
     padding: 6px 12px;
-    border-radius: 6px;
+    border-radius: 8px;
     font-size: 12px;
     font-weight: 500;
     cursor: pointer;
@@ -558,12 +558,12 @@
   }
   .action-btn.secondary {
     background: transparent;
-    border: 1px solid var(--color-surface-600);
+    border: 1px solid var(--glass-border);
     color: var(--color-surface-300);
   }
   .action-btn.secondary:not(:disabled):hover {
-    background: var(--color-surface-800);
-    border-color: var(--color-surface-500);
+    background: var(--tint-active);
+    border-color: var(--border-default);
     color: var(--color-surface-200);
   }
   .btn-icon {

@@ -435,7 +435,7 @@
     gap: 8px;
     width: 100%;
     padding: 8px 10px;
-    border-radius: 6px;
+    border-radius: 8px;
     border: 1px solid;
     font-size: 12px;
     line-height: 1.4;
@@ -467,7 +467,7 @@
     align-items: center;
     gap: 8px;
     padding: 8px 10px;
-    border-radius: 6px;
+    border-radius: 8px;
     border: 1px solid color-mix(in srgb, var(--color-info) 20%, transparent);
     background: color-mix(in srgb, var(--color-info) 6%, transparent);
     color: var(--color-info-muted);
@@ -553,7 +553,7 @@
     align-items: center;
     gap: 5px;
     padding: 5px 10px;
-    border-radius: 6px;
+    border-radius: 8px;
     border: 1px solid var(--border-subtle);
     background: transparent;
     color: var(--color-surface-400);
@@ -563,7 +563,8 @@
     transition: all 0.12s ease;
   }
   .provider-option:hover {
-    border-color: var(--color-surface-600);
+    border-color: var(--glass-border);
+    background: var(--tint-subtle);
     color: var(--color-surface-300);
   }
   .provider-option.is-active {
@@ -591,9 +592,9 @@
     height: 32px;
     width: 100%;
     padding: 0 10px;
-    border-radius: 6px;
+    border-radius: 8px;
     border: 1px solid var(--border-subtle);
-    background: var(--color-surface-800);
+    background: var(--tint-muted);
     color: var(--color-surface-100);
     font-size: 12px;
     outline: none;
@@ -628,7 +629,7 @@
     justify-content: center;
     gap: 5px;
     padding: 6px 12px;
-    border-radius: 6px;
+    border-radius: 8px;
     font-size: 12px;
     font-weight: 500;
     cursor: pointer;
@@ -648,12 +649,12 @@
   }
   .action-btn.secondary {
     background: transparent;
-    border: 1px solid var(--color-surface-600);
+    border: 1px solid var(--glass-border);
     color: var(--color-surface-300);
   }
   .action-btn.secondary:not(:disabled):hover {
-    background: var(--color-surface-800);
-    border-color: var(--color-surface-500);
+    background: var(--tint-active);
+    border-color: var(--border-default);
     color: var(--color-surface-200);
   }
   .btn-icon {
@@ -676,9 +677,9 @@
   /* Help card */
   .help-card {
     padding: 10px 12px;
-    border-radius: 8px;
-    border: 1px solid var(--border-subtle);
-    background: color-mix(in srgb, var(--color-surface-800) 30%, transparent);
+    border-radius: 10px;
+    border: 1px solid var(--glass-border);
+    background: var(--tint-subtle);
   }
   .help-title {
     display: flex;

@@ -359,7 +359,7 @@
     gap: 8px;
     width: 100%;
     padding: 8px 10px;
-    border-radius: 6px;
+    border-radius: 8px;
     border: 1px solid;
     font-size: 12px;
     line-height: 1.4;
@@ -459,7 +459,7 @@
     flex-direction: column;
     gap: 2px;
     padding: 8px 10px;
-    border-radius: 6px;
+    border-radius: 8px;
     border: 1px solid var(--border-subtle);
     background: transparent;
     text-align: left;
@@ -467,8 +467,8 @@
     transition: all 0.12s ease;
   }
   .export-option:hover {
-    border-color: var(--color-surface-600);
-    background: var(--color-surface-800);
+    border-color: var(--glass-border);
+    background: var(--tint-subtle);
   }
   .export-option.is-active {
     border-color: color-mix(in srgb, var(--color-brand-500) 50%, transparent);
@@ -491,13 +491,13 @@
   /* Divider */
   .divider {
     height: 1px;
-    background: var(--color-surface-700);
+    background: var(--glass-border);
   }
 
   /* Drop zone */
   .drop-zone {
     border: 1.5px dashed var(--color-surface-600);
-    border-radius: 8px;
+    border-radius: 10px;
     padding: 20px;
     transition: all 0.2s ease;
     background: transparent;
@@ -609,7 +609,7 @@
     justify-content: center;
     gap: 6px;
     padding: 6px 14px;
-    border-radius: 6px;
+    border-radius: 8px;
     font-size: 12px;
     font-weight: 500;
     cursor: pointer;
@@ -629,12 +629,12 @@
   }
   .action-btn.secondary {
     background: transparent;
-    border: 1px solid var(--color-surface-600);
+    border: 1px solid var(--glass-border);
     color: var(--color-surface-300);
   }
   .action-btn.secondary:not(:disabled):hover {
-    background: var(--color-surface-800);
-    border-color: var(--color-surface-500);
+    background: var(--tint-active);
+    border-color: var(--border-default);
     color: var(--color-surface-200);
   }
   .action-btn.compact {
