@@ -59,7 +59,7 @@
     <div class="flex items-center gap-0.5 px-2 py-1">
       <button
         onclick={() => appStore.setSidebarMode('collections')}
-        class="rounded-md px-2.5 py-1.5 text-[11px] font-medium uppercase tracking-wider transition-colors
+        class="min-w-0 truncate rounded-md px-1.5 py-1.5 text-[11px] font-medium uppercase tracking-wider transition-colors
           {appStore.sidebarMode === 'collections'
             ? 'bg-surface-800 text-surface-200'
             : 'text-surface-500 hover:text-surface-300'}"
@@ -68,7 +68,7 @@
       </button>
       <button
         onclick={() => appStore.setSidebarMode('environments')}
-        class="rounded-md px-2.5 py-1.5 text-[11px] font-medium uppercase tracking-wider transition-colors
+        class="min-w-0 truncate rounded-md px-1.5 py-1.5 text-[11px] font-medium uppercase tracking-wider transition-colors
           {appStore.sidebarMode === 'environments'
             ? 'bg-surface-800 text-surface-200'
             : 'text-surface-500 hover:text-surface-300'}"
@@ -76,12 +76,12 @@
         Environments
       </button>
 
-      <div class="flex-1"></div>
+      <div class="min-w-0 flex-1"></div>
 
       {#if appStore.sidebarMode === 'collections'}
         <button
           onclick={handleNewCollection}
-          class="flex h-5 w-5 items-center justify-center rounded text-surface-400 hover:bg-surface-700 hover:text-brand-400"
+          class="flex h-5 w-5 shrink-0 items-center justify-center rounded text-surface-400 hover:bg-surface-700 hover:text-brand-400"
           title="New Collection"
         >
           <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -91,7 +91,7 @@
       {:else}
         <button
           onclick={handleNewEnvironment}
-          class="flex h-5 w-5 items-center justify-center rounded text-surface-400 hover:bg-surface-700 hover:text-brand-400"
+          class="flex h-5 w-5 shrink-0 items-center justify-center rounded text-surface-400 hover:bg-surface-700 hover:text-brand-400"
           title="New Environment"
         >
           <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">

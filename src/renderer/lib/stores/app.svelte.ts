@@ -44,6 +44,7 @@ let activeWorkspaceId = $state<string | null>(null)
 let openTabs = $state<Tab[]>([])
 let activeTabId = $state<string | null>(null)
 let sidebarCollapsed = $state(false)
+let sidebarWidth = $state(244)
 let sidebarMode = $state<SidebarMode>('collections')
 let sidebarSearch = $state('')
 let showSettings = $state(false)
@@ -190,6 +191,10 @@ function toggleSidebar(): void {
   sidebarCollapsed = !sidebarCollapsed
 }
 
+function setSidebarWidth(w: number): void {
+  sidebarWidth = Math.min(400, Math.max(180, w))
+}
+
 function setSidebarMode(mode: SidebarMode): void {
   sidebarMode = mode
 }
@@ -269,6 +274,7 @@ export const appStore = {
   get activeTabId() { return activeTabId },
   get activeTab() { return activeTab },
   get sidebarCollapsed() { return sidebarCollapsed },
+  get sidebarWidth() { return sidebarWidth },
   get sidebarMode() { return sidebarMode },
   get sidebarSearch() { return sidebarSearch },
   get showSettings() { return showSettings },
@@ -289,6 +295,7 @@ export const appStore = {
   nextTab,
   prevTab,
   toggleSidebar,
+  setSidebarWidth,
   setSidebarMode,
   setSidebarSearch,
   openSettings,

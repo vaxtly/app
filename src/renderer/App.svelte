@@ -17,6 +17,7 @@
   let activeBuilder: { save: () => Promise<void>; send: () => Promise<void> } | undefined
   let showWelcome = $state(false)
   let sessionRestored = $state(false)
+  let sidebarDragging = $state(false)
 
   // --- Update notification state ---
   let updateAvailable: { version: string; releaseName: string } | null = $state(null)
@@ -223,6 +224,10 @@
     // Load settings
     await settingsStore.loadAll()
 
+    // Restore sidebar width
+    const savedWidth = settingsStore.get('sidebar.width')
+    if (savedWidth) appStore.setSidebarWidth(savedWidth)
+
     // Show welcome guide on first launch
     if (!settingsStore.get('app.welcomed')) {
       showWelcome = true
@@ -355,12 +360,37 @@
   {/if}
 
   <!-- Main content: sidebar + tab area -->
-  <div class="flex min-h-0 flex-1">
+  <div class="flex min-h-0 flex-1" class:select-none={sidebarDragging}>
     <!-- Sidebar -->
     {#if !appStore.sidebarCollapsed}
-      <div class="w-[244px] shrink-0 border-r border-surface-700">
+      <div class="shrink-0" style="width: {appStore.sidebarWidth}px">
         <Sidebar onrequestclick={handleRequestClick} onenvironmentclick={handleEnvironmentClick} />
       </div>
+
+      <!-- Sidebar resize divider -->
+      <div
+        class="sidebar-divider"
+        class:sidebar-divider--dragging={sidebarDragging}
+        role="separator"
+        tabindex="-1"
+        onpointerdown={(e) => {
+          e.preventDefault()
+          sidebarDragging = true
+          ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
+        }}
+        onpointermove={(e) => {
+          if (!sidebarDragging) return
+          appStore.setSidebarWidth(e.clientX)
+        }}
+        onpointerup={() => {
+          if (!sidebarDragging) return
+          sidebarDragging = false
+          settingsStore.set('sidebar.width', appStore.sidebarWidth)
+        }}
+        onpointercancel={() => {
+          sidebarDragging = false
+        }}
+      ></div>
     {/if}
 
     <!-- Main area -->
@@ -421,6 +451,29 @@
 </div>
 
 <style>
+  /* --- Sidebar resize divider --- */
+  .sidebar-divider {
+    flex-shrink: 0;
+    width: 1px;
+    background: var(--color-surface-700);
+    cursor: col-resize;
+    position: relative;
+    transition: background 0.12s, width 0.12s;
+  }
+  .sidebar-divider::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: -3px;
+    right: -3px;
+  }
+  .sidebar-divider:hover,
+  .sidebar-divider--dragging {
+    width: 3px;
+    background: var(--color-brand-500);
+  }
+
   .update-banner {
     display: flex;
     align-items: center;
