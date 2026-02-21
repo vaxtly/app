@@ -1,7 +1,7 @@
-# Vaxtly Next — Architecture Reference
+# Vaxtly — Architecture Reference
 
-> Pure Electron + TypeScript + Svelte 5 rewrite of Vaxtly (API client).
-> This document is the single source of truth. **Update it with every phase.**
+> A fast, native API client for developers. Built with Electron, TypeScript, and Svelte 5.
+> This document is the single source of truth for the project's architecture.
 
 ## Tech Stack
 
@@ -593,7 +593,7 @@ All stores use this pattern: module-level `$state` + `$derived` + exported objec
 - Directory structure: `{uuid}/_collection.yaml`, `_manifest.yaml`, `{reqUuid}.yaml`, `{folderUuid}/_folder.yaml`
 - Manifest files track folder/request ordering
 - Environment hints: vault_path-based cross-machine environment ID resolution
-- `validateEnvironmentIds()` handles `environment_ids` as both YAML arrays and JSON strings (backward compat with Laravel app)
+- `validateEnvironmentIds()` handles `environment_ids` as both YAML arrays and JSON strings
 - `sanitize` option strips sensitive data via `sanitizeRequestData()`/`sanitizeCollectionData()`
 - Strips local file references from form-data before sync
 - `parseYaml()` validates non-null/non-empty returns; `serializeRequest()` wraps JSON.parse of scripts/auth in try/catch
