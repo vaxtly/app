@@ -169,10 +169,10 @@
   <div class="flex h-full flex-col" onkeydown={handleKeydown}>
     <!-- Header bar (matches UrlBar pill style) -->
     <div class="flex shrink-0 items-center gap-2 px-3 py-2.5">
-      <div class="env-bar-inner flex min-w-0 flex-1 items-center overflow-hidden rounded-xl border border-surface-600 bg-surface-800 transition-colors duration-150">
+      <div class="env-bar-inner flex min-w-0 flex-1 items-center overflow-hidden rounded-xl transition-colors duration-150" style="border: 1px solid var(--glass-border); background: var(--tint-muted)">
         <!-- Active/Inactive toggle -->
         <button
-          class="flex h-[38px] shrink-0 cursor-pointer items-center gap-2 border-0 border-r border-solid border-surface-600 bg-surface-900/50 px-3.5 outline-none transition-all duration-150 hover:bg-surface-700/50 {environment.is_active ? 'text-success' : 'text-surface-400'}"
+          class="env-toggle-btn flex h-[38px] shrink-0 cursor-pointer items-center gap-2 border-0 border-r border-solid px-3.5 outline-none transition-all duration-150 {environment.is_active ? 'text-success' : 'text-surface-400'}"
           onclick={toggleActive}
         >
           <span class="h-1.5 w-1.5 shrink-0 rounded-full transition-all duration-200 {environment.is_active ? 'env-status-led--active bg-success' : 'bg-surface-600'}"></span>
@@ -189,7 +189,7 @@
         />
 
         <!-- Save button -->
-        <button class="env-save flex h-[38px] shrink-0 cursor-default items-center gap-[7px] border-0 border-l border-solid border-surface-600 bg-transparent pl-3.5 pr-4 text-surface-500 whitespace-nowrap transition-all duration-200 disabled:cursor-default disabled:opacity-40" class:env-save--dirty={isDirty} disabled={!isDirty || saving} onclick={save}>
+        <button class="env-save flex h-[38px] shrink-0 cursor-default items-center gap-[7px] border-0 border-l border-solid bg-transparent pl-3.5 pr-4 text-surface-500 whitespace-nowrap transition-all duration-200 disabled:cursor-default disabled:opacity-40" style="border-color: var(--glass-border)" class:env-save--dirty={isDirty} disabled={!isDirty || saving} onclick={save}>
           {#if saving}
             <span class="env-save-spinner"></span>
             <span class="text-[11px] font-bold font-mono tracking-widest uppercase" style="font-feature-settings: var(--font-feature-mono)">{vaultSynced ? 'Pushing...' : 'Saving...'}</span>
@@ -207,7 +207,7 @@
     <div class="flex-1 overflow-auto p-4">
       <!-- Vault sync section -->
       {#if vaultConfigured}
-        <div class="mb-4 rounded border border-surface-700 bg-surface-800/30 p-3">
+        <div class="mb-4 rounded-lg p-3" style="border: 1px solid var(--glass-border); background: var(--tint-subtle)">
           <div class="mb-3 flex items-center justify-between">
             <div>
               <div class="text-xs font-medium text-surface-300">Vault Sync</div>
@@ -219,7 +219,7 @@
               aria-checked={vaultSynced}
               aria-label="Enable vault sync"
               onclick={toggleVaultSync}
-              class="relative h-5 w-9 rounded-full transition-colors {vaultSynced ? 'bg-brand-600' : 'bg-surface-600'}"
+              class="relative h-5 w-9 rounded-full transition-colors {vaultSynced ? 'bg-brand-600' : 'bg-[var(--tint-bold)]'}"
             >
               <span class="absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white transition-transform {vaultSynced ? 'translate-x-4' : 'translate-x-0'}"></span>
             </button>
@@ -227,7 +227,7 @@
 
           {#if vaultSynced}
             {#if vaultStatus}
-              <div class="mb-2 rounded px-2 py-1 text-[10px]"
+              <div class="mb-2 rounded-md px-2 py-1 text-[10px]"
                 style={`color: var(${vaultStatus.type === 'success' ? '--color-success' : '--color-danger'}); background: color-mix(in srgb, var(${vaultStatus.type === 'success' ? '--color-success' : '--color-danger'}) 12%, transparent)`}>
                 {vaultStatus.message}
               </div>
@@ -236,7 +236,8 @@
               <button
                 onclick={pullFromVault}
                 disabled={vaultPulling}
-                class="rounded border border-surface-600 px-2 py-1 text-[10px] text-surface-300 hover:bg-surface-700 disabled:opacity-50"
+                class="rounded-md px-2 py-1 text-[10px] text-surface-300 hover:bg-[var(--tint-active)] disabled:opacity-50"
+                style="border: 1px solid var(--glass-border)"
               >
                 {vaultPulling ? 'Pulling...' : 'Pull from Vault'}
               </button>
@@ -271,10 +272,19 @@
     box-shadow: 0 0 6px color-mix(in srgb, var(--color-success) 50%, transparent);
   }
 
+  .env-toggle-btn {
+    border-color: var(--glass-border);
+    background: var(--tint-subtle);
+  }
+
+  .env-toggle-btn:hover {
+    background: var(--tint-active);
+  }
+
   .env-save--dirty {
     background: color-mix(in srgb, var(--color-success) 10%, transparent);
     color: var(--color-success);
-    border-left-color: color-mix(in srgb, var(--color-success) 20%, var(--color-surface-600));
+    border-left-color: color-mix(in srgb, var(--color-success) 20%, transparent);
     cursor: pointer;
   }
 

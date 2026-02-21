@@ -96,19 +96,20 @@
       value={searchQuery}
       oninput={(e) => { searchQuery = (e.target as HTMLInputElement).value }}
       placeholder="Search environments..."
-      class="h-7 w-full rounded border border-surface-700 bg-surface-800/50 px-2 text-xs text-surface-200 placeholder-surface-500 focus:border-brand-500 focus:outline-none"
+      class="h-7 w-full rounded-lg px-2 text-xs text-surface-200 placeholder-surface-500 focus:border-brand-500 focus:outline-none"
+      style="border: 1px solid var(--glass-border); background: var(--tint-muted)"
     />
   </div>
 
   <!-- Environment list -->
   <div class="max-h-60 overflow-y-auto">
     {#each filteredEnvironments as env (env.id)}
-      <div class="flex items-center gap-2 rounded px-2 py-1.5 hover:bg-surface-700/50">
+      <div class="flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-[var(--tint-hover)]">
         <!-- Checkbox -->
         <button
           onclick={() => toggleEnv(env.id)}
           class="flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors
-            {selectedIds.has(env.id) ? 'border-brand-500 bg-brand-600' : 'border-surface-600 bg-surface-800'}"
+            {selectedIds.has(env.id) ? 'border-brand-500 bg-brand-600' : 'border-[var(--glass-border)] bg-[var(--tint-muted)]'}"
           aria-label="Toggle {env.name}"
         >
           {#if selectedIds.has(env.id)}
@@ -142,18 +143,18 @@
   </div>
 
   <!-- Footer -->
-  <div class="mt-4 flex items-center justify-between border-t border-surface-700 pt-4">
+  <div class="mt-4 flex items-center justify-between pt-4" style="border-top: 1px solid var(--glass-border)">
     <div class="text-xs text-surface-500">
       {selectedIds.size} selected{defaultEnvId ? ' (1 default)' : ''}
     </div>
     <div class="flex gap-2">
-      <button onclick={onclose} class="rounded border border-surface-600 px-3 py-1.5 text-xs text-surface-300 hover:bg-surface-800">
+      <button onclick={onclose} class="rounded-lg px-3 py-1.5 text-xs text-surface-300 hover:bg-[var(--tint-active)]" style="border: 1px solid var(--glass-border)">
         Cancel
       </button>
       <button
         onclick={handleSave}
         disabled={saving}
-        class="rounded bg-brand-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-500 disabled:opacity-50"
+        class="rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-500 disabled:opacity-50"
       >
         {saving ? 'Saving...' : 'Save'}
       </button>
