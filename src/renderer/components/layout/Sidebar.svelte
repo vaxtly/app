@@ -242,6 +242,7 @@
 </div>
 
 <style>
+  .sidebar-scroll { overflow-y: overlay; }
   .sidebar-scroll::-webkit-scrollbar { width: 3px; }
   .sidebar-scroll::-webkit-scrollbar-track { background: transparent; }
   .sidebar-scroll::-webkit-scrollbar-thumb { background: var(--color-surface-600); border-radius: 1.5px; }
