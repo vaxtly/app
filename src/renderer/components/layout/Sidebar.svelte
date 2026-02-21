@@ -120,12 +120,12 @@
 
   {#if appStore.sidebarMode === 'collections'}
     <!-- Collection tree -->
-    <div class="flex-1 overflow-y-auto px-1 pb-2">
+    <div class="sidebar-scroll flex-1 overflow-y-auto px-1 pb-2">
       <CollectionTree searchFilter={searchValue} {onrequestclick} />
     </div>
   {:else}
     <!-- Environment list -->
-    <div class="flex-1 overflow-y-auto">
+    <div class="sidebar-scroll flex-1 overflow-y-auto">
       <EnvironmentList searchFilter={searchValue} {onenvironmentclick} />
     </div>
   {/if}
@@ -240,3 +240,9 @@
   </div>
 
 </div>
+
+<style>
+  .sidebar-scroll::-webkit-scrollbar { width: 3px; }
+  .sidebar-scroll::-webkit-scrollbar-track { background: transparent; }
+  .sidebar-scroll::-webkit-scrollbar-thumb { background: var(--color-surface-600); border-radius: 1.5px; }
+</style>

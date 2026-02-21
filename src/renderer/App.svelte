@@ -83,10 +83,18 @@
       appStore.setSidebarMode('collections')
       collectionsStore.revealRequest(tab.entityId)
 
-      // Scroll the request into view after the DOM updates from revealRequest
+      // Scroll the request into view only if it's not already visible
       tick().then(() => {
         const el = document.querySelector(`[data-request-id="${tab.entityId}"]`)
-        el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        if (!el) return
+        const scrollParent = el.closest('.sidebar-scroll')
+        if (!scrollParent) return
+        const parentRect = scrollParent.getBoundingClientRect()
+        const elRect = el.getBoundingClientRect()
+        const isVisible = elRect.top >= parentRect.top && elRect.bottom <= parentRect.bottom
+        if (!isVisible) {
+          el.scrollIntoView({ behavior: 'instant', block: 'center' })
+        }
       })
 
       // Auto-activate default environment only on tab switch
