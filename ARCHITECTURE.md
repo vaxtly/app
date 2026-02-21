@@ -685,6 +685,7 @@ All stores use this pattern: module-level `$state` + `$derived` + exported objec
 - **App.svelte banner**: install-source-aware top banner — Homebrew shows `brew upgrade vaxtly` + copy button; Scoop shows `scoop update vaxtly` + copy button; standalone shows download progress bar → "Restart now" button; dismissible
 - **GeneralTab**: "Check for updates" button in About section with checking/available/up-to-date/error states; 15s timeout assumes up-to-date if no event received
 - **CI**: `update-scoop` job in `build.yml` computes SHA256 of `Vaxtly-{version}-setup.exe` and pushes manifest to `vaxtly/scoop-bucket/bucket/vaxtly.json` (mirrors the `update-homebrew` pattern)
+- **Snap Store**: Linux snap built by electron-builder and published to the `stable` channel on snapcraft.io during the build step (via `SNAPCRAFT_STORE_CREDENTIALS` secret). Snap updates are handled automatically by `snapd` on user machines.
 
 ### CodeMirror Variable Highlighting (`lib/utils/variable-highlight.ts`)
 - `variableHighlight(getResolved)` → CodeMirror `Extension` (decoration + tooltip)
@@ -818,7 +819,7 @@ All method colors are theme-aware via `--color-method-*` CSS variables. Componen
 
 ## Build Configuration
 
-- **electron-builder.yml**: configures packaging for macOS (dmg/zip), Windows (nsis), Linux (AppImage/deb)
+- **electron-builder.yml**: configures packaging for macOS (dmg/zip), Windows (nsis), Linux (AppImage/deb/snap)
 - **`asarUnpack`**: `better-sqlite3` native module unpacked from asar archive (required for native addons)
 - **Icons**: `build/icon.icns` (macOS), `build/icon.ico` (Windows), `build/icon.png` (Linux 512×512)
 - **Linux `artifactName`**: includes `${arch}` for multi-architecture builds
