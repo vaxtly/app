@@ -136,7 +136,7 @@
   {/if}
 
   <!-- Header bar (always visible) -->
-  <div class="flex items-center h-8 shrink-0 px-1" style="border-top: 1px solid var(--border-default)">
+  <div class="flex items-center h-8 shrink-0 px-1" style={expanded ? undefined : `border-top: 1px solid var(--border-default)`}>
     <button
       onclick={() => { if (expanded && activeLogTab === 'logs') { expanded = false } else { expanded = true; activeLogTab = 'logs' } }}
       class="flex items-center gap-1.5 px-2 h-full border-none bg-transparent font-mono text-[11px] font-medium cursor-pointer transition-colors duration-100 {activeLogTab === 'logs' && expanded ? 'text-brand-400' : 'text-surface-400 hover:text-surface-200'}"
