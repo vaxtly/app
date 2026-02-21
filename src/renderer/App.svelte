@@ -30,9 +30,27 @@
     updateDismissed = true
   }
 
-  function copyUpdateCommand(): void {
+  let copyLabel = $state('Copy command')
+
+  async function copyUpdateCommand(): Promise<void> {
     const cmd = installSource === 'brew' ? 'brew upgrade vaxtly' : 'scoop update vaxtly'
-    navigator.clipboard.writeText(cmd)
+    try {
+      await navigator.clipboard.writeText(cmd)
+      copyLabel = 'Copied!'
+      setTimeout(() => { copyLabel = 'Copy command' }, 2000)
+    } catch {
+      // Fallback for environments where clipboard API fails
+      const el = document.createElement('textarea')
+      el.value = cmd
+      el.style.position = 'fixed'
+      el.style.opacity = '0'
+      document.body.appendChild(el)
+      el.select()
+      document.execCommand('copy')
+      document.body.removeChild(el)
+      copyLabel = 'Copied!'
+      setTimeout(() => { copyLabel = 'Copy command' }, 2000)
+    }
   }
 
   function restartToUpdate(): void {
@@ -319,21 +337,22 @@
 <div class="flex h-screen flex-col bg-surface-900">
   <!-- Update notification banner -->
   {#if updateAvailable && !updateDismissed}
-    <div class="update-banner">
+    {@const isMac = window.navigator.userAgent.includes('Macintosh')}
+    <div class="update-banner" style={isMac ? 'padding-left: 78px' : ''}>
       {#if installSource === 'brew'}
         <span class="update-text">
           Vaxtly v{updateAvailable.version} is available — run
           <code class="update-code">brew upgrade vaxtly</code>
           to update
         </span>
-        <button class="update-btn" onclick={copyUpdateCommand}>Copy command</button>
+        <button class="update-btn" onclick={copyUpdateCommand}>{copyLabel}</button>
       {:else if installSource === 'scoop'}
         <span class="update-text">
           Vaxtly v{updateAvailable.version} is available — run
           <code class="update-code">scoop update vaxtly</code>
           to update
         </span>
-        <button class="update-btn" onclick={copyUpdateCommand}>Copy command</button>
+        <button class="update-btn" onclick={copyUpdateCommand}>{copyLabel}</button>
       {:else if updateDownloaded}
         <span class="update-text">
           Vaxtly v{updateAvailable.version} is ready — restart to update
