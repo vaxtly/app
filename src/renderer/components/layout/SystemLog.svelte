@@ -126,8 +126,7 @@
   {#if expanded}
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div
-      class="sl-drag h-1 shrink-0 cursor-ns-resize transition-colors duration-150"
-      style="border-top: 1px solid var(--glass-border)"
+      class="sl-drag shrink-0 cursor-ns-resize"
       onpointerdown={onDragStart}
       onpointermove={onDragMove}
       onpointerup={onDragEnd}
@@ -239,13 +238,43 @@
 </div>
 
 <style>
-  /* Drag handle hover/active — soft glass tint */
-  .sl-drag:hover {
-    background: color-mix(in srgb, var(--color-brand-500) 15%, transparent);
+  /* Drag handle — matches sidebar/request divider style */
+  .sl-drag {
+    height: 1px;
+    background: var(--border-subtle);
+    position: relative;
+    transition: background 0.15s, height 0.15s;
   }
 
-  .sl-drag:active {
-    background: color-mix(in srgb, var(--color-brand-500) 25%, transparent);
+  .sl-drag::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 24px;
+    height: 3px;
+    border-radius: 9999px;
+    background: transparent;
+    transition: background 0.15s;
+  }
+
+  .sl-drag::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: -3px;
+    bottom: -3px;
+  }
+
+  .sl-drag:hover {
+    height: 3px;
+    background: var(--tint-subtle);
+  }
+
+  .sl-drag:hover::before {
+    background: color-mix(in srgb, var(--color-brand-500) 40%, transparent);
   }
 
   /* Chevron rotation transition */
