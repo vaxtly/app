@@ -107,7 +107,7 @@ describe('generateCode', () => {
         body: '{"data":"test"}',
         bodyType: 'json',
       }))
-      expect(code).toContain('JSON.stringify(')
+      expect(code).toContain("body: '{\"data\":\"test\"}")
     })
   })
 
