@@ -41,10 +41,12 @@
     }
 
     document.addEventListener('click', handleClick, true)
+    document.addEventListener('contextmenu', handleClick, true)
     document.addEventListener('keydown', handleKey)
 
     return () => {
       document.removeEventListener('click', handleClick, true)
+      document.removeEventListener('contextmenu', handleClick, true)
       document.removeEventListener('keydown', handleKey)
     }
   })
