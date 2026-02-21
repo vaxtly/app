@@ -71,6 +71,7 @@ export const IPC = {
   SYNC_DELETE_REMOTE: 'sync:delete-remote',
   SYNC_SCAN_SENSITIVE: 'sync:scan-sensitive',
   SYNC_PUSH_REQUEST: 'sync:push-request',
+  SYNC_PULL_COLLECTION: 'sync:pull-collection',
 
   // Vault
   VAULT_TEST_CONNECTION: 'vault:test-connection',

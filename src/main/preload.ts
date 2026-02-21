@@ -130,6 +130,8 @@ const api = {
       ipcRenderer.invoke(IPC.SYNC_SCAN_SENSITIVE, collectionId),
     pushRequest: (collectionId: string, requestId: string, sanitize?: boolean, workspaceId?: string): Promise<boolean> =>
       ipcRenderer.invoke(IPC.SYNC_PUSH_REQUEST, collectionId, requestId, sanitize, workspaceId),
+    pullCollection: (collectionId: string, workspaceId?: string): Promise<SyncResult> =>
+      ipcRenderer.invoke(IPC.SYNC_PULL_COLLECTION, collectionId, workspaceId),
   },
 
   vault: {

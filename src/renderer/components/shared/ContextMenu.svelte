@@ -7,6 +7,7 @@
     danger?: boolean
     separator?: boolean
     disabled?: boolean
+    icon?: string
   }
 
   interface Props {
@@ -64,10 +65,15 @@
       <button
         onclick={() => { item.action(); onclose() }}
         disabled={item.disabled}
-        class="flex w-full items-center rounded-lg px-2.5 py-1.5 text-left text-xs transition-all duration-100
+        class="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-xs transition-all duration-100
           {item.danger ? 'ctx-danger text-danger' : 'text-surface-200 hover:bg-[var(--tint-active)]'}
           {item.disabled ? 'cursor-not-allowed opacity-40' : ''}"
       >
+        {#if item.icon}
+          <svg class="h-3.5 w-3.5 shrink-0 {item.danger ? 'text-danger' : 'text-surface-400'}" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d={item.icon} />
+          </svg>
+        {/if}
         {item.label}
       </button>
     {/if}

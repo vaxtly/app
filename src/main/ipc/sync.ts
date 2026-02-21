@@ -131,4 +131,37 @@ export function registerSyncHandlers(): void {
       return syncService.pushSingleRequest(collection, requestId, sanitize ?? false, workspaceId)
     },
   )
+
+  ipcMain.handle(
+    IPC.SYNC_PULL_COLLECTION,
+    async (_event, collectionId: string, workspaceId?: string): Promise<SyncResult> => {
+      const collection = collectionsRepo.findById(collectionId)
+      if (!collection) {
+        return { success: false, message: 'Collection not found', pulled: 0, pushed: 0 }
+      }
+
+      try {
+        const updated = await syncService.pullSingleCollection(collection, workspaceId)
+        return { success: true, message: updated ? 'Pulled successfully' : 'Already up to date', pulled: updated ? 1 : 0, pushed: 0 }
+      } catch (e) {
+        if (e instanceof syncService.SyncConflictError) {
+          logSync('pull', collection.name, 'Conflict detected — both sides changed', false)
+          return {
+            success: false,
+            message: 'Conflict detected',
+            pulled: 0,
+            pushed: 0,
+            conflicts: [{
+              collectionId: collection.id,
+              collectionName: collection.name,
+              localUpdatedAt: collection.updated_at,
+            }],
+          }
+        }
+        const msg = (e as Error).message
+        logSync('pull', collection.name, `Pull failed: ${msg}`, false)
+        return { success: false, message: msg, pulled: 0, pushed: 0 }
+      }
+    },
+  )
 }

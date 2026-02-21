@@ -136,6 +136,16 @@
     }
   }
 
+  async function pullCollection(): Promise<void> {
+    try {
+      const wsId = appStore.activeWorkspaceId ?? undefined
+      await window.api.sync.pullCollection(node.id, wsId)
+      await collectionsStore.reloadCollection(node.id)
+    } catch {
+      // Handled by sync service / session log
+    }
+  }
+
   async function pushCollection(): Promise<void> {
     try {
       // Scan for sensitive data first
@@ -176,16 +186,21 @@
   }
 
   let contextMenuItems = $derived([
-    { label: 'Add Request', action: addRequest },
-    { label: 'Add Folder', action: addFolder },
-    { label: 'Rename', action: startRename },
+    { label: 'Add Request', action: addRequest, icon: 'M12 4.5v15m7.5-7.5h-15' },
+    { label: 'Add Folder', action: addFolder, icon: 'M12 10.5v6m3-3H9m4.06-7.19l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z' },
+    { label: 'Rename', action: startRename, icon: 'm16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Z' },
     { label: '', action: () => {}, separator: true },
-    { label: 'Set Environments', action: () => { showEnvModal = true } },
-    { label: syncEnabled ? 'Disable Sync' : 'Enable Sync', action: toggleSync },
-    ...(syncEnabled ? [{ label: 'Push to Remote', action: pushCollection }] : []),
-    { label: 'Export', action: exportCollection },
+    { label: 'Set Environments', action: () => { showEnvModal = true }, icon: 'M4.745 3A23.933 23.933 0 003 12c0 3.183.62 6.22 1.745 9M19.255 3C20.38 5.78 21 8.817 21 12s-.62 6.22-1.745 9m-13.51 0A23.933 23.933 0 0012 21c2.478 0 4.852-.474 7.022-1.332M12 3a23.918 23.918 0 01-5.745 9A23.918 23.918 0 0112 21m0-18a23.918 23.918 0 005.745 9A23.918 23.918 0 0012 21M12 3v18M3 12h18' },
+    { label: syncEnabled ? 'Disable Sync' : 'Enable Sync', action: toggleSync, icon: 'M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182M21.015 4.356v4.992' },
+    ...(syncEnabled ? [
+      { label: '', action: () => {}, separator: true },
+      { label: 'Push to Remote', action: pushCollection, icon: 'M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5' },
+      { label: 'Pull from Remote', action: pullCollection, icon: 'M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12M12 16.5V3' },
+    ] : []),
     { label: '', action: () => {}, separator: true },
-    { label: 'Delete', action: handleDelete, danger: true },
+    { label: 'Export', action: exportCollection, icon: 'M7.217 10.907a2.25 2.25 0 1 0 0 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186 9.566-5.314m-9.566 7.5 9.566 5.314m0-12.814a2.25 2.25 0 1 0 3.935 2.186 2.25 2.25 0 0 0-3.935-2.186Zm0 12.814a2.25 2.25 0 1 0 3.933 2.185 2.25 2.25 0 0 0-3.933-2.185Z' },
+    { label: '', action: () => {}, separator: true },
+    { label: 'Delete', action: handleDelete, danger: true, icon: 'm14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0' },
   ])
 </script>
 
