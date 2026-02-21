@@ -172,23 +172,23 @@
 
   {#if expanded}
     <!-- Content -->
-    <div class="flex-1 overflow-auto font-mono text-[11px]" style="font-feature-settings: var(--font-feature-mono)">
+    <div class="sl-log-content flex-1 overflow-auto font-mono text-[11px]" style="font-feature-settings: var(--font-feature-mono)">
       {#if activeLogTab === 'logs'}
         {#if logs.length === 0}
           <div class="flex h-full items-center justify-center text-surface-600">No log entries</div>
         {:else}
           {#each logs as entry (entry.timestamp + entry.message)}
             <div
-              class="flex items-center gap-2 h-7 px-3 transition-colors duration-100 hover:bg-[var(--tint-faint)]"
+              class="sl-log-row flex items-center gap-2 h-7 px-3 whitespace-nowrap transition-colors duration-100 hover:bg-[var(--tint-faint)]"
               style="border-bottom: 1px solid var(--border-muted)"
             >
               <span class="shrink-0 w-18 text-surface-600" style="font-variant-numeric: tabular-nums">{formatTime(entry.timestamp)}</span>
               <span class="sl-badge" style="--cat-color: {getCategoryColor(entry.category)}">{getCategoryLabel(entry.category)}</span>
               <span class="shrink-0 w-16 text-surface-500">{entry.type}</span>
               {#if entry.target}
-                <span class="shrink-0 max-w-40 truncate text-surface-200">{entry.target}</span>
+                <span class="shrink-0 text-surface-200">{entry.target}</span>
               {/if}
-              <span class="flex-1 min-w-0 overflow-hidden text-ellipsis whitespace-nowrap {entry.success ? 'text-surface-300' : 'text-danger'}">
+              <span class="shrink-0 {entry.success ? 'text-surface-300' : 'text-danger'}">
                 {#each formatLogMessage(entry.message) as seg, i (i)}
                   {#if seg.type === 'code'}
                     <span class="px-1 py-px rounded-xs bg-surface-700/50 text-brand-400 text-[10px]">{seg.text}</span>
@@ -288,6 +288,36 @@
 
   .sl-tab-chevron--open {
     transform: rotate(180deg);
+  }
+
+  /* Log content — thin scrollbar for both axes */
+  .sl-log-content {
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in srgb, var(--color-surface-500) 30%, transparent) transparent;
+  }
+
+  .sl-log-content::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+
+  .sl-log-content::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .sl-log-content::-webkit-scrollbar-thumb {
+    background: color-mix(in srgb, var(--color-surface-500) 30%, transparent);
+    border-radius: 4px;
+  }
+
+  .sl-log-content::-webkit-scrollbar-thumb:hover {
+    background: color-mix(in srgb, var(--color-surface-500) 50%, transparent);
+  }
+
+  /* Rows extend full width for horizontal scroll */
+  .sl-log-row {
+    min-width: max-content;
+    padding-right: 1rem;
   }
 
   /* Badge with dynamic --cat-color CSS variable */

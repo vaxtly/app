@@ -214,14 +214,14 @@ export function registerProxyHandlers(): void {
         }
       }
 
-      logHttp('request', config.url, `${method} ${response.status} ${response.statusText} (${Math.round(total)}ms)`)
+      logHttp('request', resolvedUrl, `${method} ${response.status} ${response.statusText} (${Math.round(total)}ms)`)
 
       return result
     } catch (error) {
       clearTimeout(timeoutId)
       const total = performance.now() - startTime
       const errorMessage = formatFetchError(error, resolvedUrl)
-      logHttp('request', config.url, `${method} failed: ${errorMessage}`, false)
+      logHttp('request', resolvedUrl, `${method} failed: ${errorMessage}`, false)
       return {
         status: 0,
         statusText: errorMessage,
