@@ -112,16 +112,17 @@
 
     {#if isError}
       <!-- Error display -->
-      <div class="flex flex-1 items-center justify-center p-6">
-        <div class="max-w-md text-center">
-          <div class="inline-flex items-center justify-center w-10 h-10 rounded-2xl bg-[color-mix(in_srgb,var(--color-danger-light)_10%,transparent)] mb-4">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--color-danger-light)" stroke-width="1.5">
-              <circle cx="12" cy="12" r="10" />
-              <line x1="12" y1="8" x2="12" y2="12" />
-              <line x1="12" y1="16" x2="12.01" y2="16" />
+      <div class="flex flex-1 items-center justify-center p-8">
+        <div class="rv-error-card max-w-lg text-center px-8 py-7 rounded-2xl">
+          <div class="inline-flex items-center justify-center w-14 h-14 rounded-2xl mb-5" style="background: color-mix(in srgb, var(--color-danger-light) 8%, transparent)">
+            <svg width="30" height="30" viewBox="0 0 24 24" fill="none">
+              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z" fill="color-mix(in srgb, var(--color-danger-light) 10%, transparent)" stroke="var(--color-danger-light)" stroke-width="1.2" />
+              <path d="M12 8v5" stroke="var(--color-danger-light)" stroke-width="1.8" stroke-linecap="round" />
+              <circle cx="12" cy="16" r="0.8" fill="var(--color-danger-light)" />
             </svg>
           </div>
-          <p class="text-sm text-surface-200 leading-relaxed font-medium">{errorMessage}</p>
+          <p class="text-[15px] text-surface-200 leading-relaxed font-medium mb-2">Request failed</p>
+          <p class="text-[13px] text-surface-400 leading-relaxed">{errorMessage}</p>
         </div>
       </div>
     {:else}
@@ -208,6 +209,12 @@
   @keyframes rv-bounce {
     0%, 80%, 100% { opacity: 0.3; transform: scale(0.8); }
     40% { opacity: 1; transform: scale(1.1); }
+  }
+
+  /* --- Error card --- */
+  .rv-error-card {
+    background: color-mix(in srgb, var(--color-danger-light) 3%, transparent);
+    border: 1px solid color-mix(in srgb, var(--color-danger-light) 8%, transparent);
   }
 
   /* --- Status LED glow cascade --- */
