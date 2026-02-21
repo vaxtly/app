@@ -355,7 +355,7 @@
       <!-- Request section -->
       <div class="flex flex-col min-w-0 min-h-0 overflow-hidden" style="flex: {splitPercent} 0 0%;">
         <!-- Sub-tabs -->
-        <div class="flex items-stretch shrink-0 h-9 border-b border-surface-700 px-1 gap-px">
+        <div class="flex items-stretch shrink-0 h-9 border-b border-white/[0.12] px-1 gap-px">
           {#each requestTabs as tab (tab.key)}
             {@const count = tab.key === 'params' ? paramCount : tab.key === 'headers' ? headerCount : 0}
             {@const isActive = activeRequestTab === tab.key}
@@ -465,7 +465,7 @@
   .rb-divider {
     flex-shrink: 0;
     width: 1px;
-    background: var(--color-surface-700);
+    background: color-mix(in srgb, var(--color-surface-600) 60%, transparent);
     cursor: col-resize;
     position: relative;
     transition: background 0.12s, width 0.12s;

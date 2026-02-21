@@ -68,7 +68,7 @@
 
   {:else if response}
     <!-- Status bar -->
-    <div class="rv-status--{statusClass} flex items-center justify-between shrink-0 px-3 py-1.5 border-b border-surface-700 gap-3">
+    <div class="rv-status--{statusClass} flex items-center justify-between shrink-0 px-3 py-1.5 border-b border-white/[0.12] gap-3">
       <div class="flex items-center gap-2 min-w-0">
         <span class="rv-status-led w-1.5 h-1.5 rounded-full shrink-0"></span>
         <span
@@ -98,7 +98,7 @@
     </div>
 
     <!-- Response tabs -->
-    <div class="flex items-stretch shrink-0 h-9 border-b border-surface-700 px-1 gap-px">
+    <div class="flex items-stretch shrink-0 h-9 border-b border-white/[0.12] px-1 gap-px">
       <button
         class="rv-tab flex items-center gap-[5px] px-2.5 border-none bg-transparent text-surface-400 text-xs font-medium cursor-pointer relative whitespace-nowrap transition-colors duration-[120ms] hover:text-surface-200 hover:bg-surface-700/30"
         class:rv-tab--active={activeTab === 'body'}

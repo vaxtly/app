@@ -556,7 +556,7 @@
     max-width: 64rem;
     max-height: 90vh;
     border-radius: 0.5rem;
-    border: 1px solid var(--color-surface-700);
+    border: 1px solid var(--border-subtle);
     background-color: var(--color-surface-900);
     box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.5);
   }
@@ -567,7 +567,7 @@
     justify-content: space-between;
     flex-shrink: 0;
     padding: 0.75rem 1rem;
-    border-bottom: 1px solid var(--color-surface-700);
+    border-bottom: 1px solid var(--border-default);
   }
 
   .modal-body {
@@ -581,14 +581,14 @@
     flex-direction: column;
     width: 14rem;
     flex-shrink: 0;
-    border-right: 1px solid var(--color-surface-700);
+    border-right: 1px solid var(--border-default);
     background-color: var(--color-surface-850);
   }
 
   .search-wrapper {
     position: relative;
     padding: 0.75rem;
-    border-bottom: 1px solid var(--color-surface-700);
+    border-bottom: 1px solid var(--border-default);
   }
 
   .search-icon {
@@ -801,7 +801,7 @@
   .shortcuts-table {
     margin-top: 0.75rem;
     border-radius: 0.375rem;
-    border: 1px solid var(--color-surface-700);
+    border: 1px solid var(--border-subtle);
     overflow: hidden;
   }
 

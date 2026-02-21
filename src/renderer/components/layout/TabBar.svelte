@@ -49,7 +49,7 @@
   }
 </script>
 
-<div class="flex h-9 shrink-0 items-end border-b border-surface-700 bg-surface-900/50 px-1">
+<div class="flex h-9 shrink-0 items-end border-b border-white/[0.12] bg-surface-900/50 px-1">
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div class="tab-scroll flex flex-1 items-end min-w-0 overflow-x-auto" bind:this={scrollEl} onwheel={handleWheel}>
   {#each appStore.openTabs as tab (tab.id)}

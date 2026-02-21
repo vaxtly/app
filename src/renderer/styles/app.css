@@ -64,11 +64,11 @@
   --font-feature-mono: "kern" 1, "liga" 0, "tnum" 1, "zero" 1;
 
   /* Border tokens (reference other vars) */
-  --border-default: var(--color-surface-700);
-  --border-subtle: color-mix(in srgb, var(--color-surface-700) 50%, transparent);
-  --border-muted: color-mix(in srgb, var(--color-surface-700) 30%, transparent);
+  --border-default: color-mix(in srgb, var(--color-surface-600) 65%, transparent);
+  --border-subtle: color-mix(in srgb, var(--color-surface-600) 50%, transparent);
+  --border-muted: color-mix(in srgb, var(--color-surface-600) 35%, transparent);
   --border-focus: var(--color-brand-500);
-  --border-dropdown: var(--color-surface-700);
+  --border-dropdown: color-mix(in srgb, var(--color-surface-600) 65%, transparent);
 }
 
 /* ── Light theme overrides ──────────────────────────────────────────── */
@@ -129,7 +129,7 @@ html.light {
   --color-banner-error: #dc2626;
 
   --shadow-dropdown: 0 12px 36px rgba(0, 0, 0, 0.16), 0 4px 16px rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(0, 0, 0, 0.08);
-  --border-dropdown: var(--color-surface-700);
+  --border-dropdown: color-mix(in srgb, var(--color-surface-700) 60%, transparent);
 
   /* Light theme shadow/border overrides */
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.06);
@@ -292,7 +292,7 @@ html.light {
 
 .cm-editor .cm-gutters {
   background: var(--color-surface-900) !important;
-  border-right-color: var(--color-surface-700) !important;
+  border-right-color: color-mix(in srgb, var(--color-surface-600) 60%, transparent) !important;
 }
 
 .cm-editor .cm-activeLineGutter,

@@ -341,7 +341,7 @@
     align-items: center;
     justify-content: space-between;
     padding: 10px 0;
-    border-bottom: 1px solid var(--color-surface-700);
+    border-bottom: 1px solid var(--border-default);
   }
   .setting-row.last {
     border-bottom: none;
@@ -373,7 +373,7 @@
     width: 42px;
     height: 32px;
     border-radius: 6px;
-    border: 1px solid var(--color-surface-700);
+    border: 1px solid var(--border-subtle);
     background: transparent;
     color: var(--color-surface-500);
     cursor: pointer;
@@ -405,7 +405,7 @@
     width: 42px;
     height: 32px;
     border-radius: 6px;
-    border: 1px solid var(--color-surface-700);
+    border: 1px solid var(--border-subtle);
     background: transparent;
     color: var(--color-surface-500);
     cursor: pointer;
@@ -436,7 +436,7 @@
     height: 28px;
     padding: 0 8px;
     border-radius: 6px;
-    border: 1px solid var(--color-surface-700);
+    border: 1px solid var(--border-subtle);
     background: var(--color-surface-800);
     color: var(--color-surface-100);
     font-size: 12px;
@@ -461,7 +461,7 @@
     height: 28px;
     padding: 0 8px;
     border-radius: 6px;
-    border: 1px solid var(--color-surface-700);
+    border: 1px solid var(--border-subtle);
     background: var(--color-surface-800);
     color: var(--color-surface-100);
     font-size: 12px;
@@ -486,7 +486,7 @@
     gap: 12px;
     padding: 12px;
     border-radius: 8px;
-    border: 1px solid var(--color-surface-700);
+    border: 1px solid var(--border-subtle);
     background: color-mix(in srgb, var(--color-surface-800) 30%, transparent);
   }
   .about-icon {

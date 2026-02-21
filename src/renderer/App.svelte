@@ -455,7 +455,7 @@
   .sidebar-divider {
     flex-shrink: 0;
     width: 1px;
-    background: var(--color-surface-700);
+    background: color-mix(in srgb, var(--color-surface-600) 60%, transparent);
     cursor: col-resize;
     position: relative;
     transition: background 0.12s, width 0.12s;

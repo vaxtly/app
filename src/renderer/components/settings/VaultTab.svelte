@@ -433,7 +433,7 @@
     align-items: center;
     justify-content: space-between;
     padding: 10px 0;
-    border-bottom: 1px solid var(--color-surface-700);
+    border-bottom: 1px solid var(--border-default);
   }
   .setting-row.last { border-bottom: none; }
   .setting-info {
@@ -457,7 +457,7 @@
     gap: 0;
     border-radius: 6px;
     overflow: hidden;
-    border: 1px solid var(--color-surface-700);
+    border: 1px solid var(--border-subtle);
   }
   .auth-option {
     padding: 5px 12px;
@@ -470,7 +470,7 @@
     transition: all 0.12s ease;
   }
   .auth-option:first-child {
-    border-right: 1px solid var(--color-surface-700);
+    border-right: 1px solid var(--border-default);
   }
   .auth-option:hover {
     color: var(--color-surface-300);
@@ -507,7 +507,7 @@
     width: 100%;
     padding: 0 10px;
     border-radius: 6px;
-    border: 1px solid var(--color-surface-700);
+    border: 1px solid var(--border-subtle);
     background: var(--color-surface-800);
     color: var(--color-surface-100);
     font-size: 12px;

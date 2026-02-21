@@ -525,7 +525,7 @@
     align-items: center;
     justify-content: space-between;
     padding: 10px 0;
-    border-bottom: 1px solid var(--color-surface-700);
+    border-bottom: 1px solid var(--border-default);
   }
   .setting-row.last { border-bottom: none; }
   .setting-info {
@@ -554,7 +554,7 @@
     gap: 5px;
     padding: 5px 10px;
     border-radius: 6px;
-    border: 1px solid var(--color-surface-700);
+    border: 1px solid var(--border-subtle);
     background: transparent;
     color: var(--color-surface-400);
     font-size: 11px;
@@ -592,7 +592,7 @@
     width: 100%;
     padding: 0 10px;
     border-radius: 6px;
-    border: 1px solid var(--color-surface-700);
+    border: 1px solid var(--border-subtle);
     background: var(--color-surface-800);
     color: var(--color-surface-100);
     font-size: 12px;
@@ -677,7 +677,7 @@
   .help-card {
     padding: 10px 12px;
     border-radius: 8px;
-    border: 1px solid var(--color-surface-700);
+    border: 1px solid var(--border-subtle);
     background: color-mix(in srgb, var(--color-surface-800) 30%, transparent);
   }
   .help-title {

@@ -55,7 +55,7 @@
   </div>
 
   <!-- Header with mode tabs -->
-  <div class="flex shrink-0 flex-col border-b border-surface-700">
+  <div class="flex shrink-0 flex-col border-b border-white/[0.12]">
     <div class="flex items-center gap-0.5 px-2 py-1">
       <button
         onclick={() => appStore.setSidebarMode('collections')}

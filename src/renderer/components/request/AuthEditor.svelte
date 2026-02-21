@@ -118,7 +118,7 @@
     gap: 2px;
     flex-shrink: 0;
     padding: 6px 10px;
-    border-bottom: 1px solid var(--color-surface-700);
+    border-bottom: 1px solid var(--border-default);
   }
 
   .ae-type {

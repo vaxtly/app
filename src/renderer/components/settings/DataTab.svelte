@@ -460,7 +460,7 @@
     gap: 2px;
     padding: 8px 10px;
     border-radius: 6px;
-    border: 1px solid var(--color-surface-700);
+    border: 1px solid var(--border-subtle);
     background: transparent;
     text-align: left;
     cursor: pointer;
