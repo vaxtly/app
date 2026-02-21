@@ -104,21 +104,21 @@
   }
 </script>
 
-<div class="url-bar">
-  <div class="url-bar-inner">
+<div class="flex items-center gap-2 px-3 py-2.5">
+  <div class="url-bar-inner flex-1 min-w-0 flex items-center bg-surface-800 border border-surface-600 rounded-xl overflow-hidden transition-[border-color] duration-150" style:--method-color={getMethodColor(method)}>
     <!-- Method selector -->
-    <div class="method-wrap">
+    <div class="relative flex items-center shrink-0 border-r border-surface-600">
       <button
         bind:this={triggerEl}
         onclick={openMethodDropdown}
         onkeydown={handleTriggerKeydown}
-        class="method-trigger"
+        class="method-trigger flex items-center justify-center gap-1 px-3 h-[38px] w-[90px] border-none cursor-pointer outline-none transition-[background] duration-150"
         style:color={getMethodColor(method)}
         aria-haspopup="listbox"
         aria-expanded={methodOpen}
       >
-        <span class="method-text">{method}</span>
-        <svg class="method-chevron" class:method-chevron--open={methodOpen} width="10" height="10" viewBox="0 0 20 20" fill="currentColor">
+        <span class="font-mono text-xs font-bold tracking-[0.02em]" style="font-feature-settings: var(--font-feature-mono)">{method}</span>
+        <svg class="shrink-0 opacity-50 transition-[transform,opacity] duration-150" class:rotate-180={methodOpen} width="10" height="10" viewBox="0 0 20 20" fill="currentColor">
           <path d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" />
         </svg>
       </button>
@@ -129,7 +129,7 @@
     <VarInput
       bind:this={varInput}
       value={url}
-      oninput={(e) => onurlchange((e.target as HTMLInputElement).value)}
+      oninput={(value) => onurlchange(value)}
       onkeydown={handleKeydown}
       placeholder="Enter request URL..."
       class="url-input"
@@ -137,21 +137,21 @@
 
     <!-- Send / Cancel -->
     {#if loading}
-      <button onclick={oncancel} class="btn-cancel">
-        <div class="cancel-ring">
+      <button onclick={oncancel} class="btn-cancel flex items-center gap-[7px] pl-3.5 pr-4 h-[38px] border-none cursor-pointer whitespace-nowrap shrink-0 transition-all duration-200 ease-in-out">
+        <div class="cancel-ring shrink-0 w-4 h-4">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
             <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2" stroke-dasharray="56.5" stroke-linecap="round" class="ring-track"/>
           </svg>
         </div>
-        <span class="btn-label">Stop</span>
+        <span class="font-mono text-[11px] font-bold tracking-[0.06em] uppercase" style="font-feature-settings: var(--font-feature-mono)">Stop</span>
       </button>
     {:else}
-      <button onclick={onsend} disabled={!url.trim()} class="btn-send">
-        <svg class="send-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <button onclick={onsend} disabled={!url.trim()} class="btn-send flex items-center gap-[7px] pl-3.5 pr-4 h-[38px] border-none cursor-pointer whitespace-nowrap shrink-0 transition-all duration-200 ease-in-out disabled:opacity-25 disabled:cursor-not-allowed">
+        <svg class="send-arrow shrink-0" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <line x1="5" y1="12" x2="19" y2="12"/>
           <polyline points="12 5 19 12 12 19"/>
         </svg>
-        <span class="btn-label">Send</span>
+        <span class="font-mono text-[11px] font-bold tracking-[0.06em] uppercase" style="font-feature-settings: var(--font-feature-mono)">Send</span>
       </button>
     {/if}
   </div>
@@ -160,7 +160,7 @@
   <button
     onclick={handleSave}
     disabled={!unsaved && !saveFeedback}
-    class="btn-save"
+    class="btn-save flex items-center justify-center w-[38px] h-[38px] border border-surface-600 rounded-xl bg-surface-800 text-surface-500 cursor-default shrink-0 transition-[color,background,border-color,box-shadow] duration-200 disabled:opacity-50 disabled:cursor-default"
     class:btn-save--active={unsaved}
     class:btn-save--saved={!!saveFeedback}
     title="Save (Cmd+S)"
@@ -183,27 +183,27 @@
 {#if methodOpen}
   <div
     bind:this={dropdownEl}
-    class="method-dropdown"
-    style="top: {dropdownPos.top}px; left: {dropdownPos.left}px"
+    class="fixed z-100 min-w-[120px] p-1 bg-surface-800 border border-surface-600 rounded-lg animate-[dropdown-in_0.12s_ease-out]"
+    style="top: {dropdownPos.top}px; left: {dropdownPos.left}px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3), 0 2px 8px rgba(0, 0, 0, 0.15)"
     role="listbox"
     tabindex="-1"
     aria-label="HTTP Method"
     onkeydown={handleDropdownKeydown}
   >
-    {#each HTTP_METHODS as m}
+    {#each HTTP_METHODS as m (m)}
       <button
         role="option"
         aria-selected={m === method}
         data-selected={m === method ? '' : undefined}
-        class="method-item"
+        class="method-item flex items-center gap-2 w-full py-1.5 px-2.5 border-none rounded-md bg-transparent cursor-pointer outline-none transition-[background] duration-100 hover:bg-surface-700 focus-visible:bg-surface-700"
         class:method-item--active={m === method}
         onclick={() => selectMethod(m)}
         tabindex={-1}
       >
-        <span class="method-item-led" style="background: var(--color-method-{m.toLowerCase()})"></span>
-        <span class="method-item-label" style:color={getMethodColor(m)}>{m}</span>
+        <span class="w-1.5 h-1.5 rounded-full shrink-0" style="background: var(--color-method-{m.toLowerCase()})"></span>
+        <span class="font-mono text-xs font-bold tracking-[0.02em] flex-1 text-left" style:color={getMethodColor(m)} style="font-feature-settings: var(--font-feature-mono)">{m}</span>
         {#if m === method}
-          <svg class="method-item-check" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <svg class="shrink-0 text-brand-400" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
             <path d="M5 13l4 4L19 7" />
           </svg>
         {/if}
@@ -213,81 +213,26 @@
 {/if}
 
 <style>
-  .url-bar {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 10px 12px;
-  }
-
-  .url-bar-inner {
-    flex: 1;
-    min-width: 0;
-    display: flex;
-    align-items: center;
-    gap: 0;
-    background: var(--color-surface-800);
-    border: 1px solid var(--color-surface-600);
-    border-radius: var(--radius-xl);
-    overflow: hidden;
-    transition: border-color 0.15s;
-  }
-
+  /* --- Focus ring glow (method-colored) --- */
   .url-bar-inner:focus-within {
-    border-color: var(--color-brand-500);
-    box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-brand-500) 20%, transparent);
+    border-color: var(--method-color);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--method-color) 20%, transparent);
   }
 
-  /* --- Method trigger button --- */
-  .method-wrap {
-    position: relative;
-    display: flex;
-    align-items: center;
-    flex-shrink: 0;
-    border-right: 1px solid var(--color-surface-600);
-  }
-
+  /* --- Method trigger (color-mix backgrounds) --- */
   .method-trigger {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 4px;
-    padding: 0 12px;
-    height: 38px;
-    width: 90px;
-    border: none;
     background: color-mix(in srgb, var(--color-surface-900) 50%, transparent);
-    cursor: pointer;
-    outline: none;
-    transition: background 0.15s;
   }
 
   .method-trigger:hover {
     background: color-mix(in srgb, var(--color-surface-700) 50%, transparent);
   }
 
-  .method-text {
-    font-size: 12px;
-    font-weight: 700;
-    font-family: var(--font-mono);
-    font-feature-settings: var(--font-feature-mono);
-    letter-spacing: 0.02em;
-  }
-
-  .method-chevron {
-    flex-shrink: 0;
-    opacity: 0.5;
-    transition: transform 0.15s, opacity 0.15s;
-  }
-
-  .method-chevron--open {
-    transform: rotate(180deg);
-  }
-
-  .method-trigger:hover .method-chevron {
+  .method-trigger:hover svg {
     opacity: 0.8;
   }
 
+  /* --- Method LED glow cascade --- */
   .method-led {
     position: absolute;
     right: 10px;
@@ -307,80 +252,17 @@
   .method-led.HEAD { background: var(--color-method-head); box-shadow: 0 0 6px color-mix(in srgb, var(--color-method-head) 40%, transparent); }
   .method-led.OPTIONS { background: var(--color-method-options); box-shadow: none; }
 
-  /* --- Method dropdown --- */
-  .method-dropdown {
-    position: fixed;
-    z-index: 100;
-    min-width: 120px;
-    padding: 4px;
-    background: var(--color-surface-800);
-    border: 1px solid var(--color-surface-600);
-    border-radius: var(--radius-lg);
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3), 0 2px 8px rgba(0, 0, 0, 0.15);
-    animation: dropdown-in 0.12s ease-out;
-  }
-
-  @keyframes dropdown-in {
-    from {
-      opacity: 0;
-      transform: translateY(-4px) scale(0.97);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0) scale(1);
-    }
-  }
-
-  .method-item {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    width: 100%;
-    padding: 6px 10px;
-    border: none;
-    border-radius: var(--radius-md);
-    background: transparent;
-    cursor: pointer;
-    outline: none;
-    transition: background 0.1s;
-  }
-
-  .method-item:hover,
-  .method-item:focus-visible {
-    background: var(--color-surface-700);
-  }
-
+  /* --- Method dropdown active item --- */
   .method-item--active {
     background: color-mix(in srgb, var(--color-surface-700) 50%, transparent);
   }
 
-  .method-item-led {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    flex-shrink: 0;
-  }
-
-  .method-item-label {
-    font-size: 12px;
-    font-weight: 700;
-    font-family: var(--font-mono);
-    font-feature-settings: var(--font-feature-mono);
-    letter-spacing: 0.02em;
-    flex: 1;
-    text-align: left;
-  }
-
-  .method-item-check {
-    flex-shrink: 0;
-    color: var(--color-brand-400);
-  }
-
-  /* --- URL input --- */
+  /* --- URL input (targets VarInput internals) --- */
   :global(.url-input) {
     position: relative;
     width: 100%;
     height: 38px;
+    line-height: 38px;
     padding: 0 12px;
     border: none;
     background: transparent;
@@ -391,32 +273,7 @@
     outline: none;
   }
 
-  :global(.url-input::placeholder) {
-    color: var(--color-surface-500);
-    font-family: inherit;
-  }
-
-  /* --- Save button --- */
-  .btn-save {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 38px;
-    height: 38px;
-    border: 1px solid var(--color-surface-600);
-    border-radius: var(--radius-xl);
-    background: var(--color-surface-800);
-    color: var(--color-surface-500);
-    cursor: default;
-    flex-shrink: 0;
-    transition: color 0.2s, background 0.2s, border-color 0.2s, box-shadow 0.2s;
-  }
-
-  .btn-save:disabled {
-    opacity: 0.5;
-    cursor: default;
-  }
-
+  /* --- Save button state cascade (color-mix combinations) --- */
   .btn-save--active {
     color: var(--color-success);
     border-color: color-mix(in srgb, var(--color-success) 30%, var(--color-surface-600));
@@ -437,52 +294,24 @@
     cursor: default;
   }
 
-  /* --- Send / Cancel buttons --- */
-  .btn-send, .btn-cancel {
-    display: flex;
-    align-items: center;
-    gap: 7px;
-    padding: 0 16px 0 14px;
-    height: 38px;
-    border: none;
-    cursor: pointer;
-    white-space: nowrap;
-    flex-shrink: 0;
-    transition: all 0.2s ease;
-  }
-
-  .btn-label {
-    font-size: 11px;
-    font-weight: 700;
-    font-family: var(--font-mono);
-    font-feature-settings: var(--font-feature-mono);
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-  }
-
-  /* --- Send --- */
+  /* --- Send button (method-colored) --- */
   .btn-send {
-    background: color-mix(in srgb, var(--color-brand-600) 10%, transparent);
-    color: var(--color-brand-400);
-    border-left: 1px solid color-mix(in srgb, var(--color-brand-500) 20%, var(--color-surface-600));
+    background: color-mix(in srgb, var(--method-color) 10%, transparent);
+    color: var(--method-color);
+    border-left: 1px solid color-mix(in srgb, var(--method-color) 20%, var(--color-surface-600));
   }
 
   .btn-send:hover:not(:disabled) {
-    background: color-mix(in srgb, var(--color-brand-600) 20%, transparent);
-    color: var(--color-brand-300);
+    background: color-mix(in srgb, var(--method-color) 20%, transparent);
+    color: var(--method-color);
+    filter: brightness(1.15);
   }
 
   .btn-send:active:not(:disabled) {
-    background: color-mix(in srgb, var(--color-brand-600) 28%, transparent);
-  }
-
-  .btn-send:disabled {
-    opacity: 0.25;
-    cursor: not-allowed;
+    background: color-mix(in srgb, var(--method-color) 28%, transparent);
   }
 
   .send-arrow {
-    flex-shrink: 0;
     transition: transform 0.2s ease;
   }
 
@@ -490,7 +319,7 @@
     transform: translateX(2px);
   }
 
-  /* --- Cancel --- */
+  /* --- Cancel button (color-mix border & backgrounds) --- */
   .btn-cancel {
     background: color-mix(in srgb, var(--color-danger) 10%, transparent);
     color: var(--color-danger-light);
@@ -502,20 +331,14 @@
     color: var(--color-danger-lighter);
   }
 
+  /* --- Cancel ring animation --- */
   .cancel-ring {
-    width: 16px;
-    height: 16px;
-    flex-shrink: 0;
-    animation: ring-spin 1s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+    animation: spin-360 1s cubic-bezier(0.4, 0, 0.2, 1) infinite;
   }
 
   .ring-track {
     stroke-dashoffset: 14;
     animation: ring-chase 1.2s ease-in-out infinite;
-  }
-
-  @keyframes ring-spin {
-    to { transform: rotate(360deg); }
   }
 
   @keyframes ring-chase {

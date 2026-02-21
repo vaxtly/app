@@ -140,24 +140,30 @@
   }
 </script>
 
-<div class="be-root">
+<div class="flex flex-col h-full">
   <!-- Type selector -->
-  <div class="be-types">
+  <div class="flex items-center gap-0.5 shrink-0 px-2.5 py-1.5 border-b border-surface-700">
     {#each BODY_TYPES as type}
       <button
         onclick={() => onbodytypechange(type)}
-        class="be-type"
-        class:be-type--active={bodyType === type}
+        class="px-2 py-1 border-none rounded bg-transparent text-[11px] cursor-pointer transition-[color,background] duration-[0.12s]
+          {bodyType === type
+            ? 'text-brand-400 bg-brand-500/[0.12] font-medium hover:bg-brand-500/[0.15]'
+            : 'text-surface-400 hover:text-surface-200 hover:bg-surface-700/40'}"
       >
         {typeLabels[type]}
       </button>
     {/each}
 
     {#if bodyType === 'json' || bodyType === 'xml'}
-      <span class="be-types-spacer"></span>
-      <button onclick={bodyType === 'json' ? formatJson : formatXml} class="be-format" title="Pretty print">
+      <span class="flex-1"></span>
+      <button
+        onclick={bodyType === 'json' ? formatJson : formatXml}
+        class="flex items-center gap-1 px-2 py-1 border-none rounded bg-transparent text-surface-400 text-[11px] cursor-pointer transition-[color,background] duration-[0.12s] whitespace-nowrap hover:text-surface-200 hover:bg-surface-700/40"
+        title="Pretty print"
+      >
         {#if formatFeedback}
-          <span class="be-format-feedback" class:be-format-feedback--err={formatFeedback !== 'Formatted'}>
+          <span class="text-[11px] {formatFeedback !== 'Formatted' ? 'text-status-client-error' : 'text-success'}">
             {formatFeedback}
           </span>
         {:else}
@@ -171,69 +177,69 @@
   </div>
 
   <!-- Body content -->
-  <div class="be-content">
+  <div class="flex-1 overflow-auto">
     {#if bodyType === 'none'}
-      <div class="be-empty">
-        <p>This request does not have a body.</p>
+      <div class="flex h-full items-center justify-center">
+        <p class="text-xs text-surface-500">This request does not have a body.</p>
       </div>
     {:else if bodyType === 'json'}
-      <div class="be-editor">
+      <div class="h-full p-2">
         <CodeEditor value={body} language="json" placeholder={'{"key": "value"}'} onchange={onbodychange} enableVariableHighlight={!!getResolvedVars} getResolvedVariables={getResolvedVars} />
       </div>
     {:else if bodyType === 'xml'}
-      <div class="be-editor">
+      <div class="h-full p-2">
         <CodeEditor value={body} language="xml" placeholder="<root></root>" onchange={onbodychange} enableVariableHighlight={!!getResolvedVars} getResolvedVariables={getResolvedVars} />
       </div>
     {:else if bodyType === 'raw'}
-      <div class="be-editor">
+      <div class="h-full p-2">
         <CodeEditor value={body} language="text" placeholder="Raw body..." onchange={onbodychange} enableVariableHighlight={!!getResolvedVars} getResolvedVariables={getResolvedVars} />
       </div>
     {:else if bodyType === 'graphql'}
-      <div class="be-graphql">
-        <div class="be-graphql-query">
-          <div class="be-section-label">Query</div>
-          <div class="be-graphql-editor">
+      <div class="flex flex-col h-full">
+        <div class="flex-1 flex flex-col border-b border-surface-700 p-2">
+          <div class="text-[10px] font-medium uppercase tracking-[0.06em] text-surface-500 mb-1 shrink-0">Query</div>
+          <div class="flex-1 min-h-0">
             <CodeEditor value={body} language="text" placeholder={"query { ... }"} onchange={onbodychange} enableVariableHighlight={!!getResolvedVars} getResolvedVariables={getResolvedVars} />
           </div>
         </div>
-        <div class="be-graphql-vars">
-          <div class="be-section-label">Variables</div>
-          <div class="be-graphql-editor">
+        <div class="h-32 flex flex-col p-2">
+          <div class="text-[10px] font-medium uppercase tracking-[0.06em] text-surface-500 mb-1 shrink-0">Variables</div>
+          <div class="flex-1 min-h-0">
             <CodeEditor value={graphqlVariables} language="json" placeholder={'{"key": "value"}'} onchange={ongraphqlvarschange ?? (() => {})} />
           </div>
         </div>
       </div>
     {:else if bodyType === 'urlencoded'}
-      <div class="be-kv">
+      <div class="p-3">
         <KeyValueEditor entries={urlencodedEntries} onchange={handleUrlencodedChange} />
       </div>
     {:else if bodyType === 'form-data'}
-      <div class="be-formdata">
+      <div class="flex flex-col">
         <!-- Header -->
-        <div class="fd-header">
-          <span class="fd-col fd-col--check"></span>
-          <span class="fd-col fd-col--key">Key</span>
-          <span class="fd-col fd-col--type">Type</span>
-          <span class="fd-col fd-col--value">Value</span>
-          <span class="fd-col fd-col--actions"></span>
+        <div class="flex items-center h-7 px-0.5 border-b border-surface-700 gap-px">
+          <span class="w-9 shrink-0 text-[10px] font-semibold uppercase tracking-[0.06em] text-surface-500 font-mono" style="font-feature-settings: var(--font-feature-mono)"></span>
+          <span class="flex-1 min-w-0 px-2 text-[10px] font-semibold uppercase tracking-[0.06em] text-surface-500 font-mono" style="font-feature-settings: var(--font-feature-mono)">Key</span>
+          <span class="w-9 shrink-0 px-2 text-center text-[10px] font-semibold uppercase tracking-[0.06em] text-surface-500 font-mono" style="font-feature-settings: var(--font-feature-mono)">Type</span>
+          <span class="flex-1 min-w-0 px-2 text-[10px] font-semibold uppercase tracking-[0.06em] text-surface-500 font-mono" style="font-feature-settings: var(--font-feature-mono)">Value</span>
+          <span class="w-[30px] shrink-0 text-[10px] font-semibold uppercase tracking-[0.06em] text-surface-500 font-mono" style="font-feature-settings: var(--font-feature-mono)"></span>
         </div>
 
         {#each formData as entry, i}
-          <div class="fd-row" class:fd-row--disabled={!entry.enabled}>
-            <span class="fd-cell fd-cell--check">
+          <div class="group flex items-center gap-px px-0.5 border-b border-surface-700/50 transition-[background] duration-100 hover:bg-surface-700/20" class:fd-row--disabled={!entry.enabled}>
+            <span class="flex items-center w-9 shrink-0 justify-center">
               <Checkbox checked={entry.enabled} onchange={(v) => updateFormEntry(i, 'enabled', v)} />
             </span>
-            <span class="fd-cell fd-cell--key">
+            <span class="fd-cell--key flex items-center flex-1 min-w-0">
               <VarInput
                 value={entry.key}
-                oninput={(e) => updateFormEntry(i, 'key', (e.target as HTMLInputElement).value)}
+                oninput={(value) => updateFormEntry(i, 'key', value)}
                 placeholder="Key"
                 class="fd-input"
               />
             </span>
-            <span class="fd-cell fd-cell--type">
+            <span class="flex items-center w-9 shrink-0 justify-center">
               <button
-                class="fd-type-btn"
+                class="flex items-center justify-center w-6 h-6 border-none rounded bg-transparent text-surface-500 cursor-pointer transition-[color,background] duration-[0.12s] hover:text-surface-200 hover:bg-surface-700/40"
                 title={entry.type === 'text' ? 'Switch to file' : 'Switch to text'}
                 onclick={() => updateFormEntry(i, 'type', entry.type === 'text' ? 'file' : 'text')}
               >
@@ -248,9 +254,9 @@
                 {/if}
               </button>
             </span>
-            <span class="fd-cell fd-cell--value">
+            <span class="flex items-center flex-1 min-w-0">
               {#if entry.type === 'file'}
-                <button onclick={() => pickFile(i)} class="fd-file">
+                <button onclick={() => pickFile(i)} class="fd-file w-full min-w-0 h-8 flex items-center gap-[5px] px-2 border-0 border-l border-solid border-surface-700/50 bg-transparent text-surface-400 text-xs cursor-pointer text-left whitespace-nowrap overflow-hidden text-ellipsis transition-[color] duration-[0.12s] hover:text-brand-400">
                   {#if entry.value}
                     <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                       <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/>
@@ -263,14 +269,14 @@
               {:else}
                 <VarInput
                   value={entry.value}
-                  oninput={(e) => updateFormEntry(i, 'value', (e.target as HTMLInputElement).value)}
+                  oninput={(value) => updateFormEntry(i, 'value', value)}
                   placeholder="Value"
                   class="fd-input"
                 />
               {/if}
             </span>
-            <span class="fd-cell fd-cell--actions">
-              <button onclick={() => removeFormEntry(i)} aria-label="Remove field" class="fd-remove">
+            <span class="flex items-center w-[30px] shrink-0 justify-center">
+              <button onclick={() => removeFormEntry(i)} aria-label="Remove field" class="flex items-center justify-center w-6 h-6 shrink-0 border-none rounded bg-transparent text-surface-600 cursor-pointer opacity-0 group-hover:opacity-100 transition-[opacity,color,background] duration-100 hover:text-danger-light hover:bg-danger-light/[0.08]">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <path d="M6 18L18 6M6 6l12 12" />
                 </svg>
@@ -279,7 +285,7 @@
           </div>
         {/each}
 
-        <button onclick={addFormEntry} class="fd-add">
+        <button onclick={addFormEntry} class="flex items-center gap-[5px] py-1.5 px-2 ml-9 border-none bg-transparent text-surface-500 text-[11px] cursor-pointer transition-[color] duration-[0.12s] hover:text-brand-400">
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
             <path d="M12 4v16m8-8H4" />
           </svg>
@@ -291,212 +297,21 @@
 </div>
 
 <style>
-  .be-root {
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-  }
-
-  /* --- Type selector --- */
-  .be-types {
-    display: flex;
-    align-items: center;
-    gap: 2px;
-    flex-shrink: 0;
-    padding: 6px 10px;
-    border-bottom: 1px solid var(--color-surface-700);
-  }
-
-  .be-type {
-    padding: 4px 8px;
-    border: none;
-    border-radius: 4px;
-    background: transparent;
-    color: var(--color-surface-400);
-    font-size: 11px;
-    font-family: inherit;
-    cursor: pointer;
-    transition: color 0.12s, background 0.12s;
-  }
-
-  .be-type:hover {
-    color: var(--color-surface-200);
-    background: color-mix(in srgb, var(--color-surface-700) 40%, transparent);
-  }
-
-  .be-type--active {
-    color: var(--color-brand-400);
-    background: color-mix(in srgb, var(--color-brand-500) 12%, transparent);
-    font-weight: 500;
-  }
-
-  .be-type--active:hover {
-    color: var(--color-brand-400);
-    background: color-mix(in srgb, var(--color-brand-500) 15%, transparent);
-  }
-
-  .be-types-spacer {
-    flex: 1;
-  }
-
-  .be-format {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    padding: 4px 8px;
-    border: none;
-    border-radius: 4px;
-    background: transparent;
-    color: var(--color-surface-400);
-    font-size: 11px;
-    font-family: inherit;
-    cursor: pointer;
-    transition: color 0.12s, background 0.12s;
-    white-space: nowrap;
-  }
-
-  .be-format:hover {
-    color: var(--color-surface-200);
-    background: color-mix(in srgb, var(--color-surface-700) 40%, transparent);
-  }
-
-  .be-format-feedback {
-    color: var(--color-success);
-    font-size: 11px;
-  }
-
-  .be-format-feedback--err {
-    color: var(--color-status-client-error);
-  }
-
-  /* --- Content areas --- */
-  .be-content {
-    flex: 1;
-    overflow: auto;
-  }
-
-  .be-empty {
-    display: flex;
-    height: 100%;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .be-empty p {
-    font-size: 12px;
-    color: var(--color-surface-500);
-  }
-
-  .be-editor {
-    height: 100%;
-    padding: 8px;
-  }
-
-  .be-kv {
-    padding: 12px;
-  }
-
-  /* --- GraphQL --- */
-  .be-graphql {
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-  }
-
-  .be-graphql-query {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    border-bottom: 1px solid var(--color-surface-700);
-    padding: 8px;
-  }
-
-  .be-graphql-vars {
-    height: 128px;
-    display: flex;
-    flex-direction: column;
-    padding: 8px;
-  }
-
-  .be-graphql-editor {
-    flex: 1;
-    min-height: 0;
-  }
-
-  .be-section-label {
-    font-size: 10px;
-    font-weight: 500;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: var(--color-surface-500);
-    margin-bottom: 4px;
-    flex-shrink: 0;
-  }
-
-  /* --- Form Data (table layout) --- */
-  .be-formdata {
-    display: flex;
-    flex-direction: column;
-  }
-
-  .fd-header {
-    display: flex;
-    align-items: center;
-    height: 28px;
-    padding: 0 2px;
-    border-bottom: 1px solid var(--color-surface-700);
-    gap: 1px;
-  }
-
-  .fd-col {
-    font-size: 10px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: var(--color-surface-500);
-    font-family: var(--font-mono);
-    font-feature-settings: var(--font-feature-mono);
-    padding: 0 8px;
-  }
-
-  .fd-col--check { width: 36px; flex-shrink: 0; padding: 0; }
-  .fd-col--key { flex: 1; min-width: 0; }
-  .fd-col--type { width: 36px; flex-shrink: 0; text-align: center; }
-  .fd-col--value { flex: 1; min-width: 0; }
-  .fd-col--actions { width: 30px; flex-shrink: 0; }
-
-  .fd-row {
-    display: flex;
-    align-items: center;
-    gap: 1px;
-    padding: 0 2px;
-    border-bottom: 1px solid var(--border-subtle);
-    transition: background 0.1s;
-  }
-
-  .fd-row:hover {
-    background: color-mix(in srgb, var(--color-surface-700) 20%, transparent);
-  }
-
+  /* --- Form Data: global selectors for VarInput internals --- */
   .fd-row--disabled :global(.fd-input),
   .fd-row--disabled .fd-file {
     opacity: 0.35;
   }
 
-  .fd-cell {
-    display: flex;
-    align-items: center;
+  .fd-cell--key :global(.fd-input) {
+    font-weight: 500;
+    border-left: none;
   }
-
-  .fd-cell--check { width: 36px; flex-shrink: 0; justify-content: center; }
-  .fd-cell--key { flex: 1; min-width: 0; }
-  .fd-cell--type { width: 36px; flex-shrink: 0; justify-content: center; }
-  .fd-cell--value { flex: 1; min-width: 0; }
-  .fd-cell--actions { width: 30px; flex-shrink: 0; justify-content: center; }
 
   :global(.fd-input) {
     width: 100%;
     height: 32px;
+    line-height: 32px;
     min-width: 0;
     padding: 0 8px;
     border: none;
@@ -509,93 +324,8 @@
     transition: background 0.12s;
   }
 
-  .fd-cell--key :global(.fd-input) {
-    font-weight: 500;
-    border-left: none;
-  }
-
   :global(.fd-input:focus) {
     background: color-mix(in srgb, var(--color-brand-500) 5%, transparent);
   }
 
-  :global(.fd-input::placeholder) { color: var(--color-surface-600); }
-
-  .fd-type-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 24px;
-    height: 24px;
-    border: none;
-    border-radius: 4px;
-    background: transparent;
-    color: var(--color-surface-500);
-    cursor: pointer;
-    transition: color 0.12s, background 0.12s;
-  }
-
-  .fd-type-btn:hover {
-    color: var(--color-surface-200);
-    background: color-mix(in srgb, var(--color-surface-700) 40%, transparent);
-  }
-
-  .fd-file {
-    width: 100%;
-    min-width: 0;
-    height: 32px;
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    padding: 0 8px;
-    border: none;
-    border-left: 1px solid var(--border-subtle);
-    background: transparent;
-    color: var(--color-surface-400);
-    font-size: 12px;
-    font-family: inherit;
-    cursor: pointer;
-    text-align: left;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    transition: color 0.12s;
-  }
-
-  .fd-file:hover { color: var(--color-brand-400); }
-
-  .fd-remove {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 24px;
-    height: 24px;
-    flex-shrink: 0;
-    border: none;
-    border-radius: 4px;
-    background: transparent;
-    color: var(--color-surface-600);
-    cursor: pointer;
-    opacity: 0;
-    transition: opacity 0.1s, color 0.1s, background 0.1s;
-  }
-
-  .fd-row:hover .fd-remove { opacity: 1; }
-  .fd-remove:hover { color: var(--color-danger-light); background: color-mix(in srgb, var(--color-danger-light) 8%, transparent); }
-
-  .fd-add {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    padding: 6px 8px;
-    margin-left: 36px;
-    border: none;
-    background: transparent;
-    color: var(--color-surface-500);
-    font-size: 11px;
-    font-family: inherit;
-    cursor: pointer;
-    transition: color 0.12s;
-  }
-
-  .fd-add:hover { color: var(--color-brand-400); }
 </style>

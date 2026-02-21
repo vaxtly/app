@@ -37,44 +37,44 @@
   }
 </script>
 
-<div class="kv-table">
+<div class="flex flex-col">
   <!-- Header -->
-  <div class="kv-header">
-    {#if !readonly}<span class="kv-col kv-col--check"></span>{/if}
-    <span class="kv-col kv-col--key">{keyPlaceholder}</span>
-    <span class="kv-col kv-col--value">{valuePlaceholder}</span>
-    {#if showDescription}<span class="kv-col kv-col--desc">Description</span>{/if}
-    {#if !readonly}<span class="kv-col kv-col--actions"></span>{/if}
+  <div class="flex h-7 items-center gap-px border-b border-surface-700 px-0.5">
+    {#if !readonly}<span class="w-9 shrink-0"></span>{/if}
+    <span class="kv-col min-w-0 flex-1 px-2 font-mono text-[10px] font-semibold uppercase tracking-wider text-surface-500" style="font-feature-settings: var(--font-feature-mono)">{keyPlaceholder}</span>
+    <span class="kv-col min-w-0 flex-1 px-2 font-mono text-[10px] font-semibold uppercase tracking-wider text-surface-500" style="font-feature-settings: var(--font-feature-mono)">{valuePlaceholder}</span>
+    {#if showDescription}<span class="kv-col min-w-0 flex-[0.7] px-2 font-mono text-[10px] font-semibold uppercase tracking-wider text-surface-500" style="font-feature-settings: var(--font-feature-mono)">Description</span>{/if}
+    {#if !readonly}<span class="w-[30px] shrink-0"></span>{/if}
   </div>
 
   <!-- Rows -->
   {#each entries as entry, i}
-    <div class="kv-row" class:kv-row--disabled={!entry.enabled}>
+    <div class="group flex items-center gap-px border-b border-surface-700/50 px-0.5 transition-colors duration-100 hover:bg-surface-700/20" class:kv-row--disabled={!entry.enabled}>
       {#if !readonly}
-        <span class="kv-cell kv-cell--check">
+        <span class="flex w-9 shrink-0 items-center justify-center">
           <Checkbox checked={entry.enabled} onchange={(v) => update(i, 'enabled', v)} />
         </span>
       {/if}
-      <span class="kv-cell kv-cell--key">
+      <span class="kv-cell--key flex min-w-0 flex-1 items-center">
         <VarInput
           value={entry.key}
-          oninput={(e) => update(i, 'key', (e.target as HTMLInputElement).value)}
+          oninput={(value) => update(i, 'key', value)}
           placeholder={keyPlaceholder}
           {readonly}
           class="kv-input"
         />
       </span>
-      <span class="kv-cell kv-cell--value">
+      <span class="flex min-w-0 flex-1 items-center">
         <VarInput
           value={entry.value}
-          oninput={(e) => update(i, 'value', (e.target as HTMLInputElement).value)}
+          oninput={(value) => update(i, 'value', value)}
           placeholder={valuePlaceholder}
           {readonly}
           class="kv-input"
         />
       </span>
       {#if showDescription}
-        <span class="kv-cell kv-cell--desc">
+        <span class="flex min-w-0 flex-[0.7] items-center">
           <input
             type="text"
             value={entry.description ?? ''}
@@ -86,11 +86,11 @@
         </span>
       {/if}
       {#if !readonly}
-        <span class="kv-cell kv-cell--actions">
+        <span class="flex w-[30px] shrink-0 items-center justify-center">
           <button
             onclick={() => remove(i)}
             aria-label="Remove row"
-            class="kv-remove"
+            class="kv-remove flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-sm border-none bg-transparent text-surface-600 opacity-0 transition-[opacity,color,background] duration-100 group-hover:opacity-100 hover:bg-danger-light/[0.08] hover:text-danger-light"
           >
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M6 18L18 6M6 6l12 12" />
@@ -102,7 +102,7 @@
   {/each}
 
   {#if !readonly}
-    <button onclick={add} class="kv-add">
+    <button onclick={add} class="ml-9 flex cursor-pointer items-center gap-1.5 border-none bg-transparent px-2 py-1.5 font-sans text-[11px] text-surface-500 transition-colors duration-100 hover:text-brand-400">
       <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
         <path d="M12 4v16m8-8H4" />
       </svg>
@@ -112,113 +112,14 @@
 </div>
 
 <style>
-  .kv-table {
-    display: flex;
-    flex-direction: column;
-  }
-
-  /* --- Header --- */
-  .kv-header {
-    display: flex;
-    align-items: center;
-    height: 28px;
-    padding: 0 2px;
-    border-bottom: 1px solid var(--color-surface-700);
-    gap: 1px;
-  }
-
-  .kv-col {
-    font-size: 10px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: var(--color-surface-500);
-    font-family: var(--font-mono);
-    font-feature-settings: var(--font-feature-mono);
-    padding: 0 8px;
-  }
-
-  .kv-col--check {
-    width: 36px;
-    flex-shrink: 0;
-    padding: 0;
-  }
-
-  .kv-col--key {
-    flex: 1;
-    min-width: 0;
-  }
-
-  .kv-col--value {
-    flex: 1;
-    min-width: 0;
-  }
-
-  .kv-col--desc {
-    flex: 0.7;
-    min-width: 0;
-  }
-
-  .kv-col--actions {
-    width: 30px;
-    flex-shrink: 0;
-  }
-
-  /* --- Rows --- */
-  .kv-row {
-    display: flex;
-    align-items: center;
-    gap: 1px;
-    padding: 0 2px;
-    border-bottom: 1px solid var(--border-subtle);
-    transition: background 0.1s;
-  }
-
-  .kv-row:hover {
-    background: color-mix(in srgb, var(--color-surface-700) 20%, transparent);
-  }
-
   .kv-row--disabled :global(.kv-input) {
     opacity: 0.35;
   }
 
-  /* --- Cells --- */
-  .kv-cell {
-    display: flex;
-    align-items: center;
-  }
-
-  .kv-cell--check {
-    width: 36px;
-    flex-shrink: 0;
-    justify-content: center;
-  }
-
-  .kv-cell--key {
-    flex: 1;
-    min-width: 0;
-  }
-
-  .kv-cell--value {
-    flex: 1;
-    min-width: 0;
-  }
-
-  .kv-cell--desc {
-    flex: 0.7;
-    min-width: 0;
-  }
-
-  .kv-cell--actions {
-    width: 30px;
-    flex-shrink: 0;
-    justify-content: center;
-  }
-
-  /* --- Inputs --- */
   :global(.kv-input) {
     width: 100%;
     height: 32px;
+    line-height: 32px;
     min-width: 0;
     padding: 0 8px;
     border: none;
@@ -240,58 +141,8 @@
     background: color-mix(in srgb, var(--color-brand-500) 5%, transparent);
   }
 
-  :global(.kv-input::placeholder) {
-    color: var(--color-surface-600);
-  }
-
   :global(.kv-input--desc) {
     color: var(--color-surface-400);
     font-size: 11px;
-  }
-
-  /* --- Remove button --- */
-  .kv-remove {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 24px;
-    height: 24px;
-    flex-shrink: 0;
-    border: none;
-    border-radius: var(--radius-sm);
-    background: transparent;
-    color: var(--color-surface-600);
-    cursor: pointer;
-    opacity: 0;
-    transition: opacity 0.1s, color 0.1s, background 0.1s;
-  }
-
-  .kv-row:hover .kv-remove {
-    opacity: 1;
-  }
-
-  .kv-remove:hover {
-    color: var(--color-danger-light);
-    background: color-mix(in srgb, var(--color-danger-light) 8%, transparent);
-  }
-
-  /* --- Add button --- */
-  .kv-add {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    padding: 6px 8px;
-    margin-left: 36px;
-    border: none;
-    background: transparent;
-    color: var(--color-surface-500);
-    font-size: 11px;
-    font-family: inherit;
-    cursor: pointer;
-    transition: color 0.12s;
-  }
-
-  .kv-add:hover {
-    color: var(--color-brand-400);
   }
 </style>

@@ -43,11 +43,11 @@
     {:else if auth.type === 'bearer'}
       <div class="ae-fields">
         <div class="ae-field">
-          <label for="auth-bearer-token" class="ae-label">Token</label>
+          <span class="ae-label">Token</span>
           <VarInput
             id="auth-bearer-token"
             value={auth.bearer_token ?? ''}
-            oninput={(e) => updateField('bearer_token', (e.target as HTMLInputElement).value)}
+            oninput={(value) => updateField('bearer_token', value)}
             placeholder="Enter bearer token..."
             class="ae-input"
           />
@@ -56,11 +56,11 @@
     {:else if auth.type === 'basic'}
       <div class="ae-fields">
         <div class="ae-field">
-          <label for="auth-basic-username" class="ae-label">Username</label>
+          <span class="ae-label">Username</span>
           <VarInput
             id="auth-basic-username"
             value={auth.basic_username ?? ''}
-            oninput={(e) => updateField('basic_username', (e.target as HTMLInputElement).value)}
+            oninput={(value) => updateField('basic_username', value)}
             placeholder="Username"
             class="ae-input"
           />
@@ -71,7 +71,7 @@
             id="auth-basic-password"
             type="password"
             value={auth.basic_password ?? ''}
-            oninput={(e) => updateField('basic_password', (e.target as HTMLInputElement).value)}
+            oninput={(value) => updateField('basic_password', value)}
             placeholder="Password"
             class="ae-input"
           />
@@ -80,21 +80,21 @@
     {:else if auth.type === 'api-key'}
       <div class="ae-fields">
         <div class="ae-field">
-          <label for="auth-apikey-header" class="ae-label">Header Name</label>
+          <span class="ae-label">Header Name</span>
           <VarInput
             id="auth-apikey-header"
             value={auth.api_key_header ?? ''}
-            oninput={(e) => updateField('api_key_header', (e.target as HTMLInputElement).value)}
+            oninput={(value) => updateField('api_key_header', value)}
             placeholder="X-API-Key"
             class="ae-input"
           />
         </div>
         <div class="ae-field">
-          <label for="auth-apikey-value" class="ae-label">Value</label>
+          <span class="ae-label">Value</span>
           <VarInput
             id="auth-apikey-value"
             value={auth.api_key_value ?? ''}
-            oninput={(e) => updateField('api_key_value', (e.target as HTMLInputElement).value)}
+            oninput={(value) => updateField('api_key_value', value)}
             placeholder="API key value"
             class="ae-input"
           />
@@ -184,6 +184,7 @@
 
   :global(.ae-input) {
     height: 32px;
+    line-height: 32px;
     width: 100%;
     padding: 0 10px;
     border: 1px solid transparent;
@@ -205,7 +206,4 @@
     box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-brand-500) 15%, transparent);
   }
 
-  :global(.ae-input::placeholder) {
-    color: var(--color-surface-600);
-  }
 </style>
