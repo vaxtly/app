@@ -185,7 +185,7 @@ async function runAutoSync(): Promise<void> {
 
   for (const ws of workspaces) {
     const vaultAuto = workspacesRepo.getWorkspaceSetting(ws.id, 'vault.auto_sync') ?? getSetting('vault.auto_sync')
-    if (isEnabled(vaultAuto)) {
+    if (isEnabled(vaultAuto) && vaultSyncService.isConfigured(ws.id)) {
       logVault('auto-sync', ws.name, 'Starting vault auto-sync...')
       try {
         const result = await vaultSyncService.pullAll(ws.id)
