@@ -483,7 +483,7 @@
   .sidebar-divider:hover,
   .sidebar-divider--dragging {
     width: 3px;
-    background: rgba(255, 255, 255, 0.04);
+    background: var(--tint-subtle);
   }
   .sidebar-divider:hover::before,
   .sidebar-divider--dragging::before {
@@ -519,7 +519,7 @@
     padding: 3px 10px;
     border-radius: var(--radius-md);
     border: 1px solid var(--glass-border);
-    background: rgba(255, 255, 255, 0.06);
+    background: var(--tint-muted);
     color: var(--color-surface-200);
     font-size: 11px;
     cursor: pointer;
@@ -527,7 +527,7 @@
     transition: background 0.12s;
   }
   .update-btn:hover {
-    background: rgba(255, 255, 255, 0.10);
+    background: var(--tint-strong);
   }
   .update-btn-primary {
     border-color: var(--color-brand-500);
@@ -567,7 +567,7 @@
   }
   .update-dismiss:hover {
     color: var(--color-surface-200);
-    background: rgba(255, 255, 255, 0.06);
+    background: var(--tint-muted);
   }
   .update-dismiss svg {
     width: 14px;

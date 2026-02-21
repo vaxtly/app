@@ -179,7 +179,7 @@
         {:else}
           {#each logs as entry (entry.timestamp + entry.message)}
             <div
-              class="flex items-center gap-2 h-7 px-3 transition-colors duration-100 hover:bg-white/[0.03]"
+              class="flex items-center gap-2 h-7 px-3 transition-colors duration-100 hover:bg-[var(--tint-faint)]"
               style="border-bottom: 1px solid var(--border-muted)"
             >
               <span class="shrink-0 w-18 text-surface-600" style="font-variant-numeric: tabular-nums">{formatTime(entry.timestamp)}</span>
@@ -208,7 +208,7 @@
           {#each histories as h (h.id)}
             <button
               onclick={() => selectedHistoryId = selectedHistoryId === h.id ? null : h.id}
-              class="flex w-full items-center gap-2 h-7 px-3 border-none bg-transparent text-left cursor-pointer transition-colors duration-100 font-mono text-[11px] hover:bg-white/[0.03]"
+              class="flex w-full items-center gap-2 h-7 px-3 border-none bg-transparent text-left cursor-pointer transition-colors duration-100 font-mono text-[11px] hover:bg-[var(--tint-faint)]"
               style="border-bottom: 1px solid var(--border-muted); font-feature-settings: var(--font-feature-mono)"
             >
               <span class="shrink-0 w-18 text-surface-600" style="font-variant-numeric: tabular-nums">{formatTime(h.executed_at)}</span>

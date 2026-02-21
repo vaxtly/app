@@ -71,6 +71,15 @@
   --glass-blur: 16px;
   --glass-blur-heavy: 24px;
 
+  /* Interaction tints — white-alpha in dark, black-alpha in light */
+  --tint-faint: rgba(255, 255, 255, 0.03);
+  --tint-subtle: rgba(255, 255, 255, 0.04);
+  --tint-hover: rgba(255, 255, 255, 0.05);
+  --tint-muted: rgba(255, 255, 255, 0.06);
+  --tint-active: rgba(255, 255, 255, 0.08);
+  --tint-strong: rgba(255, 255, 255, 0.10);
+  --tint-bold: rgba(255, 255, 255, 0.16);
+
   /* Border tokens */
   --border-default: rgba(255, 255, 255, 0.08);
   --border-subtle: rgba(255, 255, 255, 0.06);
@@ -141,6 +150,15 @@ html.light {
   --glass-bg-heavy: rgba(255, 255, 255, 0.80);
   --glass-border: rgba(0, 0, 0, 0.08);
   --glass-highlight: rgba(255, 255, 255, 0.5);
+
+  /* Light theme tints — black-alpha instead of white-alpha */
+  --tint-faint: rgba(0, 0, 0, 0.03);
+  --tint-subtle: rgba(0, 0, 0, 0.04);
+  --tint-hover: rgba(0, 0, 0, 0.05);
+  --tint-muted: rgba(0, 0, 0, 0.06);
+  --tint-active: rgba(0, 0, 0, 0.07);
+  --tint-strong: rgba(0, 0, 0, 0.09);
+  --tint-bold: rgba(0, 0, 0, 0.14);
 
   --border-default: rgba(0, 0, 0, 0.08);
   --border-subtle: rgba(0, 0, 0, 0.06);
@@ -278,12 +296,12 @@ html.light {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.10);
+  background: var(--tint-strong);
   border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.16);
+  background: var(--tint-bold);
 }
 
 /* ── Shared animations ─────────────────────────────────────────────── */

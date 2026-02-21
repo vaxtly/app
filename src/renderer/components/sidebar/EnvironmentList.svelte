@@ -58,14 +58,14 @@
     {#each filteredEnvironments as env (env.id)}
       <!-- svelte-ignore a11y_no_static_element_interactions -->
       <div
-        class="group flex items-center gap-2 rounded-lg px-2 py-1 transition-all duration-150 hover:bg-white/[0.05]"
+        class="group flex items-center gap-2 rounded-lg px-2 py-1 transition-all duration-150 hover:bg-[var(--tint-hover)]"
         oncontextmenu={(e) => handleContextMenu(e, env.id)}
       >
         <!-- Active toggle -->
         <button
           onclick={() => toggleActive(env.id)}
           aria-label={env.is_active ? 'Deactivate environment' : 'Activate environment'}
-          class="flex h-4 w-4 shrink-0 items-center justify-center rounded-full border transition-all duration-150 {env.is_active ? '' : 'border-white/[0.10] hover:border-white/[0.20]'}"
+          class="flex h-4 w-4 shrink-0 items-center justify-center rounded-full border transition-all duration-150 {env.is_active ? '' : 'border-[var(--tint-strong)] hover:border-[var(--tint-bold)]'}"
           style={env.is_active ? 'border-color: var(--color-success); background: color-mix(in srgb, var(--color-success) 20%, transparent)' : ''}
         >
           {#if env.is_active}

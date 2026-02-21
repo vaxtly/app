@@ -57,8 +57,8 @@
     <div
       class="group relative flex h-7 shrink-0 cursor-pointer items-center gap-1.5 rounded-lg px-3 mb-0.5 text-xs transition-all duration-150
         {appStore.activeTabId === tab.id
-          ? 'bg-white/[0.10] text-surface-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]'
-          : 'text-surface-400 hover:bg-white/[0.05] hover:text-surface-200'}"
+          ? 'bg-[var(--tint-strong)] text-surface-100 shadow-[inset_0_1px_0_var(--glass-highlight)]'
+          : 'text-surface-400 hover:bg-[var(--tint-hover)] hover:text-surface-200'}"
       role="tab"
       tabindex="0"
       aria-selected={appStore.activeTabId === tab.id}
@@ -96,7 +96,7 @@
         <button
           onclick={(e) => handleTabClose(e, tab.id)}
           aria-label="Close tab"
-          class="flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-surface-500 opacity-0 transition-all duration-150 hover:bg-white/[0.10] hover:text-surface-200 group-hover:opacity-100"
+          class="flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-surface-500 opacity-0 transition-all duration-150 hover:bg-[var(--tint-strong)] hover:text-surface-200 group-hover:opacity-100"
         >
           <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
             <path d="M6 18L18 6M6 6l12 12" />

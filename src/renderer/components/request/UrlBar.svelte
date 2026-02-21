@@ -196,7 +196,7 @@
         role="option"
         aria-selected={m === method}
         data-selected={m === method ? '' : undefined}
-        class="method-item flex items-center gap-2 w-full py-1.5 px-2.5 border-none rounded-lg bg-transparent cursor-pointer outline-none transition-[background] duration-100 hover:bg-white/[0.08] focus-visible:bg-white/[0.08]"
+        class="method-item flex items-center gap-2 w-full py-1.5 px-2.5 border-none rounded-lg bg-transparent cursor-pointer outline-none transition-[background] duration-100 hover:bg-[var(--tint-active)] focus-visible:bg-[var(--tint-active)]"
         class:method-item--active={m === method}
         onclick={() => selectMethod(m)}
         tabindex={-1}
@@ -226,7 +226,7 @@
   }
 
   .method-trigger:hover {
-    background: rgba(255, 255, 255, 0.04);
+    background: var(--tint-subtle);
   }
 
   .method-trigger:hover svg {
@@ -255,7 +255,7 @@
 
   /* --- Method dropdown active item --- */
   .method-item--active {
-    background: rgba(255, 255, 255, 0.06);
+    background: var(--tint-muted);
   }
 
   /* --- URL input (targets VarInput internals) --- */

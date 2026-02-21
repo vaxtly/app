@@ -39,7 +39,7 @@
 
 <div class="flex flex-col">
   <!-- Header -->
-  <div class="flex h-7 items-center gap-px border-b border-white/[0.12] px-0.5">
+  <div class="flex h-7 items-center gap-px border-b border-[var(--glass-border)] px-0.5">
     {#if !readonly}<span class="w-9 shrink-0"></span>{/if}
     <span class="kv-col min-w-0 flex-1 px-2 font-mono text-[10px] font-semibold uppercase tracking-wider text-surface-500" style="font-feature-settings: var(--font-feature-mono)">{keyPlaceholder}</span>
     <span class="kv-col min-w-0 flex-1 px-2 font-mono text-[10px] font-semibold uppercase tracking-wider text-surface-500" style="font-feature-settings: var(--font-feature-mono)">{valuePlaceholder}</span>
@@ -49,7 +49,7 @@
 
   <!-- Rows -->
   {#each entries as entry, i}
-    <div class="group flex items-center gap-px border-b border-white/[0.07] px-0.5 transition-colors duration-100 hover:bg-surface-700/20" class:kv-row--disabled={!entry.enabled}>
+    <div class="group flex items-center gap-px border-b border-[var(--border-subtle)] px-0.5 transition-colors duration-100 hover:bg-surface-700/20" class:kv-row--disabled={!entry.enabled}>
       {#if !readonly}
         <span class="flex w-9 shrink-0 items-center justify-center">
           <Checkbox checked={entry.enabled} onchange={(v) => update(i, 'enabled', v)} />

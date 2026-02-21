@@ -68,7 +68,7 @@
 
   {:else if response}
     <!-- Status bar -->
-    <div class="rv-status--{statusClass} flex items-center justify-between shrink-0 px-3 py-1.5 gap-3" style="border-bottom: 1px solid var(--glass-border); background: rgba(255, 255, 255, 0.02)">
+    <div class="rv-status--{statusClass} flex items-center justify-between shrink-0 px-3 py-1.5 gap-3" style="border-bottom: 1px solid var(--glass-border); background: var(--tint-faint)">
       <div class="flex items-center gap-2 min-w-0">
         <span class="rv-status-led w-2 h-2 rounded-full shrink-0"></span>
         <span
@@ -100,14 +100,14 @@
     <!-- Response tabs -->
     <div class="flex items-stretch shrink-0 h-9 px-1 gap-px" style="border-bottom: 1px solid var(--glass-border)">
       <button
-        class="rv-tab flex items-center gap-[5px] px-2.5 my-1 border-none bg-transparent text-surface-400 text-xs font-medium cursor-pointer relative whitespace-nowrap rounded-lg transition-all duration-150 hover:text-surface-200 hover:bg-white/[0.04]"
+        class="rv-tab flex items-center gap-[5px] px-2.5 my-1 border-none bg-transparent text-surface-400 text-xs font-medium cursor-pointer relative whitespace-nowrap rounded-lg transition-all duration-150 hover:text-surface-200 hover:bg-[var(--tint-subtle)]"
         class:rv-tab--active={activeTab === 'body'}
         onclick={() => activeTab = 'body'}
       >
         Body
       </button>
       <button
-        class="rv-tab flex items-center gap-[5px] px-2.5 my-1 border-none bg-transparent text-surface-400 text-xs font-medium cursor-pointer relative whitespace-nowrap rounded-lg transition-all duration-150 hover:text-surface-200 hover:bg-white/[0.04]"
+        class="rv-tab flex items-center gap-[5px] px-2.5 my-1 border-none bg-transparent text-surface-400 text-xs font-medium cursor-pointer relative whitespace-nowrap rounded-lg transition-all duration-150 hover:text-surface-200 hover:bg-[var(--tint-subtle)]"
         class:rv-tab--active={activeTab === 'headers'}
         onclick={() => activeTab = 'headers'}
       >
@@ -116,7 +116,7 @@
       </button>
       {#if cookieCount > 0}
         <button
-          class="rv-tab flex items-center gap-[5px] px-2.5 my-1 border-none bg-transparent text-surface-400 text-xs font-medium cursor-pointer relative whitespace-nowrap rounded-lg transition-all duration-150 hover:text-surface-200 hover:bg-white/[0.04]"
+          class="rv-tab flex items-center gap-[5px] px-2.5 my-1 border-none bg-transparent text-surface-400 text-xs font-medium cursor-pointer relative whitespace-nowrap rounded-lg transition-all duration-150 hover:text-surface-200 hover:bg-[var(--tint-subtle)]"
           class:rv-tab--active={activeTab === 'cookies'}
           onclick={() => activeTab = 'cookies'}
         >
@@ -126,7 +126,7 @@
       {/if}
       {#if isHtml}
         <button
-          class="rv-tab flex items-center gap-[5px] px-2.5 my-1 border-none bg-transparent text-surface-400 text-xs font-medium cursor-pointer relative whitespace-nowrap rounded-lg transition-all duration-150 hover:text-surface-200 hover:bg-white/[0.04]"
+          class="rv-tab flex items-center gap-[5px] px-2.5 my-1 border-none bg-transparent text-surface-400 text-xs font-medium cursor-pointer relative whitespace-nowrap rounded-lg transition-all duration-150 hover:text-surface-200 hover:bg-[var(--tint-subtle)]"
           class:rv-tab--active={activeTab === 'preview'}
           onclick={() => activeTab = 'preview'}
         >
@@ -198,13 +198,13 @@
   /* --- Active tab indicator (glass pill) --- */
   .rv-tab--active {
     color: var(--color-brand-400);
-    background: rgba(255, 255, 255, 0.08);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    background: var(--tint-active);
+    box-shadow: inset 0 1px 0 var(--glass-highlight);
   }
 
   .rv-tab--active:hover {
     color: var(--color-brand-400);
-    background: rgba(255, 255, 255, 0.08);
+    background: var(--tint-active);
   }
 
   /* --- Active tab badge color change --- */

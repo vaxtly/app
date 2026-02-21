@@ -61,8 +61,8 @@
         onclick={() => appStore.setSidebarMode('collections')}
         class="min-w-0 truncate rounded-full px-2.5 py-1.5 text-[11px] font-medium uppercase tracking-wider transition-all duration-150
           {appStore.sidebarMode === 'collections'
-            ? 'bg-white/[0.08] text-surface-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]'
-            : 'text-surface-500 hover:text-surface-300 hover:bg-white/[0.04]'}"
+            ? 'bg-[var(--tint-active)] text-surface-200 shadow-[inset_0_1px_0_var(--glass-highlight)]'
+            : 'text-surface-500 hover:text-surface-300 hover:bg-[var(--tint-subtle)]'}"
       >
         Collections
       </button>
@@ -70,8 +70,8 @@
         onclick={() => appStore.setSidebarMode('environments')}
         class="min-w-0 truncate rounded-full px-2.5 py-1.5 text-[11px] font-medium uppercase tracking-wider transition-all duration-150
           {appStore.sidebarMode === 'environments'
-            ? 'bg-white/[0.08] text-surface-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]'
-            : 'text-surface-500 hover:text-surface-300 hover:bg-white/[0.04]'}"
+            ? 'bg-[var(--tint-active)] text-surface-200 shadow-[inset_0_1px_0_var(--glass-highlight)]'
+            : 'text-surface-500 hover:text-surface-300 hover:bg-[var(--tint-subtle)]'}"
       >
         Environments
       </button>
@@ -81,7 +81,7 @@
       {#if appStore.sidebarMode === 'collections'}
         <button
           onclick={handleNewCollection}
-          class="flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-surface-400 transition-all duration-150 hover:bg-white/[0.06] hover:text-brand-400"
+          class="flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-surface-400 transition-all duration-150 hover:bg-[var(--tint-muted)] hover:text-brand-400"
           title="New Collection"
         >
           <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -91,7 +91,7 @@
       {:else}
         <button
           onclick={handleNewEnvironment}
-          class="flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-surface-400 transition-all duration-150 hover:bg-white/[0.06] hover:text-brand-400"
+          class="flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-surface-400 transition-all duration-150 hover:bg-[var(--tint-muted)] hover:text-brand-400"
           title="New Environment"
         >
           <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -113,7 +113,7 @@
         value={searchValue}
         oninput={handleSearchInput}
         placeholder="Search..."
-        class="h-7 w-full rounded-lg border border-white/[0.06] bg-white/[0.04] pl-7 pr-2 text-xs text-surface-200 placeholder-surface-500 transition-[border-color,background] duration-150 focus:border-brand-500/50 focus:bg-white/[0.06] focus:outline-none"
+        class="h-7 w-full rounded-lg border border-[var(--tint-muted)] bg-[var(--tint-subtle)] pl-7 pr-2 text-xs text-surface-200 placeholder-surface-500 transition-[border-color,background] duration-150 focus:border-brand-500/50 focus:bg-[var(--tint-muted)] focus:outline-none"
       />
     </div>
   </div>
@@ -137,7 +137,7 @@
       <button
         onclick={() => appStore.setSidebarMode('collections')}
         class="flex h-7 w-7 items-center justify-center rounded-lg transition-all duration-150
-          {appStore.sidebarMode === 'collections' ? 'text-brand-400 bg-white/[0.08]' : 'text-surface-500 hover:text-surface-300 hover:bg-white/[0.04]'}"
+          {appStore.sidebarMode === 'collections' ? 'text-brand-400 bg-[var(--tint-active)]' : 'text-surface-500 hover:text-surface-300 hover:bg-[var(--tint-subtle)]'}"
         title="Collections"
       >
         <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -147,7 +147,7 @@
       <button
         onclick={() => appStore.setSidebarMode('environments')}
         class="flex h-7 w-7 items-center justify-center rounded-lg transition-all duration-150
-          {appStore.sidebarMode === 'environments' ? 'text-brand-400 bg-white/[0.08]' : 'text-surface-500 hover:text-surface-300 hover:bg-white/[0.04]'}"
+          {appStore.sidebarMode === 'environments' ? 'text-brand-400 bg-[var(--tint-active)]' : 'text-surface-500 hover:text-surface-300 hover:bg-[var(--tint-subtle)]'}"
         title="Environments"
       >
         <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -163,7 +163,7 @@
       <!-- Layout toggle -->
       <button
         onclick={() => settingsStore.set('request.layout', layout === 'columns' ? 'rows' : 'columns')}
-        class="flex h-7 w-7 items-center justify-center rounded-lg text-surface-500 transition-all duration-150 hover:bg-white/[0.04] hover:text-surface-300"
+        class="flex h-7 w-7 items-center justify-center rounded-lg text-surface-500 transition-all duration-150 hover:bg-[var(--tint-subtle)] hover:text-surface-300"
         title={layout === 'columns' ? 'Switch to rows layout' : 'Switch to columns layout'}
       >
         {#if layout === 'columns'}
@@ -182,7 +182,7 @@
       <!-- Theme cycle -->
       <button
         onclick={cycleTheme}
-        class="flex h-7 w-7 items-center justify-center rounded-lg text-surface-500 transition-all duration-150 hover:bg-white/[0.04] hover:text-surface-300"
+        class="flex h-7 w-7 items-center justify-center rounded-lg text-surface-500 transition-all duration-150 hover:bg-[var(--tint-subtle)] hover:text-surface-300"
         title={theme === 'dark' ? 'Theme: Dark' : theme === 'light' ? 'Theme: Light' : 'Theme: System'}
       >
         {#if theme === 'dark'}
@@ -209,7 +209,7 @@
       {#if appStore.sidebarMode === 'collections'}
         <button
           onclick={() => hasExpanded ? collectionsStore.collapseAll() : collectionsStore.expandAll()}
-          class="flex h-7 w-7 items-center justify-center rounded-lg text-surface-500 transition-all duration-150 hover:bg-white/[0.04] hover:text-surface-300"
+          class="flex h-7 w-7 items-center justify-center rounded-lg text-surface-500 transition-all duration-150 hover:bg-[var(--tint-subtle)] hover:text-surface-300"
           title={hasExpanded ? 'Collapse all' : 'Expand all'}
         >
           {#if hasExpanded}
@@ -229,7 +229,7 @@
       <!-- Settings -->
       <button
         onclick={() => appStore.openSettings()}
-        class="flex h-7 w-7 items-center justify-center rounded-lg text-surface-500 transition-all duration-150 hover:bg-white/[0.04] hover:text-surface-300"
+        class="flex h-7 w-7 items-center justify-center rounded-lg text-surface-500 transition-all duration-150 hover:bg-[var(--tint-subtle)] hover:text-surface-300"
         title="Settings"
       >
         <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">

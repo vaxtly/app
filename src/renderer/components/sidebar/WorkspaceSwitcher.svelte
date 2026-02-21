@@ -80,7 +80,7 @@
   <!-- Trigger -->
   <button
     onclick={toggleDropdown}
-    class="group flex h-9 w-full items-center gap-1.5 px-3 bg-transparent text-surface-300 text-xs font-inherit cursor-pointer transition-all duration-150 text-left hover:bg-white/[0.04] hover:text-surface-100"
+    class="group flex h-9 w-full items-center gap-1.5 px-3 bg-transparent text-surface-300 text-xs font-inherit cursor-pointer transition-all duration-150 text-left hover:bg-[var(--tint-subtle)] hover:text-surface-100"
     style="border-bottom: 1px solid var(--glass-border)"
   >
     <svg class="w-3.5 h-3.5 shrink-0 text-surface-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
@@ -107,14 +107,14 @@
       <div class="max-h-[220px] overflow-y-auto">
         {#each appStore.workspaces as ws (ws.id)}
           {@const isActive = ws.id === appStore.activeWorkspaceId}
-          <div class="group/row relative transition-colors duration-100 hover:bg-white/[0.06]">
+          <div class="group/row relative transition-colors duration-100 hover:bg-[var(--tint-muted)]">
             {#if renamingId === ws.id}
               <input
                 bind:this={renameInput}
                 bind:value={renameValue}
                 onblur={commitRename}
                 onkeydown={handleRenameKeydown}
-                class="flex-1 min-w-0 h-7 mx-1 my-0.5 px-2 border border-brand-500/50 rounded-md bg-white/[0.06] text-surface-100 text-xs font-inherit outline-none"
+                class="flex-1 min-w-0 h-7 mx-1 my-0.5 px-2 border border-brand-500/50 rounded-md bg-[var(--tint-muted)] text-surface-100 text-xs font-inherit outline-none"
               />
             {:else}
               <button
@@ -161,7 +161,7 @@
       <div class="h-px my-1 mx-2" style="background: var(--glass-border)"></div>
       <button
         onclick={createNewWorkspace}
-        class="flex items-center gap-1.5 w-full py-[7px] px-3 border-none bg-transparent text-surface-400 text-[11px] font-inherit cursor-pointer transition-all duration-100 hover:bg-white/[0.04] hover:text-surface-200"
+        class="flex items-center gap-1.5 w-full py-[7px] px-3 border-none bg-transparent text-surface-400 text-[11px] font-inherit cursor-pointer transition-all duration-100 hover:bg-[var(--tint-subtle)] hover:text-surface-200"
       >
         <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
           <path d="M12 4v16m8-8H4" />
@@ -188,7 +188,7 @@
   }
 
   .ws-action:hover {
-    background: rgba(255, 255, 255, 0.08);
+    background: var(--tint-active);
     color: var(--color-surface-200);
   }
 

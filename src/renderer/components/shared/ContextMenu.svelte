@@ -63,7 +63,7 @@
         onclick={() => { item.action(); onclose() }}
         disabled={item.disabled}
         class="flex w-full items-center rounded-lg px-2.5 py-1.5 text-left text-xs transition-all duration-100
-          {item.danger ? 'ctx-danger text-danger' : 'text-surface-200 hover:bg-white/[0.08]'}
+          {item.danger ? 'ctx-danger text-danger' : 'text-surface-200 hover:bg-[var(--tint-active)]'}
           {item.disabled ? 'cursor-not-allowed opacity-40' : ''}"
       >
         {item.label}

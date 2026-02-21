@@ -189,7 +189,7 @@
         <!-- No Environment option -->
         <button
           onclick={handleDeactivate}
-          class="env-item flex items-center gap-2 w-full px-3 py-1.5 border-none bg-transparent text-surface-200 text-xs font-sans cursor-pointer text-left rounded-lg mx-1 transition-[background,color] duration-100 hover:bg-white/[0.06] hover:text-surface-100" style="width: calc(100% - 8px)"
+          class="env-item flex items-center gap-2 w-full px-3 py-1.5 border-none bg-transparent text-surface-200 text-xs font-sans cursor-pointer text-left rounded-lg mx-1 transition-[background,color] duration-100 hover:bg-[var(--tint-muted)] hover:text-surface-100" style="width: calc(100% - 8px)"
           class:env-item--selected={!environmentsStore.activeEnvironmentId}
         >
           <span class="w-3.5 h-3.5 flex items-center justify-center shrink-0">
@@ -206,7 +206,7 @@
           {@const selected = environmentsStore.activeEnvironmentId === env.id}
           <button
             onclick={() => handleSelect(env)}
-            class="env-item flex items-center gap-2 w-full px-3 py-1.5 border-none bg-transparent text-surface-200 text-xs font-sans cursor-pointer text-left rounded-lg mx-1 transition-[background,color] duration-100 hover:bg-white/[0.06] hover:text-surface-100" style="width: calc(100% - 8px)"
+            class="env-item flex items-center gap-2 w-full px-3 py-1.5 border-none bg-transparent text-surface-200 text-xs font-sans cursor-pointer text-left rounded-lg mx-1 transition-[background,color] duration-100 hover:bg-[var(--tint-muted)] hover:text-surface-100" style="width: calc(100% - 8px)"
             class:env-item--selected={selected}
           >
             <span class="w-3.5 h-3.5 flex items-center justify-center shrink-0">
@@ -255,7 +255,7 @@
 <style>
   /* --- Trigger: hover / active / open states --- */
   .env-trigger:hover {
-    background: rgba(255, 255, 255, 0.04);
+    background: var(--tint-subtle);
     color: var(--color-surface-200);
   }
 
@@ -265,7 +265,7 @@
   }
 
   .env-trigger--open {
-    background: rgba(255, 255, 255, 0.06);
+    background: var(--tint-muted);
     color: var(--color-surface-100);
   }
 

@@ -361,7 +361,7 @@
             {@const isActive = activeRequestTab === tab.key}
             <button
               onclick={() => activeRequestTab = tab.key}
-              class="rb-tab flex items-center gap-[5px] px-2.5 my-1 border-none bg-transparent text-xs font-inherit cursor-pointer relative whitespace-nowrap rounded-lg transition-all duration-150 {isActive ? 'rb-tab--active text-brand-400 bg-white/[0.08] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] hover:text-brand-400' : 'text-surface-400 hover:text-surface-200 hover:bg-white/[0.04]'}"
+              class="rb-tab flex items-center gap-[5px] px-2.5 my-1 border-none bg-transparent text-xs font-inherit cursor-pointer relative whitespace-nowrap rounded-lg transition-all duration-150 {isActive ? 'rb-tab--active text-brand-400 bg-[var(--tint-active)] shadow-[inset_0_1px_0_var(--glass-highlight)] hover:text-brand-400' : 'text-surface-400 hover:text-surface-200 hover:bg-[var(--tint-subtle)]'}"
             >
               <span class="font-medium">{tab.label}</span>
               {#if count}
@@ -374,7 +374,7 @@
 
           <button
             onclick={() => showCodeSnippet = true}
-            class="rb-tab flex items-center gap-[5px] px-2.5 my-1 border-none bg-transparent font-mono text-[11px] tracking-[-0.02em] text-surface-500 cursor-pointer relative whitespace-nowrap rounded-lg transition-all duration-150 hover:text-surface-200 hover:bg-white/[0.04]"
+            class="rb-tab flex items-center gap-[5px] px-2.5 my-1 border-none bg-transparent font-mono text-[11px] tracking-[-0.02em] text-surface-500 cursor-pointer relative whitespace-nowrap rounded-lg transition-all duration-150 hover:text-surface-200 hover:bg-[var(--tint-subtle)]"
             style="font-feature-settings: var(--font-feature-mono)"
             title="Generate code snippet"
           >
@@ -496,7 +496,7 @@
   .rb-divider:hover,
   .rb-split--dragging .rb-divider {
     width: 3px;
-    background: rgba(255, 255, 255, 0.04);
+    background: var(--tint-subtle);
   }
 
   .rb-divider:hover::before,

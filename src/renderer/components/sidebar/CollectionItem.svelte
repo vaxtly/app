@@ -194,7 +194,7 @@
 <div class="group" oncontextmenu={handleContextMenu} ondragover={handleDragOver} ondragleave={handleDragLeave} ondrop={handleDrop}>
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div
-    class="flex w-full cursor-pointer items-center gap-1 rounded-lg px-2 py-1 text-left transition-all duration-150 {isDropTarget ? 'border border-brand-500 bg-brand-500/10' : 'hover:bg-white/[0.05]'}"
+    class="flex w-full cursor-pointer items-center gap-1 rounded-lg px-2 py-1 text-left transition-all duration-150 {isDropTarget ? 'border border-brand-500 bg-brand-500/10' : 'hover:bg-[var(--tint-hover)]'}"
     role="button"
     tabindex="0"
     aria-expanded={node.expanded}
@@ -227,7 +227,7 @@
         bind:value={renameValue}
         onblur={commitRename}
         onkeydown={handleRenameKeydown}
-        class="h-5 min-w-0 flex-1 rounded-md border border-brand-500/50 bg-white/[0.06] px-1 text-xs text-surface-100 outline-none"
+        class="h-5 min-w-0 flex-1 rounded-md border border-brand-500/50 bg-[var(--tint-muted)] px-1 text-xs text-surface-100 outline-none"
       />
     {:else}
       <span class="min-w-0 flex-1 truncate text-[13px] font-semibold text-surface-200">
@@ -239,7 +239,7 @@
     <button
       onclick={(e) => { e.stopPropagation(); addRequest() }}
       aria-label="Add request to collection"
-      class="flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-surface-500 opacity-0 transition-all duration-150 hover:bg-white/[0.08] hover:text-brand-400 group-hover:opacity-100"
+      class="flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-surface-500 opacity-0 transition-all duration-150 hover:bg-[var(--tint-active)] hover:text-brand-400 group-hover:opacity-100"
     >
       <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
         <path d="M12 4v16m8-8H4" />

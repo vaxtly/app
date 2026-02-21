@@ -49,7 +49,7 @@
       <!-- Header -->
       <div class="flex shrink-0 items-center justify-between px-4 py-3" style="border-bottom: 1px solid var(--glass-border)">
         <h2 class="text-sm font-semibold text-surface-200">Settings</h2>
-        <button onclick={onclose} class="flex h-6 w-6 items-center justify-center rounded-lg text-surface-400 transition-all duration-150 hover:bg-white/[0.08] hover:text-surface-200" aria-label="Close">
+        <button onclick={onclose} class="flex h-6 w-6 items-center justify-center rounded-lg text-surface-400 transition-all duration-150 hover:bg-[var(--tint-active)] hover:text-surface-200" aria-label="Close">
           <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
             <path d="M6 18L18 6M6 6l12 12" />
           </svg>
@@ -62,8 +62,8 @@
           <button
             onclick={() => { activeTab = tab.key }}
             class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs transition-all duration-150 {activeTab === tab.key
-              ? 'bg-white/[0.08] text-brand-400 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]'
-              : 'text-surface-400 hover:text-surface-200 hover:bg-white/[0.04]'}"
+              ? 'bg-[var(--tint-active)] text-brand-400 shadow-[inset_0_1px_0_var(--glass-highlight)]'
+              : 'text-surface-400 hover:text-surface-200 hover:bg-[var(--tint-subtle)]'}"
           >
             <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
               <path d={tab.icon} />

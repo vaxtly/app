@@ -142,7 +142,7 @@
 
 <div class="flex flex-col h-full">
   <!-- Type selector -->
-  <div class="flex items-center gap-0.5 shrink-0 px-2.5 py-1.5 border-b border-white/[0.12]">
+  <div class="flex items-center gap-0.5 shrink-0 px-2.5 py-1.5 border-b border-[var(--glass-border)]">
     {#each BODY_TYPES as type}
       <button
         onclick={() => onbodytypechange(type)}
@@ -196,7 +196,7 @@
       </div>
     {:else if bodyType === 'graphql'}
       <div class="flex flex-col h-full">
-        <div class="flex-1 flex flex-col border-b border-white/[0.12] p-2">
+        <div class="flex-1 flex flex-col border-b border-[var(--glass-border)] p-2">
           <div class="text-[10px] font-medium uppercase tracking-[0.06em] text-surface-500 mb-1 shrink-0">Query</div>
           <div class="flex-1 min-h-0">
             <CodeEditor value={body} language="text" placeholder={"query { ... }"} onchange={onbodychange} enableVariableHighlight={!!getResolvedVars} getResolvedVariables={getResolvedVars} />
@@ -216,7 +216,7 @@
     {:else if bodyType === 'form-data'}
       <div class="flex flex-col">
         <!-- Header -->
-        <div class="flex items-center h-7 px-0.5 border-b border-white/[0.12] gap-px">
+        <div class="flex items-center h-7 px-0.5 border-b border-[var(--glass-border)] gap-px">
           <span class="w-9 shrink-0 text-[10px] font-semibold uppercase tracking-[0.06em] text-surface-500 font-mono" style="font-feature-settings: var(--font-feature-mono)"></span>
           <span class="flex-1 min-w-0 px-2 text-[10px] font-semibold uppercase tracking-[0.06em] text-surface-500 font-mono" style="font-feature-settings: var(--font-feature-mono)">Key</span>
           <span class="w-9 shrink-0 px-2 text-center text-[10px] font-semibold uppercase tracking-[0.06em] text-surface-500 font-mono" style="font-feature-settings: var(--font-feature-mono)">Type</span>
@@ -225,7 +225,7 @@
         </div>
 
         {#each formData as entry, i}
-          <div class="group flex items-center gap-px px-0.5 border-b border-white/[0.07] transition-[background] duration-100 hover:bg-surface-700/20" class:fd-row--disabled={!entry.enabled}>
+          <div class="group flex items-center gap-px px-0.5 border-b border-[var(--border-subtle)] transition-[background] duration-100 hover:bg-surface-700/20" class:fd-row--disabled={!entry.enabled}>
             <span class="flex items-center w-9 shrink-0 justify-center">
               <Checkbox checked={entry.enabled} onchange={(v) => updateFormEntry(i, 'enabled', v)} />
             </span>
