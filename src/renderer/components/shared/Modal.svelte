@@ -11,17 +11,28 @@
 
   let { title, onclose, children, width = 'max-w-lg' }: Props = $props()
 
+  let backdropEl = $state<HTMLElement | null>(null)
+
   onMount(() => {
+    // Portal to document.body so fixed positioning escapes any
+    // ancestor backdrop-filter / transform containing blocks
+    if (backdropEl) {
+      document.body.appendChild(backdropEl)
+    }
+
     function handleKey(e: KeyboardEvent): void {
       if (e.key === 'Escape') onclose()
     }
     document.addEventListener('keydown', handleKey)
-    return () => document.removeEventListener('keydown', handleKey)
+    return () => {
+      document.removeEventListener('keydown', handleKey)
+      backdropEl?.remove()
+    }
   })
 </script>
 
-<!-- Backdrop -->
-<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 animate-[modal-backdrop-in_0.2s_ease-out]" style="backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px)">
+<!-- Backdrop (portaled to body) -->
+<div bind:this={backdropEl} class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 animate-[modal-backdrop-in_0.2s_ease-out]" style="backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px)">
   <!-- eslint-disable-next-line svelte/valid-compile -->
   <button class="absolute inset-0" onclick={onclose} aria-label="Close"></button>
 
