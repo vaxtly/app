@@ -52,7 +52,7 @@
 
 <div
   bind:this={menuEl}
-  class="fixed z-[100] min-w-[160px] rounded-lg border border-surface-600 bg-surface-800 py-1 shadow-xl"
+  class="ctx-menu fixed z-[100] min-w-[160px] border bg-surface-800 overflow-hidden"
   style="left: {x}px; top: {y}px"
 >
   {#each items as item}
@@ -73,6 +73,24 @@
 </div>
 
 <style>
+  .ctx-menu {
+    border-radius: var(--radius-2xl);
+    border-color: var(--border-dropdown);
+    box-shadow: var(--shadow-dropdown);
+    animation: dropdown-in 0.12s ease-out;
+  }
+
+  @keyframes dropdown-in {
+    from {
+      opacity: 0;
+      transform: translateY(-4px) scale(0.97);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
   .ctx-danger {
     color: var(--color-danger);
   }

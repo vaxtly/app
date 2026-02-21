@@ -324,11 +324,9 @@
     z-index: 100;
     width: 240px;
     background: var(--color-surface-800);
-    border: 1px solid var(--color-surface-600);
-    border-radius: 10px;
-    box-shadow:
-      0 8px 30px rgba(0, 0, 0, 0.4),
-      0 0 1px rgba(0, 0, 0, 0.3);
+    border: 1px solid var(--border-dropdown);
+    border-radius: var(--radius-2xl);
+    box-shadow: var(--shadow-dropdown);
     overflow: hidden;
     animation: env-panel-in 0.12s ease-out;
   }
@@ -336,11 +334,11 @@
   @keyframes env-panel-in {
     from {
       opacity: 0;
-      transform: translateY(-4px);
+      transform: translateY(-4px) scale(0.97);
     }
     to {
       opacity: 1;
-      transform: translateY(0);
+      transform: translateY(0) scale(1);
     }
   }
 
@@ -350,7 +348,7 @@
     align-items: center;
     gap: 6px;
     padding: 8px 10px;
-    border-bottom: 1px solid var(--color-surface-700);
+    border-bottom: 1px solid var(--border-subtle);
   }
 
   .env-search-icon {
@@ -381,7 +379,7 @@
     font-size: 10px;
     color: var(--color-surface-400);
     background: color-mix(in srgb, var(--color-brand-500) 6%, transparent);
-    border-bottom: 1px solid var(--color-surface-700);
+    border-bottom: 1px solid var(--border-subtle);
     letter-spacing: 0.02em;
   }
 
@@ -389,13 +387,13 @@
   .env-list {
     max-height: 220px;
     overflow-y: auto;
-    padding: 4px 0;
+    padding: 0;
   }
 
   .env-divider {
     height: 1px;
     background: var(--color-surface-700);
-    margin: 2px 10px;
+    margin: 4px 0;
   }
 
   /* --- Item --- */
@@ -404,10 +402,10 @@
     align-items: center;
     gap: 8px;
     width: 100%;
-    padding: 6px 10px;
+    padding: 6px 12px;
     border: none;
     background: transparent;
-    color: var(--color-surface-300);
+    color: var(--color-surface-200);
     font-size: 12px;
     font-family: inherit;
     cursor: pointer;
@@ -416,7 +414,7 @@
   }
 
   .env-item:hover {
-    background: color-mix(in srgb, var(--color-surface-600) 50%, transparent);
+    background: var(--color-surface-700);
     color: var(--color-surface-100);
   }
 
@@ -486,7 +484,7 @@
     width: 100%;
     padding: 7px 12px;
     border: none;
-    border-top: 1px solid var(--color-surface-700);
+    border-top: 1px solid var(--border-subtle);
     background: transparent;
     color: var(--color-brand-400);
     font-size: 11px;

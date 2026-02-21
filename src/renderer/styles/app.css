@@ -1,46 +1,135 @@
 @import "tailwindcss";
 
-/* --- Semantic color variables (dark-mode defaults) --- */
+/* ── Font Faces ─────────────────────────────────────────────────────── */
+
+@font-face {
+  font-family: 'Geist';
+  src: url('../fonts/Geist-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: block;
+}
+
+@font-face {
+  font-family: 'Geist';
+  src: url('../fonts/Geist-Medium.woff2') format('woff2');
+  font-weight: 500;
+  font-style: normal;
+  font-display: block;
+}
+
+@font-face {
+  font-family: 'Geist';
+  src: url('../fonts/Geist-SemiBold.woff2') format('woff2');
+  font-weight: 600;
+  font-style: normal;
+  font-display: block;
+}
+
+@font-face {
+  font-family: 'Geist';
+  src: url('../fonts/Geist-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: block;
+}
+
+@font-face {
+  font-family: 'JetBrains Mono';
+  src: url('../fonts/JetBrainsMono-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: block;
+}
+
+@font-face {
+  font-family: 'JetBrains Mono';
+  src: url('../fonts/JetBrainsMono-Medium.woff2') format('woff2');
+  font-weight: 500;
+  font-style: normal;
+  font-display: block;
+}
+
+@font-face {
+  font-family: 'JetBrains Mono';
+  src: url('../fonts/JetBrainsMono-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: block;
+}
+
+/* ── Semantic color variables (dark-mode defaults) ──────────────────── */
 :root {
-  /* Method colors */
-  --color-method-get: #4ade80;
-  --color-method-post: #22d3ee;
-  --color-method-put: #60a5fa;
+  /* Font stacks */
+  --font-sans: 'Geist', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', ui-monospace, monospace;
+  --font-feature-default: "kern" 1, "liga" 1;
+  --font-feature-mono: "kern" 1, "liga" 0, "tnum" 1, "zero" 1;
+
+  /* Method colors — boosted for dark contrast */
+  --color-method-get: #5eead4;
+  --color-method-post: #38bdf8;
+  --color-method-put: #818cf8;
   --color-method-patch: #fb923c;
-  --color-method-delete: #f87171;
+  --color-method-delete: #fb7185;
   --color-method-head: #c084fc;
   --color-method-options: #94a3b8;
 
-  /* Semantic feedback */
-  --color-success: #4ade80;
-  --color-success-muted: #34d399;
-  --color-warning: #f59e0b;
-  --color-warning-light: #fbbf24;
-  --color-danger: #ef4444;
-  --color-danger-light: #f87171;
-  --color-danger-lighter: #fca5a5;
-  --color-info: #60a5fa;
+  /* Semantic feedback — boosted */
+  --color-success: #34d399;
+  --color-success-muted: #6ee7b7;
+  --color-warning: #fbbf24;
+  --color-warning-light: #fcd34d;
+  --color-danger: #f87171;
+  --color-danger-light: #fca5a5;
+  --color-danger-lighter: #fecaca;
+  --color-info: #7dd3fc;
   --color-info-muted: #93bbfd;
-  --color-purple: #a78bfa;
+  --color-purple: #c4b5fd;
 
   /* Status response colors */
-  --color-status-success: #4ade80;
-  --color-status-redirect: #fbbf24;
+  --color-status-success: #34d399;
+  --color-status-redirect: #fcd34d;
   --color-status-client-error: #fb923c;
-  --color-status-server-error: #f87171;
+  --color-status-server-error: #fb7185;
 
   /* Variable highlighting */
-  --color-var-resolved: #4ade80;
-  --color-var-resolved-bg: rgba(74, 222, 128, 0.12);
-  --color-var-unresolved: #f87171;
-  --color-var-unresolved-bg: rgba(248, 113, 113, 0.12);
+  --color-var-resolved: #34d399;
+  --color-var-resolved-bg: rgba(52, 211, 153, 0.12);
+  --color-var-unresolved: #fb7185;
+  --color-var-unresolved-bg: rgba(251, 113, 133, 0.12);
 
   /* Status banner colors */
-  --color-banner-success: #86efac;
+  --color-banner-success: #6ee7b7;
   --color-banner-error: #fca5a5;
+
+  /* Border tokens */
+  --border-default: var(--color-surface-700);
+  --border-subtle: color-mix(in srgb, var(--color-surface-700) 50%, transparent);
+  --border-muted: color-mix(in srgb, var(--color-surface-700) 30%, transparent);
+  --border-focus: var(--color-brand-500);
+
+  /* Shadow tokens */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.15);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.2), 0 1px 3px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.3), 0 2px 8px rgba(0, 0, 0, 0.15);
+  --shadow-xl: 0 12px 40px rgba(0, 0, 0, 0.4), 0 4px 12px rgba(0, 0, 0, 0.2);
+
+  /* Dropdown-specific tokens (floating panels need more pop than inline elements) */
+  --shadow-dropdown: 0 12px 32px rgba(0, 0, 0, 0.4), 0 4px 12px rgba(0, 0, 0, 0.25);
+  --border-dropdown: var(--color-surface-700);
+
+  /* Border-radius tokens */
+  --radius-xs: 2px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 10px;
+  --radius-2xl: 12px;
+  --radius-full: 9999px;
 }
 
-/* --- Light theme overrides --- */
+/* ── Light theme overrides ──────────────────────────────────────────── */
 html.light {
   --color-surface-950: #f8fafc;
   --color-surface-900: #ffffff;
@@ -54,16 +143,16 @@ html.light {
   --color-surface-100: #0f172a;
   --color-surface-50:  #020617;
 
-  --color-brand-50:  #eff6ff;
-  --color-brand-100: #dbeafe;
-  --color-brand-200: #1e40af;
-  --color-brand-300: #1d4ed8;
-  --color-brand-400: #2563eb;
-  --color-brand-500: #3b82f6;
-  --color-brand-600: #2563eb;
-  --color-brand-700: #1d4ed8;
-  --color-brand-800: #1e40af;
-  --color-brand-900: #1e3a8a;
+  --color-brand-50:  #f0f9ff;
+  --color-brand-100: #e0f2fe;
+  --color-brand-200: #075985;
+  --color-brand-300: #0369a1;
+  --color-brand-400: #0284c7;
+  --color-brand-500: #0ea5e9;
+  --color-brand-600: #0284c7;
+  --color-brand-700: #0369a1;
+  --color-brand-800: #075985;
+  --color-brand-900: #0c4a6e;
 
   --color-method-get: #16a34a;
   --color-method-post: #0891b2;
@@ -96,34 +185,43 @@ html.light {
 
   --color-banner-success: #16a34a;
   --color-banner-error: #dc2626;
+
+  --shadow-dropdown: 0 12px 36px rgba(0, 0, 0, 0.16), 0 4px 16px rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(0, 0, 0, 0.08);
+  --border-dropdown: var(--color-surface-700);
+
+  /* Light theme shadow/border overrides */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.04);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.06);
+  --shadow-xl: 0 12px 40px rgba(0, 0, 0, 0.16), 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
 @theme {
-  --color-brand-50: #eff6ff;
-  --color-brand-100: #dbeafe;
-  --color-brand-200: #bfdbfe;
-  --color-brand-300: #93c5fd;
-  --color-brand-400: #60a5fa;
-  --color-brand-500: #3b82f6;
-  --color-brand-600: #2563eb;
-  --color-brand-700: #1d4ed8;
-  --color-brand-800: #1e40af;
-  --color-brand-900: #1e3a8a;
+  --color-brand-50: #f0f9ff;
+  --color-brand-100: #e0f2fe;
+  --color-brand-200: #bae6fd;
+  --color-brand-300: #7dd3fc;
+  --color-brand-400: #38bdf8;
+  --color-brand-500: #0ea5e9;
+  --color-brand-600: #0284c7;
+  --color-brand-700: #0369a1;
+  --color-brand-800: #075985;
+  --color-brand-900: #0c4a6e;
 
   --color-surface-50: #f8fafc;
-  --color-surface-100: #f1f5f9;
-  --color-surface-200: #e2e8f0;
-  --color-surface-300: #cbd5e1;
-  --color-surface-400: #94a3b8;
-  --color-surface-500: #64748b;
-  --color-surface-600: #475569;
-  --color-surface-700: #334155;
-  --color-surface-800: #0f1729;
-  --color-surface-900: #060c18;
-  --color-surface-950: #020617;
+  --color-surface-100: #e8edf4;
+  --color-surface-200: #c8d0dc;
+  --color-surface-300: #a0abbe;
+  --color-surface-400: #7a879d;
+  --color-surface-500: #566275;
+  --color-surface-600: #3b4759;
+  --color-surface-700: #1f2937;
+  --color-surface-800: #111827;
+  --color-surface-900: #0a0f1a;
+  --color-surface-950: #050810;
 }
 
-/* Drag region for macOS traffic lights */
+/* ── Drag region for macOS traffic lights ──────────────────────────── */
 .drag-region {
   -webkit-app-region: drag;
 }
@@ -132,7 +230,7 @@ html.light {
   -webkit-app-region: no-drag;
 }
 
-/* Scrollbar styling */
+/* ── Scrollbar styling ─────────────────────────────────────────────── */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -151,7 +249,18 @@ html.light {
   background: var(--color-surface-500);
 }
 
-/* CodeMirror overrides */
+/* ── Modal animations ──────────────────────────────────────────────── */
+@keyframes modal-backdrop-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes modal-content-in {
+  from { opacity: 0; transform: scale(0.97) translateY(4px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* ── CodeMirror overrides ──────────────────────────────────────────── */
 .cm-editor {
   height: 100%;
   font-size: 13px;
@@ -159,7 +268,8 @@ html.light {
 }
 
 .cm-editor .cm-scroller {
-  font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+  font-family: var(--font-mono);
+  font-feature-settings: var(--font-feature-mono);
 }
 
 .cm-editor.cm-focused {
@@ -180,13 +290,13 @@ html.light {
 .cm-var-resolved {
   color: var(--color-var-resolved);
   background: var(--color-var-resolved-bg);
-  border-radius: 2px;
+  border-radius: var(--radius-xs);
 }
 
 .cm-var-unresolved {
   color: var(--color-var-unresolved);
   background: var(--color-var-unresolved-bg);
-  border-radius: 2px;
+  border-radius: var(--radius-xs);
 }
 
 /* Variable hover tooltip */
@@ -197,7 +307,7 @@ html.light {
   padding: 6px 10px;
   background: var(--color-surface-800);
   border: 1px solid var(--color-surface-600);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   font-size: 12px;
   color: var(--color-surface-200);
   max-width: 300px;
@@ -208,7 +318,7 @@ html.light {
 }
 
 .cm-var-tooltip-value {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
   color: var(--color-var-resolved);
 }
 
