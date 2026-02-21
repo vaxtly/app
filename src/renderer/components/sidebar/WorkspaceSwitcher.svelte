@@ -80,7 +80,8 @@
   <!-- Trigger -->
   <button
     onclick={toggleDropdown}
-    class="group flex h-9 w-full items-center gap-1.5 px-3 border-b border-white/[0.12] bg-transparent text-surface-300 text-xs font-inherit cursor-pointer transition-[background,color] duration-150 text-left hover:bg-surface-700/40 hover:text-surface-100"
+    class="group flex h-9 w-full items-center gap-1.5 px-3 bg-transparent text-surface-300 text-xs font-inherit cursor-pointer transition-all duration-150 text-left hover:bg-white/[0.04] hover:text-surface-100"
+    style="border-bottom: 1px solid var(--glass-border)"
   >
     <svg class="w-3.5 h-3.5 shrink-0 text-surface-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
       <path d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25a2.25 2.25 0 01-2.25-2.25v-2.25z" />
@@ -99,21 +100,21 @@
   <!-- Dropdown -->
   {#if dropdownOpen}
     <div
-      class="absolute left-0 right-0 top-full z-50 mt-1 bg-surface-800 rounded-2xl shadow-dropdown overflow-hidden animate-[dropdown-in_0.12s_ease-out]"
-      style="border: 1px solid var(--border-dropdown)"
+      class="absolute left-0 right-0 top-full z-50 mt-1 rounded-xl overflow-hidden animate-[dropdown-in_0.15s_ease-out]"
+      style="background: var(--glass-bg-heavy); backdrop-filter: blur(var(--glass-blur-heavy)); -webkit-backdrop-filter: blur(var(--glass-blur-heavy)); border: 1px solid var(--glass-border); box-shadow: var(--shadow-dropdown)"
     >
       <!-- Workspace list -->
       <div class="max-h-[220px] overflow-y-auto">
         {#each appStore.workspaces as ws (ws.id)}
           {@const isActive = ws.id === appStore.activeWorkspaceId}
-          <div class="group/row relative transition-colors duration-100 hover:bg-surface-700">
+          <div class="group/row relative transition-colors duration-100 hover:bg-white/[0.06]">
             {#if renamingId === ws.id}
               <input
                 bind:this={renameInput}
                 bind:value={renameValue}
                 onblur={commitRename}
                 onkeydown={handleRenameKeydown}
-                class="flex-1 min-w-0 h-7 mx-1 my-0.5 px-2 border border-brand-500 rounded-sm bg-surface-900 text-surface-100 text-xs font-inherit outline-none"
+                class="flex-1 min-w-0 h-7 mx-1 my-0.5 px-2 border border-brand-500/50 rounded-md bg-white/[0.06] text-surface-100 text-xs font-inherit outline-none"
               />
             {:else}
               <button
@@ -133,7 +134,7 @@
                 <button
                   onclick={(e) => { e.stopPropagation(); startRename(ws.id, ws.name) }}
                   aria-label="Rename workspace"
-                  class="ws-action flex items-center justify-center w-[22px] h-[22px] shrink-0 border-none rounded-sm bg-transparent text-surface-500 cursor-pointer"
+                  class="ws-action flex items-center justify-center w-[22px] h-[22px] shrink-0 border-none rounded-md bg-transparent text-surface-500 cursor-pointer"
                 >
                   <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                     <path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -143,7 +144,7 @@
                   <button
                     onclick={(e) => { e.stopPropagation(); handleDelete(ws.id) }}
                     aria-label="Delete workspace"
-                    class="ws-action ws-action--danger flex items-center justify-center w-[22px] h-[22px] shrink-0 border-none rounded-sm bg-transparent text-surface-500 cursor-pointer"
+                    class="ws-action ws-action--danger flex items-center justify-center w-[22px] h-[22px] shrink-0 border-none rounded-md bg-transparent text-surface-500 cursor-pointer"
                   >
                     <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                       <path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -157,10 +158,10 @@
       </div>
 
       <!-- Separator + New -->
-      <div class="h-px bg-surface-700 my-1"></div>
+      <div class="h-px my-1 mx-2" style="background: var(--glass-border)"></div>
       <button
         onclick={createNewWorkspace}
-        class="flex items-center gap-1.5 w-full py-[7px] px-3 border-none bg-transparent text-surface-400 text-[11px] font-inherit cursor-pointer transition-[background,color] duration-100 hover:bg-surface-600/50 hover:text-surface-200"
+        class="flex items-center gap-1.5 w-full py-[7px] px-3 border-none bg-transparent text-surface-400 text-[11px] font-inherit cursor-pointer transition-all duration-100 hover:bg-white/[0.04] hover:text-surface-200"
       >
         <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
           <path d="M12 4v16m8-8H4" />
@@ -187,7 +188,7 @@
   }
 
   .ws-action:hover {
-    background: color-mix(in srgb, var(--color-surface-600) 60%, transparent);
+    background: rgba(255, 255, 255, 0.08);
     color: var(--color-surface-200);
   }
 

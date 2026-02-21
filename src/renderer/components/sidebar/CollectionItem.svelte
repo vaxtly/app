@@ -194,7 +194,7 @@
 <div class="group" oncontextmenu={handleContextMenu} ondragover={handleDragOver} ondragleave={handleDragLeave} ondrop={handleDrop}>
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div
-    class="flex w-full cursor-pointer items-center gap-1 rounded px-2 py-1 text-left transition-colors {isDropTarget ? 'border border-brand-500 bg-brand-500/10' : 'hover:bg-surface-800'}"
+    class="flex w-full cursor-pointer items-center gap-1 rounded-lg px-2 py-1 text-left transition-all duration-150 {isDropTarget ? 'border border-brand-500 bg-brand-500/10' : 'hover:bg-white/[0.05]'}"
     role="button"
     tabindex="0"
     aria-expanded={node.expanded}
@@ -227,7 +227,7 @@
         bind:value={renameValue}
         onblur={commitRename}
         onkeydown={handleRenameKeydown}
-        class="h-5 min-w-0 flex-1 rounded border border-brand-500 bg-surface-800 px-1 text-xs text-surface-100 outline-none"
+        class="h-5 min-w-0 flex-1 rounded-md border border-brand-500/50 bg-white/[0.06] px-1 text-xs text-surface-100 outline-none"
       />
     {:else}
       <span class="min-w-0 flex-1 truncate text-[13px] font-semibold text-surface-200">
@@ -239,7 +239,7 @@
     <button
       onclick={(e) => { e.stopPropagation(); addRequest() }}
       aria-label="Add request to collection"
-      class="flex h-5 w-5 shrink-0 items-center justify-center rounded text-surface-500 opacity-0 hover:bg-surface-700 hover:text-brand-400 group-hover:opacity-100"
+      class="flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-surface-500 opacity-0 transition-all duration-150 hover:bg-white/[0.08] hover:text-brand-400 group-hover:opacity-100"
     >
       <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
         <path d="M12 4v16m8-8H4" />
@@ -250,7 +250,7 @@
 
 <!-- Children -->
 {#if node.expanded}
-  <div class="ml-3 border-l border-surface-800 pl-1">
+  <div class="ml-3 pl-1" style="border-left: 1px solid var(--border-muted)">
     {#each node.children as child (child.id)}
       {#if child.type === 'folder'}
         <FolderItem node={child} {onrequestclick} />

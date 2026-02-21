@@ -110,7 +110,7 @@
   ondragend={handleDragEnd}
 >
   <button
-    class="flex w-full items-center gap-1.5 rounded px-2 py-1 text-left {isActive ? 'bg-brand-500/10 text-brand-300' : 'hover:bg-surface-800'}"
+    class="flex w-full items-center gap-1.5 rounded-lg px-2 py-1 text-left transition-all duration-150 {isActive ? 'bg-white/[0.08] text-brand-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]' : 'hover:bg-white/[0.05]'}"
     onclick={handleClick}
   >
     <!-- Method badge -->
@@ -125,7 +125,7 @@
         onblur={commitRename}
         onkeydown={handleRenameKeydown}
         onclick={(e) => e.stopPropagation()}
-        class="h-5 min-w-0 flex-1 rounded border border-brand-500 bg-surface-800 px-1 text-xs text-surface-100 outline-none"
+        class="h-5 min-w-0 flex-1 rounded-md border border-brand-500/50 bg-white/[0.06] px-1 text-xs text-surface-100 outline-none"
       />
     {:else}
       <span class="min-w-0 flex-1 truncate text-[13px] {isActive ? 'text-brand-200' : 'text-surface-300'}">
