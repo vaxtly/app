@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.2.4] - 2026-02-21
+
+### Changed
+- SystemLog now shows resolved URLs (e.g. `https://domain.com/post`) instead of raw `{{variable}}` templates for HTTP entries
+- SystemLog text no longer truncates — rows scroll horizontally with a thin scrollbar when content is wide
+
 ## [0.2.3] - 2026-02-21
 
 ### Changed
