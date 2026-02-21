@@ -99,6 +99,16 @@
     open = false
   }
 
+  /** Action that appends the element to document.body (escapes parent stacking contexts) */
+  function portal(node: HTMLElement) {
+    document.body.appendChild(node)
+    return {
+      destroy() {
+        node.remove()
+      },
+    }
+  }
+
   onMount(() => {
     function handleClickOutside(e: MouseEvent): void {
       const target = e.target as Node
@@ -156,7 +166,8 @@
   {#if open}
     <div
       bind:this={panelEl}
-      class="fixed z-100 w-60 rounded-xl overflow-hidden animate-[dropdown-in_0.15s_ease-out]"
+      use:portal
+      class="fixed z-[9999] w-60 rounded-xl overflow-hidden animate-[dropdown-in_0.15s_ease-out]"
       style="{panelStyle} background: var(--glass-bg-heavy); backdrop-filter: blur(var(--glass-blur-heavy)); -webkit-backdrop-filter: blur(var(--glass-blur-heavy)); border: 1px solid var(--glass-border); box-shadow: var(--shadow-dropdown);"
     >
       <!-- Search -->

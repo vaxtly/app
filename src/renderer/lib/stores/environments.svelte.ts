@@ -23,7 +23,8 @@ async function loadAll(workspaceId?: string): Promise<void> {
 
 async function create(name: string, workspaceId?: string): Promise<Environment> {
   const env = await window.api.environments.create({ name, workspace_id: workspaceId })
-  await loadAll(workspaceId)
+  // Append locally so the UI updates immediately (consistent with remove's local filter)
+  environments = [...environments, env]
   return env
 }
 
