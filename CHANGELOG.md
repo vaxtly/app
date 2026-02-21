@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ### Changed
 - Variable resolution IPC handlers (`variables:resolve`, `variables:resolve-with-source`) now call `ensureLoaded()` for vault-synced environments before returning — variable highlighting updates immediately without needing to send a request first
 - Pre/post-request script logs now use a dedicated "script" category badge with "pre"/"post" type instead of "http" / "pre-script"
+- Error responses (status 0) now show a clean centered error message instead of duplicating the error in both the status bar and the response body; IPC wrapper text is stripped from the message
 
 ### Fixed
 - `{{variable}}` highlighting (green/red) not updating for vault-synced environments until after the first request send

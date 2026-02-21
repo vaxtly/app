@@ -25,6 +25,8 @@
   })
 
   // Status classification for styling
+  let isError = $derived(response?.status === 0)
+
   let statusClass = $derived.by(() => {
     if (!response) return ''
     const s = response.status
@@ -33,6 +35,13 @@
     if (s >= 400 && s < 500) return 'client-error'
     if (s >= 500) return 'server-error'
     return 'error'
+  })
+
+  /** Strip IPC wrapper from error messages for display */
+  let errorMessage = $derived.by(() => {
+    if (!response || !isError) return ''
+    const msg = response.statusText || String(response.body) || 'Unknown error'
+    return msg.replace(/^Error:\s*Error invoking remote method '[^']+?':\s*(Error:\s*)?/i, '')
   })
 </script>
 
@@ -77,76 +86,96 @@
         >
           {response.status === 0 ? 'ERR' : response.status}
         </span>
-        <span class="text-xs text-surface-300 whitespace-nowrap overflow-hidden text-ellipsis">{response.statusText}</span>
+        {#if !isError}
+          <span class="text-xs text-surface-300 whitespace-nowrap overflow-hidden text-ellipsis">{response.statusText}</span>
+        {/if}
       </div>
-      <div class="flex items-center gap-2 shrink-0">
-        <span class="flex items-baseline gap-1">
-          <span class="text-[9px] uppercase tracking-widest text-surface-500">TTFB</span>
-          <span class="font-mono text-[11px] text-surface-300" style="font-feature-settings: var(--font-feature-mono)">{formatTime(response.timing.ttfb)}</span>
-        </span>
-        <span class="w-px h-2.5 bg-surface-700"></span>
-        <span class="flex items-baseline gap-1">
-          <span class="text-[9px] uppercase tracking-widest text-surface-500">Total</span>
-          <span class="font-mono text-[11px] text-surface-300" style="font-feature-settings: var(--font-feature-mono)">{formatTime(response.timing.total)}</span>
-        </span>
-        <span class="w-px h-2.5 bg-surface-700"></span>
-        <span class="flex items-baseline gap-1">
-          <span class="text-[9px] uppercase tracking-widest text-surface-500">Size</span>
-          <span class="font-mono text-[11px] text-surface-300" style="font-feature-settings: var(--font-feature-mono)">{formatSize(response.size)}</span>
-        </span>
-      </div>
-    </div>
-
-    <!-- Response tabs -->
-    <div class="flex items-stretch shrink-0 h-9 px-1 gap-px" style="border-bottom: 1px solid var(--glass-border)">
-      <button
-        class="rv-tab flex items-center gap-[5px] px-2.5 my-1 border-none bg-transparent text-surface-400 text-xs font-medium cursor-pointer relative whitespace-nowrap rounded-lg transition-all duration-150 hover:text-surface-200 hover:bg-[var(--tint-subtle)]"
-        class:rv-tab--active={activeTab === 'body'}
-        onclick={() => activeTab = 'body'}
-      >
-        Body
-      </button>
-      <button
-        class="rv-tab flex items-center gap-[5px] px-2.5 my-1 border-none bg-transparent text-surface-400 text-xs font-medium cursor-pointer relative whitespace-nowrap rounded-lg transition-all duration-150 hover:text-surface-200 hover:bg-[var(--tint-subtle)]"
-        class:rv-tab--active={activeTab === 'headers'}
-        onclick={() => activeTab = 'headers'}
-      >
-        Headers
-        <span class="rv-tab-badge text-[10px] leading-none py-0.5 px-[5px] rounded-full bg-surface-600/60 text-surface-300 font-medium">{headerCount}</span>
-      </button>
-      {#if cookieCount > 0}
-        <button
-          class="rv-tab flex items-center gap-[5px] px-2.5 my-1 border-none bg-transparent text-surface-400 text-xs font-medium cursor-pointer relative whitespace-nowrap rounded-lg transition-all duration-150 hover:text-surface-200 hover:bg-[var(--tint-subtle)]"
-          class:rv-tab--active={activeTab === 'cookies'}
-          onclick={() => activeTab = 'cookies'}
-        >
-          Cookies
-          <span class="rv-tab-badge text-[10px] leading-none py-0.5 px-[5px] rounded-full bg-surface-600/60 text-surface-300 font-medium">{cookieCount}</span>
-        </button>
-      {/if}
-      {#if isHtml}
-        <button
-          class="rv-tab flex items-center gap-[5px] px-2.5 my-1 border-none bg-transparent text-surface-400 text-xs font-medium cursor-pointer relative whitespace-nowrap rounded-lg transition-all duration-150 hover:text-surface-200 hover:bg-[var(--tint-subtle)]"
-          class:rv-tab--active={activeTab === 'preview'}
-          onclick={() => activeTab = 'preview'}
-        >
-          Preview
-        </button>
+      {#if !isError}
+        <div class="flex items-center gap-2 shrink-0">
+          <span class="flex items-baseline gap-1">
+            <span class="text-[9px] uppercase tracking-widest text-surface-500">TTFB</span>
+            <span class="font-mono text-[11px] text-surface-300" style="font-feature-settings: var(--font-feature-mono)">{formatTime(response.timing.ttfb)}</span>
+          </span>
+          <span class="w-px h-2.5 bg-surface-700"></span>
+          <span class="flex items-baseline gap-1">
+            <span class="text-[9px] uppercase tracking-widest text-surface-500">Total</span>
+            <span class="font-mono text-[11px] text-surface-300" style="font-feature-settings: var(--font-feature-mono)">{formatTime(response.timing.total)}</span>
+          </span>
+          <span class="w-px h-2.5 bg-surface-700"></span>
+          <span class="flex items-baseline gap-1">
+            <span class="text-[9px] uppercase tracking-widest text-surface-500">Size</span>
+            <span class="font-mono text-[11px] text-surface-300" style="font-feature-settings: var(--font-feature-mono)">{formatSize(response.size)}</span>
+          </span>
+        </div>
       {/if}
     </div>
 
-    <!-- Content -->
-    <div class="flex-1 overflow-hidden">
-      {#if activeTab === 'body'}
-        <ResponseBody body={response.body} headers={response.headers} />
-      {:else if activeTab === 'headers'}
-        <ResponseHeaders headers={response.headers} />
-      {:else if activeTab === 'cookies'}
-        <ResponseCookies cookies={response.cookies ?? []} />
-      {:else if activeTab === 'preview'}
-        <HtmlPreview body={response.body} />
-      {/if}
-    </div>
+    {#if isError}
+      <!-- Error display -->
+      <div class="flex flex-1 items-center justify-center p-6">
+        <div class="max-w-md text-center">
+          <div class="inline-flex items-center justify-center w-10 h-10 rounded-2xl bg-[color-mix(in_srgb,var(--color-danger-light)_10%,transparent)] mb-4">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--color-danger-light)" stroke-width="1.5">
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="8" x2="12" y2="12" />
+              <line x1="12" y1="16" x2="12.01" y2="16" />
+            </svg>
+          </div>
+          <p class="text-sm text-surface-200 leading-relaxed font-medium">{errorMessage}</p>
+        </div>
+      </div>
+    {:else}
+      <!-- Response tabs -->
+      <div class="flex items-stretch shrink-0 h-9 px-1 gap-px" style="border-bottom: 1px solid var(--glass-border)">
+        <button
+          class="rv-tab flex items-center gap-[5px] px-2.5 my-1 border-none bg-transparent text-surface-400 text-xs font-medium cursor-pointer relative whitespace-nowrap rounded-lg transition-all duration-150 hover:text-surface-200 hover:bg-[var(--tint-subtle)]"
+          class:rv-tab--active={activeTab === 'body'}
+          onclick={() => activeTab = 'body'}
+        >
+          Body
+        </button>
+        <button
+          class="rv-tab flex items-center gap-[5px] px-2.5 my-1 border-none bg-transparent text-surface-400 text-xs font-medium cursor-pointer relative whitespace-nowrap rounded-lg transition-all duration-150 hover:text-surface-200 hover:bg-[var(--tint-subtle)]"
+          class:rv-tab--active={activeTab === 'headers'}
+          onclick={() => activeTab = 'headers'}
+        >
+          Headers
+          <span class="rv-tab-badge text-[10px] leading-none py-0.5 px-[5px] rounded-full bg-surface-600/60 text-surface-300 font-medium">{headerCount}</span>
+        </button>
+        {#if cookieCount > 0}
+          <button
+            class="rv-tab flex items-center gap-[5px] px-2.5 my-1 border-none bg-transparent text-surface-400 text-xs font-medium cursor-pointer relative whitespace-nowrap rounded-lg transition-all duration-150 hover:text-surface-200 hover:bg-[var(--tint-subtle)]"
+            class:rv-tab--active={activeTab === 'cookies'}
+            onclick={() => activeTab = 'cookies'}
+          >
+            Cookies
+            <span class="rv-tab-badge text-[10px] leading-none py-0.5 px-[5px] rounded-full bg-surface-600/60 text-surface-300 font-medium">{cookieCount}</span>
+          </button>
+        {/if}
+        {#if isHtml}
+          <button
+            class="rv-tab flex items-center gap-[5px] px-2.5 my-1 border-none bg-transparent text-surface-400 text-xs font-medium cursor-pointer relative whitespace-nowrap rounded-lg transition-all duration-150 hover:text-surface-200 hover:bg-[var(--tint-subtle)]"
+            class:rv-tab--active={activeTab === 'preview'}
+            onclick={() => activeTab = 'preview'}
+          >
+            Preview
+          </button>
+        {/if}
+      </div>
+
+      <!-- Content -->
+      <div class="flex-1 overflow-hidden">
+        {#if activeTab === 'body'}
+          <ResponseBody body={response.body} headers={response.headers} />
+        {:else if activeTab === 'headers'}
+          <ResponseHeaders headers={response.headers} />
+        {:else if activeTab === 'cookies'}
+          <ResponseCookies cookies={response.cookies ?? []} />
+        {:else if activeTab === 'preview'}
+          <HtmlPreview body={response.body} />
+        {/if}
+      </div>
+    {/if}
   {/if}
 </div>
 
