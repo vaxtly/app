@@ -7,23 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.2.2] - 2026-02-21
+
 ### Changed
 - Vault-synced environment secrets are now held in-memory only — never written to the local SQLite database
 - Vault environments store `variables: '[]'` in DB; actual secret values live in a session-lifetime in-memory cache
-- `pullAll()` populates in-memory cache instead of persisting secrets to DB
-- `fetchVariables()` populates in-memory cache only (no DB write)
-- `pushVariables()` updates in-memory cache after pushing to Vault
-- Variable substitution reads from in-memory cache for vault-synced environments
 - Proxy handler calls `ensureLoaded()` before variable substitution to handle cold-cache scenarios
 - Post-response script mirroring updates in-memory cache (and pushes to Vault) for vault-synced environments instead of writing to DB
 - Environment editor saves vault-synced variables directly to Vault without local DB write
-- Pull from Vault in environment editor no longer persists to local DB
 
 ### Added
-- `getCachedVariables(envId)` — read cached vault secrets for an environment
-- `setCachedVariables(envId, vars)` — update cached vault secrets (used by script-execution mirroring)
-- `ensureLoaded(envId, wsId?)` — fetch from Vault if not already cached (used by proxy before send)
+- `getCachedVariables(envId)`, `setCachedVariables(envId, vars)`, `ensureLoaded(envId, wsId?)` — in-memory vault secret cache API
 - 30 new tests: unit tests for cache operations, vault-synced variable resolution, script mirroring, and 12 end-to-end integration tests covering fresh install and app-reopen flows (371 total)
+
+### Fixed
+- macOS update banner overlapping traffic light buttons (close/minimize/maximize)
+- Update banner copy button not copying the command to clipboard
 
 ## [0.2.1] - 2026-02-21
 
