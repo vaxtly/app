@@ -295,14 +295,8 @@
 
   let layout = $derived(settingsStore.get('request.layout'))
 
-  // Reset split when layout changes
-  $effect(() => {
-    void layout
-    splitPercent = 50
-  })
-
   // --- Draggable splitter ---
-  let splitPercent = $state(50)
+  let splitPercent = $state(settingsStore.get('request.splitPercent'))
   let dragging = $state(false)
   let splitContainer = $state<HTMLElement | null>(null)
 
@@ -327,6 +321,7 @@
 
   function onDividerPointerUp(): void {
     dragging = false
+    settingsStore.set('request.splitPercent', splitPercent)
   }
 
   function onDividerPointerCancel(): void {

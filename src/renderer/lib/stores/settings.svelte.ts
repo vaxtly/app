@@ -15,6 +15,7 @@ export interface SettingsMap {
   'app.welcomed': boolean
   'app.theme': 'dark' | 'light' | 'system'
   'sidebar.width': number
+  'request.splitPercent': number
 }
 
 type SettingsKey = keyof SettingsMap
@@ -31,6 +32,7 @@ const defaults: SettingsMap = {
   'app.welcomed': false,
   'app.theme': 'dark',
   'sidebar.width': 244,
+  'request.splitPercent': 50,
 }
 
 // --- State ---
