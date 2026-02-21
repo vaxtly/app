@@ -13,6 +13,7 @@
 
 import yaml from 'js-yaml'
 import { getDatabase } from '../database/connection'
+import * as requestsRepo from '../database/repositories/requests'
 import type {
   Collection,
   Folder,
@@ -81,9 +82,7 @@ export function serializeToDirectory(
   const folders = db
     .prepare('SELECT * FROM folders WHERE collection_id = ? ORDER BY "order" ASC')
     .all(collection.id) as Folder[]
-  const requests = db
-    .prepare('SELECT * FROM requests WHERE collection_id = ? ORDER BY "order" ASC')
-    .all(collection.id) as Request[]
+  const requests = requestsRepo.findByCollection(collection.id)
 
   // Build lookup maps
   const foldersByParent = new Map<string | null, Folder[]>()

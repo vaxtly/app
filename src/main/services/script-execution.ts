@@ -13,7 +13,7 @@ import * as settingsRepo from '../database/repositories/settings'
 import { getCachedVariables, setCachedVariables, pushVariables as vaultPush } from '../vault/vault-sync-service'
 import { substitute } from './variable-substitution'
 import { DEFAULTS } from '../../shared/constants'
-import { logHttp } from './session-log'
+import { logHttp, logScript } from './session-log'
 import type { ScriptsConfig, PreRequestScript, PostResponseScript, EnvironmentVariable } from '../../shared/types/models'
 import type { ResponseData } from '../../shared/types/http'
 
@@ -36,7 +36,7 @@ export async function executePreRequestScripts(
   }
 
   if (!scripts.pre_request) {
-    logHttp('pre-script', requestId, 'No pre-request scripts found')
+    logScript('pre', request.name, 'No pre-request scripts found')
     return true
   }
 
@@ -45,9 +45,10 @@ export async function executePreRequestScripts(
 
   for (const script of Array.isArray(scripts.pre_request) ? scripts.pre_request : [scripts.pre_request]) {
     if (script.action !== 'send_request' || !script.request_id) continue
-    logHttp('pre-script', requestId, `Firing dependent request: ${script.request_id}`)
+    const depName = requestsRepo.findById(script.request_id)?.name ?? script.request_id
+    logScript('pre', request.name, `Firing dependent request: ${depName}`)
     await executeDependentRequest(script.request_id, collectionId, workspaceId, stack)
-    logHttp('pre-script', requestId, 'Dependent request completed')
+    logScript('pre', request.name, 'Dependent request completed')
   }
 
   return true
@@ -81,13 +82,13 @@ export function executePostResponseScripts(
     // Sanitize: strip {{...}} template patterns from server-controlled values
     // to prevent nested variable injection that could exfiltrate secrets
     const value = rawValue !== null ? rawValue.replace(/\{\{[\w\-.]+\}\}/g, '') : null
-    logHttp('post-script', requestId, `Extract "${script.source}" → ${value !== null ? `"${value.slice(0, 50)}..."` : 'null'}, target: "${script.target}"`)
+    logScript('post', request.name, `Extract "${script.source}" → ${value !== null ? `"${value.slice(0, 50)}..."` : 'null'}, target: "${script.target}"`)
     if (value !== null) {
       setCollectionVariable(collectionId, script.target, value)
       mirrorToActiveEnvironment(collectionId, script.target, value, workspaceId)
-      logHttp('post-script', requestId, `Variable "${script.target}" set successfully`)
+      logScript('post', request.name, `Variable "${script.target}" set successfully`)
     } else {
-      logHttp('post-script', requestId, `Failed to extract "${script.source}" from response`, false)
+      logScript('post', request.name, `Failed to extract "${script.source}" from response`, false)
     }
   }
 }
@@ -119,7 +120,7 @@ async function executeDependentRequest(
   try {
     // Execute the HTTP request
     const response = await executeHttpRequest(requestId, collectionId, workspaceId)
-    logHttp('pre-script', requestId, `Dependent request returned ${response.status} ${response.statusText}`)
+    logScript('pre', request.name, `Dependent request returned ${response.status} ${response.statusText}`)
 
     // Run post-response scripts
     executePostResponseScripts(requestId, collectionId, response, workspaceId)
@@ -214,7 +215,7 @@ async function executeHttpRequest(
     fetchOptions.body = body
   }
 
-  logHttp('pre-script', requestId, `→ ${request.method} ${request.url}`)
+  logScript('pre', request.name, `→ ${request.method} ${request.url}`)
 
   const startTime = performance.now()
 

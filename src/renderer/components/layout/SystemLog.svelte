@@ -75,6 +75,7 @@
   function getCategoryColor(category: SessionLogEntry['category']): string {
     switch (category) {
       case 'http': return 'var(--color-info)'
+      case 'script': return 'var(--color-method-patch)'
       case 'sync': return 'var(--color-purple)'
       case 'vault': return 'var(--color-warning)'
       case 'system': return 'var(--color-surface-400)'

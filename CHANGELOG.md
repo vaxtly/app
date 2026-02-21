@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+- Variable resolution IPC handlers (`variables:resolve`, `variables:resolve-with-source`) now call `ensureLoaded()` for vault-synced environments before returning — variable highlighting updates immediately without needing to send a request first
+- Pre/post-request script logs now use a dedicated "script" category badge with "pre"/"post" type instead of "http" / "pre-script"
+
+### Fixed
+- `{{variable}}` highlighting (green/red) not updating for vault-synced environments until after the first request send
+- Git sync pushing encrypted `enc:gcm:...` ciphertext instead of original auth values (e.g. `{{token}}`) — affected single-request push (save/right-click) and collection-level push; both serialization paths now route through the repository decryption layer
+- SystemLog showing internal UUIDs instead of request names for pre/post-request script entries
+
+### Added
+- 2 regression tests for YAML serializer auth decryption (bearer + basic auth round-trip through `serializeToDirectory`) — 373 total
+
 ## [0.2.2] - 2026-02-21
 
 ### Changed
@@ -18,7 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 - `getCachedVariables(envId)`, `setCachedVariables(envId, vars)`, `ensureLoaded(envId, wsId?)` — in-memory vault secret cache API
-- 30 new tests: unit tests for cache operations, vault-synced variable resolution, script mirroring, and 12 end-to-end integration tests covering fresh install and app-reopen flows (371 total)
+- 30 new tests: unit tests for cache operations, vault-synced variable resolution, script mirroring, and 12 end-to-end integration tests covering fresh install and app-reopen flows (373 total)
 
 ### Fixed
 - macOS update banner overlapping traffic light buttons (close/minimize/maximize)

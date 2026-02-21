@@ -13,6 +13,7 @@
 import { createHash } from 'crypto'
 import { getDatabase } from '../database/connection'
 import * as collectionsRepo from '../database/repositories/collections'
+import * as requestsRepo from '../database/repositories/requests'
 import * as settingsRepo from '../database/repositories/settings'
 import * as workspacesRepo from '../database/repositories/workspaces'
 import type { Collection, FileState } from '../../shared/types/models'
@@ -543,12 +544,8 @@ export async function pushSingleRequest(
   const provider = getProvider(workspaceId)
   if (!provider) return false
 
-  const db = getDatabase()
-
   try {
-    const request = db.prepare('SELECT * FROM requests WHERE id = ?').get(requestId) as
-      | import('../../shared/types/models').Request
-      | undefined
+    const request = requestsRepo.findById(requestId)
     if (!request) return false
 
     const content = serializeRequest(request, { sanitize })

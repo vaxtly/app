@@ -231,6 +231,48 @@ describe('importFromDirectory', () => {
   })
 })
 
+describe('serializeToDirectory — auth decryption', () => {
+  it('exports decrypted auth values, not enc: ciphertext', () => {
+    const col = collectionsRepo.create({ name: 'Auth Collection' })
+    const req = requestsRepo.create({
+      collection_id: col.id,
+      name: 'Bearer Req',
+      method: 'GET',
+      url: 'https://api.example.com',
+    })
+    requestsRepo.update(req.id, {
+      auth: JSON.stringify({ type: 'bearer', bearer_token: '{{token}}' }),
+    })
+
+    const files = serializeToDirectory(collectionsRepo.findById(col.id)!)
+    const requestYaml = Object.entries(files).find(([p]) => p.endsWith(`${req.id}.yaml`))![1]
+
+    expect(requestYaml).toContain('{{token}}')
+    expect(requestYaml).not.toContain('enc:')
+    expect(requestYaml).not.toContain('enc:gcm:')
+  })
+
+  it('exports decrypted basic auth credentials', () => {
+    const col = collectionsRepo.create({ name: 'Basic Auth Collection' })
+    const req = requestsRepo.create({
+      collection_id: col.id,
+      name: 'Basic Req',
+      method: 'GET',
+      url: 'https://api.example.com',
+    })
+    requestsRepo.update(req.id, {
+      auth: JSON.stringify({ type: 'basic', basic_username: 'admin', basic_password: 's3cret' }),
+    })
+
+    const files = serializeToDirectory(collectionsRepo.findById(col.id)!)
+    const requestYaml = Object.entries(files).find(([p]) => p.endsWith(`${req.id}.yaml`))![1]
+
+    expect(requestYaml).toContain('admin')
+    expect(requestYaml).toContain('s3cret')
+    expect(requestYaml).not.toContain('enc:')
+  })
+})
+
 describe('serializeRequest — auth and scripts', () => {
   it('serializes request with auth config', () => {
     const col = collectionsRepo.create({ name: 'Test' })

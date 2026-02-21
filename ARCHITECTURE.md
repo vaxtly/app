@@ -56,7 +56,7 @@ vaxtly/
 │   │   │   ├── requests.ts
 │   │   │   ├── environments.ts
 │   │   │   ├── proxy.ts               # HTTP proxy + var substitution + pre/post scripts + history save
-│   │   │   ├── variables.ts           # Variable resolution IPC (resolve, resolveWithSource)
+│   │   │   ├── variables.ts           # Variable resolution IPC (resolve, resolveWithSource) — async, ensures vault cache
 │   │   │   ├── histories.ts           # Request history CRUD + prune
 │   │   │   ├── session-log.ts         # Session log list + clear
 │   │   │   ├── code-generator.ts      # Code snippet generation
@@ -161,7 +161,7 @@ vaxtly/
 │   │   ├── script-execution.test.ts    # 40 tests: extractValue + extractJsonPath + executePostResponseScripts + vault mirror
 │   │   ├── code-generator.test.ts      # 17 tests: 5 languages + all auth/body types
 │   │   ├── sensitive-data-scanner.test.ts # 24 tests: scan + sanitize + api-key + urlencoded
-│   │   ├── yaml-serializer.test.ts     # 12 tests: serialize + import + auth/scripts + sanitize
+│   │   ├── yaml-serializer.test.ts     # 14 tests: serialize + import + auth/scripts + sanitize + auth decryption regression
 │   │   ├── remote-sync.test.ts         # 18 tests: file state + isConfigured + getProvider
 │   │   ├── vault-sync.test.ts          # 14 tests: buildPath + isConfigured + resetProvider + in-memory cache
 │   │   ├── vault-e2e.test.ts          # 12 tests: end-to-end vault in-memory flows (fresh install, auto-sync, cold cache, scripts)
@@ -368,8 +368,8 @@ Pattern: `ipcMain.handle('domain:action', handler)` in main, `ipcRenderer.invoke
 | `proxy:send` | ipc/proxy.ts | native fetch + var substitution | `api.proxy.send(reqId, config)` |
 | `proxy:cancel` | ipc/proxy.ts | AbortController | `api.proxy.cancel(reqId)` |
 | `proxy:pick-file` | ipc/proxy.ts | dialog.showOpenDialog | `api.proxy.pickFile()` |
-| `variables:resolve` | ipc/variables.ts | `getResolvedVariables()` | `api.variables.resolve(wsId?, colId?)` |
-| `variables:resolve-with-source` | ipc/variables.ts | `getResolvedVariablesWithSource()` | `api.variables.resolveWithSource(wsId?, colId?)` |
+| `variables:resolve` | ipc/variables.ts | `ensureLoaded()` + `getResolvedVariables()` | `api.variables.resolve(wsId?, colId?)` |
+| `variables:resolve-with-source` | ipc/variables.ts | `ensureLoaded()` + `getResolvedVariablesWithSource()` | `api.variables.resolveWithSource(wsId?, colId?)` |
 | `histories:list` | ipc/histories.ts | `findByRequest(reqId)` | `api.histories.list(reqId)` |
 | `histories:get` | ipc/histories.ts | `findById(id)` | `api.histories.get(id)` |
 | `histories:delete` | ipc/histories.ts | `remove(id)` | `api.histories.delete(id)` |
@@ -591,7 +591,7 @@ All stores use this pattern: module-level `$state` + `$derived` + exported objec
 - Convenience helpers: `logSync()`, `logVault()`, `logHttp()`, `logSystem()`
 
 ### YAML Serializer (`services/yaml-serializer.ts`)
-- `serializeToDirectory(collection, options?)` → `Record<path, yamlContent>` file map
+- `serializeToDirectory(collection, options?)` → `Record<path, yamlContent>` file map — fetches requests via `requestsRepo.findByCollection()` (ensures auth fields are decrypted)
 - `serializeRequest(request, options?)` → YAML string
 - `importFromDirectory(files, existingId?, workspaceId?)` → collection ID (creates or updates)
 - Directory structure: `{uuid}/_collection.yaml`, `_manifest.yaml`, `{reqUuid}.yaml`, `{folderUuid}/_folder.yaml`
@@ -623,7 +623,7 @@ All stores use this pattern: module-level `$state` + `$derived` + exported objec
 - `pushCollection(collection, sanitize?, workspaceId?)` — 3-way merge per file, atomic commit
 - `pushAll(workspaceId?)` → `SyncResult` — pushes all dirty/unsynced collections (scoped to workspace)
 - `pullSingleCollection(collection, workspaceId?)` — pulls one collection
-- `pushSingleRequest(collection, requestId, sanitize?, workspaceId?)` — granular single-file push
+- `pushSingleRequest(collection, requestId, sanitize?, workspaceId?)` — granular single-file push (fetches request via `requestsRepo.findById()` for decrypted auth)
 - `forceKeepLocal(collection, workspaceId?)` / `forceKeepRemote(collection, workspaceId?)` — conflict resolution
 - `deleteRemoteCollection(collection, workspaceId?)` — removes from remote
 - `SyncConflictError` class for conflict detection

@@ -45,7 +45,7 @@ export interface VaultConfig {
 
 export interface SessionLogEntry {
   id: string
-  category: 'sync' | 'vault' | 'http' | 'system'
+  category: 'sync' | 'vault' | 'http' | 'script' | 'system'
   type: string
   target: string
   message: string

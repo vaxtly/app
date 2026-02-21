@@ -61,6 +61,10 @@ export function logHttp(type: string, target: string, message: string, success =
   addLog('http', type, target, message, success)
 }
 
+export function logScript(type: string, target: string, message: string, success = true): void {
+  addLog('script', type, target, message, success)
+}
+
 export function logSystem(type: string, target: string, message: string, success = true): void {
   addLog('system', type, target, message, success)
 }
