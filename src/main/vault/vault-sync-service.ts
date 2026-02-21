@@ -1,6 +1,9 @@
 /**
  * Vault sync service — manages environment variable synchronization with HashiCorp Vault.
  * Reads config from app_settings, creates provider instances, handles fetch/push/pullAll/migrate.
+ *
+ * Secrets are held in-memory only — never persisted to the local SQLite DB.
+ * The DB stores vault metadata (vault_synced, vault_path, name) but variables = '[]'.
  */
 
 import type { SecretsProvider } from './secrets-provider.interface'
@@ -11,9 +14,8 @@ import * as environmentsRepo from '../database/repositories/environments'
 import type { EnvironmentVariable } from '../../shared/types/models'
 import { logVault } from '../services/session-log'
 
-// In-memory cache: environmentId → { data, expiresAt }
-const secretsCache = new Map<string, { data: EnvironmentVariable[]; expiresAt: number }>()
-const CACHE_TTL_MS = 60_000 // 60 seconds
+// In-memory cache: environmentId → variables (session-lifetime, no TTL)
+const secretsCache = new Map<string, EnvironmentVariable[]>()
 
 // Provider cache keyed by workspaceId (or '__global__' for no workspace)
 const providerCache = new Map<string, SecretsProvider>()
@@ -101,15 +103,33 @@ export function buildPath(env: { name: string; vault_path: string | null }): str
     .replace(/^-|-$/g, '')
 }
 
+/** Read cached variables for an environment. Returns null if not cached. */
+export function getCachedVariables(environmentId: string): EnvironmentVariable[] | null {
+  return secretsCache.get(environmentId) ?? null
+}
+
+/** Set cached variables for an environment (e.g. after script-execution mirror). */
+export function setCachedVariables(environmentId: string, variables: EnvironmentVariable[]): void {
+  secretsCache.set(environmentId, variables)
+}
+
+/**
+ * Ensure variables are loaded in the in-memory cache.
+ * Fetches from Vault if not already cached.
+ */
+export async function ensureLoaded(environmentId: string, workspaceId?: string): Promise<void> {
+  if (secretsCache.has(environmentId)) return
+  await fetchVariables(environmentId, workspaceId)
+}
+
 /**
  * Fetch variables from Vault for an environment.
+ * Populates in-memory cache only — never writes to the DB.
  */
 export async function fetchVariables(environmentId: string, workspaceId?: string): Promise<EnvironmentVariable[]> {
-  // Check cache
+  // Check cache (session-lifetime, no TTL)
   const cached = secretsCache.get(environmentId)
-  if (cached && Date.now() < cached.expiresAt) {
-    return cached.data
-  }
+  if (cached) return cached
 
   const provider = await getProvider(workspaceId)
   if (!provider) throw new Error('Vault not configured')
@@ -122,7 +142,7 @@ export async function fetchVariables(environmentId: string, workspaceId?: string
 
   if (secrets === null) {
     const result: EnvironmentVariable[] = []
-    secretsCache.set(environmentId, { data: result, expiresAt: Date.now() + CACHE_TTL_MS })
+    secretsCache.set(environmentId, result)
     return result
   }
 
@@ -132,12 +152,13 @@ export async function fetchVariables(environmentId: string, workspaceId?: string
     enabled: true,
   }))
 
-  secretsCache.set(environmentId, { data: variables, expiresAt: Date.now() + CACHE_TTL_MS })
+  secretsCache.set(environmentId, variables)
   return variables
 }
 
 /**
  * Push variables to Vault for an environment.
+ * Updates the in-memory cache with the pushed values.
  */
 export async function pushVariables(environmentId: string, variables: EnvironmentVariable[], workspaceId?: string): Promise<void> {
   const provider = await getProvider(workspaceId)
@@ -155,7 +176,9 @@ export async function pushVariables(environmentId: string, variables: Environmen
 
   const path = buildPath(env)
   await provider.putSecrets(path, data)
-  clearCache(environmentId)
+
+  // Update cache with pushed values
+  secretsCache.set(environmentId, variables)
 }
 
 /**
@@ -179,10 +202,12 @@ export async function deleteSecrets(environmentId: string, workspaceId?: string)
 }
 
 /**
- * Pull all secrets from Vault and create environment records for untracked paths.
+ * Pull all secrets from Vault — refreshes in-memory cache for existing environments
+ * and creates new environment records (with empty variables) for untracked paths.
+ * Secrets are only held in-memory, never written to DB.
  */
-export async function pullAll(workspaceId?: string): Promise<{ created: number; errors: string[] }> {
-  const result = { created: 0, errors: [] as string[] }
+export async function pullAll(workspaceId?: string): Promise<{ created: number; refreshed: number; errors: string[] }> {
+  const result = { created: 0, refreshed: 0, errors: [] as string[] }
 
   const provider = await getProvider(workspaceId)
   if (!provider) {
@@ -205,10 +230,10 @@ export async function pullAll(workspaceId?: string): Promise<{ created: number; 
     ? environmentsRepo.findByWorkspace(workspaceId)
     : environmentsRepo.findAll()
 
-  const existingPaths = new Map<string, boolean>()
+  const existingPaths = new Map<string, string>()
   for (const env of allEnvs) {
     if (env.vault_synced) {
-      existingPaths.set(buildPath(env), true)
+      existingPaths.set(buildPath(env), env.id)
     }
   }
 
@@ -216,8 +241,25 @@ export async function pullAll(workspaceId?: string): Promise<{ created: number; 
 
   for (const rawName of secretNames) {
     const name = rawName.replace(/\/+$/, '')
-    if (existingPaths.has(name)) {
-      logVault('pull-all', name, 'Skipped — already exists locally')
+    const existingId = existingPaths.get(name)
+
+    // Refresh in-memory cache for existing vault-synced environments
+    if (existingId) {
+      try {
+        const secrets = await provider.getSecrets(name)
+        if (secrets && Object.keys(secrets).length > 0) {
+          const vars: EnvironmentVariable[] = Object.entries(secrets).map(([key, value]) => ({
+            key,
+            value: String(value),
+            enabled: true,
+          }))
+          secretsCache.set(existingId, vars)
+          result.refreshed++
+          logVault('pull-all', name, `Refreshed ${vars.length} variable(s) (in-memory)`)
+        }
+      } catch (e) {
+        logVault('pull-all', name, `Failed to refresh variables: ${e instanceof Error ? e.message : String(e)}`, false)
+      }
       continue
     }
 
@@ -228,6 +270,22 @@ export async function pullAll(workspaceId?: string): Promise<{ created: number; 
         .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
         .join(' ')
 
+      // Fetch secrets from Vault into in-memory cache
+      let vars: EnvironmentVariable[] = []
+      try {
+        const secrets = await provider.getSecrets(name)
+        if (secrets) {
+          vars = Object.entries(secrets).map(([key, value]) => ({
+            key,
+            value: String(value),
+            enabled: true,
+          }))
+        }
+      } catch (e) {
+        logVault('pull-all', name, `Created environment but failed to fetch variables: ${e instanceof Error ? e.message : String(e)}`, false)
+      }
+
+      // Create DB record with empty variables — secrets stay in-memory only
       const created = environmentsRepo.create({
         name: friendlyName,
         workspace_id: workspaceId,
@@ -239,6 +297,11 @@ export async function pullAll(workspaceId?: string): Promise<{ created: number; 
         vault_synced: 1,
         vault_path: name,
       })
+
+      // Cache secrets in memory
+      if (vars.length > 0) {
+        secretsCache.set(created.id, vars)
+      }
 
       result.created++
     } catch (e) {
@@ -275,4 +338,3 @@ export async function migrateEnvironment(
 export function clearCache(environmentId: string): void {
   secretsCache.delete(environmentId)
 }
-

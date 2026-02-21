@@ -15,6 +15,7 @@ vi.mock('../../src/main/vault/vault-sync-service', () => ({
   fetchVariables: vi.fn(),
   deleteSecrets: vi.fn(),
   migrateEnvironment: vi.fn(),
+  getCachedVariables: vi.fn().mockReturnValue(null),
 }))
 
 import { openTestDatabase, closeDatabase } from '../../src/main/database/connection'
@@ -108,6 +109,36 @@ describe('vault:push', () => {
     const result = await invoke('vault:push', env.id)
     expect(result.success).toBe(false)
     expect(result.message).toContain('Write denied')
+  })
+
+  it('uses cached variables over DB variables when cache exists', async () => {
+    const env = environmentsRepo.create({
+      name: 'Vault Env',
+      variables: '[]', // DB has empty variables (vault-synced)
+    })
+    const cachedVars = [{ key: 'secret', value: 'from-cache', enabled: true }]
+    vi.mocked(vaultService.getCachedVariables).mockReturnValue(cachedVars)
+    vi.mocked(vaultService.pushVariables).mockResolvedValue(undefined)
+
+    const result = await invoke('vault:push', env.id, 'ws-1')
+
+    expect(vaultService.pushVariables).toHaveBeenCalledWith(env.id, cachedVars, 'ws-1')
+    expect(result.success).toBe(true)
+  })
+
+  it('falls back to DB variables when cache is null', async () => {
+    const dbVars = [{ key: 'local', value: 'from-db', enabled: true }]
+    const env = environmentsRepo.create({
+      name: 'Local Env',
+      variables: JSON.stringify(dbVars),
+    })
+    vi.mocked(vaultService.getCachedVariables).mockReturnValue(null)
+    vi.mocked(vaultService.pushVariables).mockResolvedValue(undefined)
+
+    const result = await invoke('vault:push', env.id)
+
+    expect(vaultService.pushVariables).toHaveBeenCalledWith(env.id, dbVars, undefined)
+    expect(result.success).toBe(true)
   })
 })
 

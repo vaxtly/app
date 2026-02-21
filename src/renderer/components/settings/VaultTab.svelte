@@ -125,7 +125,10 @@
       const result = await window.api.vault.pullAll(wsId ?? undefined)
       if (result.success) {
         await environmentsStore.loadAll(wsId ?? undefined)
-        status = { type: 'success', message: `Pulled ${result.created} environments` }
+        const parts: string[] = []
+        if (result.created) parts.push(`${result.created} created`)
+        if (result.refreshed) parts.push(`${result.refreshed} refreshed`)
+        status = { type: 'success', message: parts.length > 0 ? `Pulled: ${parts.join(', ')}` : 'Everything up to date' }
       } else {
         status = { type: 'error', message: result.errors.join(', ') || 'Pull failed' }
       }

@@ -7,6 +7,7 @@
 
 import * as environmentsRepo from '../database/repositories/environments'
 import * as collectionsRepo from '../database/repositories/collections'
+import { getCachedVariables } from '../vault/vault-sync-service'
 import { DEFAULTS } from '../../shared/constants'
 import type { EnvironmentVariable } from '../../shared/types/models'
 
@@ -65,7 +66,17 @@ export function getResolvedVariables(workspaceId?: string, collectionId?: string
   // 1. Active environment variables (base layer)
   const activeEnv = environmentsRepo.findActive(workspaceId)
   if (activeEnv) {
-    Object.assign(variables, parseEnabledVariables(activeEnv.variables))
+    if (activeEnv.vault_synced === 1) {
+      // Vault-synced: read from in-memory cache (never from DB)
+      const cached = getCachedVariables(activeEnv.id)
+      if (cached) {
+        for (const v of cached) {
+          if (v.enabled && v.key.trim()) variables[v.key] = v.value
+        }
+      }
+    } else {
+      Object.assign(variables, parseEnabledVariables(activeEnv.variables))
+    }
   }
 
   // 2. Collection variables (override layer)
@@ -93,9 +104,21 @@ export function getResolvedVariablesWithSource(
   const activeEnv = environmentsRepo.findActive(workspaceId)
   if (activeEnv) {
     const envLabel = `Env: ${activeEnv.name}`
-    const envVars = parseEnabledVariables(activeEnv.variables)
-    for (const [key, value] of Object.entries(envVars)) {
-      variables[key] = { value, source: envLabel }
+    if (activeEnv.vault_synced === 1) {
+      // Vault-synced: read from in-memory cache (never from DB)
+      const cached = getCachedVariables(activeEnv.id)
+      if (cached) {
+        for (const v of cached) {
+          if (v.enabled && v.key.trim()) {
+            variables[v.key] = { value: v.value, source: envLabel }
+          }
+        }
+      }
+    } else {
+      const envVars = parseEnabledVariables(activeEnv.variables)
+      for (const [key, value] of Object.entries(envVars)) {
+        variables[key] = { value, source: envLabel }
+      }
     }
   }
 

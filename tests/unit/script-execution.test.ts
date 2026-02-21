@@ -18,6 +18,7 @@ import { extractValue, extractJsonPath, executePostResponseScripts, executePreRe
 import * as collectionsRepo from '../../src/main/database/repositories/collections'
 import * as requestsRepo from '../../src/main/database/repositories/requests'
 import * as environmentsRepo from '../../src/main/database/repositories/environments'
+import { getCachedVariables, setCachedVariables, resetProvider } from '../../src/main/vault/vault-sync-service'
 import type { ResponseData } from '../../src/shared/types/http'
 
 beforeEach(() => {
@@ -25,7 +26,10 @@ beforeEach(() => {
   initEncryptionForTesting()
   mockUndiciFetch.mockReset()
 })
-afterEach(() => closeDatabase())
+afterEach(() => {
+  resetProvider()
+  closeDatabase()
+})
 
 // extractValue and extractJsonPath are pure functions that can be tested without DB
 
@@ -289,6 +293,88 @@ describe('executePostResponseScripts', () => {
     // Should still only have the original variable
     expect(vars).toHaveLength(1)
     expect(vars[0].key).toBe('base_url')
+  })
+
+  it('mirrorToActiveEnvironment updates in-memory cache for vault-synced env', () => {
+    const col = collectionsRepo.create({ name: 'Test' })
+    const env = environmentsRepo.create({ name: 'Vault Dev', variables: '[]' })
+    environmentsRepo.update(env.id, { vault_synced: 1, vault_path: 'vault-dev' })
+    environmentsRepo.activate(env.id)
+
+    // Populate the in-memory cache (simulates a prior pull)
+    setCachedVariables(env.id, [
+      { key: 'token', value: 'old-vault-token', enabled: true },
+    ])
+
+    const req = requestsRepo.create({ collection_id: col.id, name: 'R' })
+    requestsRepo.update(req.id, {
+      scripts: JSON.stringify({
+        post_response: [{ action: 'set_variable', source: 'body.token', target: 'token' }],
+      }),
+    })
+
+    executePostResponseScripts(req.id, col.id, makeResponse({
+      body: JSON.stringify({ token: 'refreshed-vault-token' }),
+    }))
+
+    // Cache should be updated
+    const cached = getCachedVariables(env.id)!
+    expect(cached[0].value).toBe('refreshed-vault-token')
+
+    // DB should still have empty variables (no local persistence)
+    const dbEnv = environmentsRepo.findById(env.id)!
+    expect(JSON.parse(dbEnv.variables)).toEqual([])
+  })
+
+  it('mirrorToActiveEnvironment skips vault-synced env when cache is empty', () => {
+    const col = collectionsRepo.create({ name: 'Test' })
+    const env = environmentsRepo.create({ name: 'Vault Empty', variables: '[]' })
+    environmentsRepo.update(env.id, { vault_synced: 1, vault_path: 'vault-empty' })
+    environmentsRepo.activate(env.id)
+
+    // No cache set — simulates cold start before pull
+
+    const req = requestsRepo.create({ collection_id: col.id, name: 'R' })
+    requestsRepo.update(req.id, {
+      scripts: JSON.stringify({
+        post_response: [{ action: 'set_variable', source: 'body.token', target: 'token' }],
+      }),
+    })
+
+    // Should not throw even without cache
+    executePostResponseScripts(req.id, col.id, makeResponse({
+      body: JSON.stringify({ token: 'some-token' }),
+    }))
+
+    // Cache should remain empty (key didn't exist)
+    expect(getCachedVariables(env.id)).toBeNull()
+  })
+
+  it('mirrorToActiveEnvironment does not create new keys in vault cache', () => {
+    const col = collectionsRepo.create({ name: 'Test' })
+    const env = environmentsRepo.create({ name: 'Vault Prod', variables: '[]' })
+    environmentsRepo.update(env.id, { vault_synced: 1, vault_path: 'vault-prod' })
+    environmentsRepo.activate(env.id)
+
+    setCachedVariables(env.id, [
+      { key: 'existing', value: 'val', enabled: true },
+    ])
+
+    const req = requestsRepo.create({ collection_id: col.id, name: 'R' })
+    requestsRepo.update(req.id, {
+      scripts: JSON.stringify({
+        post_response: [{ action: 'set_variable', source: 'body.new_key', target: 'new_key' }],
+      }),
+    })
+
+    executePostResponseScripts(req.id, col.id, makeResponse({
+      body: JSON.stringify({ new_key: 'value' }),
+    }))
+
+    // Cache should still only have the original variable
+    const cached = getCachedVariables(env.id)!
+    expect(cached).toHaveLength(1)
+    expect(cached[0].key).toBe('existing')
   })
 })
 

@@ -192,7 +192,10 @@ async function runAutoSync(): Promise<void> {
         if (result.errors.length > 0) {
           logVault('auto-sync', ws.name, `Completed with errors: ${result.errors.join('; ')}`, false)
         } else {
-          logVault('auto-sync', ws.name, `Pulled ${result.created} new environment(s)`)
+          const parts: string[] = []
+          if (result.created) parts.push(`${result.created} created`)
+          if (result.refreshed) parts.push(`${result.refreshed} refreshed`)
+          logVault('auto-sync', ws.name, parts.length > 0 ? `Pulled: ${parts.join(', ')}` : 'Everything up to date')
         }
       } catch (e) {
         logVault('auto-sync', ws.name, `Failed: ${e instanceof Error ? e.message : String(e)}`, false)

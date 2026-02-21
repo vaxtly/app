@@ -10,10 +10,11 @@ import * as requestsRepo from '../database/repositories/requests'
 import * as collectionsRepo from '../database/repositories/collections'
 import * as environmentsRepo from '../database/repositories/environments'
 import * as settingsRepo from '../database/repositories/settings'
+import { getCachedVariables, setCachedVariables, pushVariables as vaultPush } from '../vault/vault-sync-service'
 import { substitute } from './variable-substitution'
 import { DEFAULTS } from '../../shared/constants'
 import { logHttp } from './session-log'
-import type { ScriptsConfig, PreRequestScript, PostResponseScript } from '../../shared/types/models'
+import type { ScriptsConfig, PreRequestScript, PostResponseScript, EnvironmentVariable } from '../../shared/types/models'
 import type { ResponseData } from '../../shared/types/http'
 
 /**
@@ -349,6 +350,7 @@ function setCollectionVariable(collectionId: string, key: string, value: string)
 
 /**
  * If the active environment has a variable with the same key, update it too.
+ * For vault-synced environments, updates in-memory cache and pushes to Vault.
  */
 function mirrorToActiveEnvironment(
   collectionId: string,
@@ -363,19 +365,41 @@ function mirrorToActiveEnvironment(
   if (!activeEnv) return
 
   try {
-    const variables = JSON.parse(activeEnv.variables) as { key: string; value: string; enabled: boolean }[]
-    let found = false
-    for (const v of variables) {
-      if (v.key === key) {
-        v.value = value
-        found = true
-        break
+    if (activeEnv.vault_synced === 1) {
+      // Vault-synced: update in-memory cache, push to Vault
+      const cached = getCachedVariables(activeEnv.id)
+      if (!cached) return
+
+      const variables = [...cached]
+      let found = false
+      for (const v of variables) {
+        if (v.key === key) {
+          v.value = value
+          found = true
+          break
+        }
       }
+
+      if (!found) return
+
+      setCachedVariables(activeEnv.id, variables)
+      // Fire-and-forget push to Vault
+      vaultPush(activeEnv.id, variables, workspaceId).catch(() => {})
+    } else {
+      const variables = JSON.parse(activeEnv.variables) as EnvironmentVariable[]
+      let found = false
+      for (const v of variables) {
+        if (v.key === key) {
+          v.value = value
+          found = true
+          break
+        }
+      }
+
+      // Only update if the key already exists in the environment
+      if (!found) return
+
+      environmentsRepo.update(activeEnv.id, { variables: JSON.stringify(variables) })
     }
-
-    // Only update if the key already exists in the environment
-    if (!found) return
-
-    environmentsRepo.update(activeEnv.id, { variables: JSON.stringify(variables) })
   } catch { /* ignore */ }
 }

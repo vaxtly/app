@@ -10,6 +10,7 @@ import {
   substitute,
   substituteRecord,
 } from '../../src/main/services/variable-substitution'
+import { setCachedVariables, resetProvider } from '../../src/main/vault/vault-sync-service'
 
 beforeEach(() => {
   openTestDatabase()
@@ -17,6 +18,7 @@ beforeEach(() => {
 })
 
 afterEach(() => {
+  resetProvider()
   closeDatabase()
 })
 
@@ -173,5 +175,133 @@ describe('variable substitution', () => {
     const vars = getResolvedVariables(ws.id, col.id)
     expect(vars.apiKey).toBe('from-array')
     expect(vars.disabled).toBeUndefined()
+  })
+})
+
+describe('vault-synced variable resolution', () => {
+  function createVaultSyncedEnv(name: string, workspaceId?: string) {
+    const env = environmentsRepo.create({
+      name,
+      workspace_id: workspaceId,
+      variables: '[]', // empty — secrets live in-memory only
+    })
+    environmentsRepo.update(env.id, { vault_synced: 1, vault_path: name.toLowerCase() })
+    return environmentsRepo.findById(env.id)!
+  }
+
+  it('getResolvedVariables reads from cache when vault_synced=1', () => {
+    const ws = workspacesRepo.create({ name: 'WS' })
+    const env = createVaultSyncedEnv('Production', ws.id)
+    environmentsRepo.activate(env.id, ws.id)
+
+    // DB has no variables, but cache does
+    setCachedVariables(env.id, [
+      { key: 'API_KEY', value: 'vault-secret', enabled: true },
+      { key: 'DB_HOST', value: 'db.prod.internal', enabled: true },
+    ])
+
+    const vars = getResolvedVariables(ws.id)
+    expect(vars.API_KEY).toBe('vault-secret')
+    expect(vars.DB_HOST).toBe('db.prod.internal')
+  })
+
+  it('getResolvedVariables returns empty for vault env with no cache', () => {
+    const ws = workspacesRepo.create({ name: 'WS' })
+    const env = createVaultSyncedEnv('Empty', ws.id)
+    environmentsRepo.activate(env.id, ws.id)
+
+    // No cache set
+    const vars = getResolvedVariables(ws.id)
+    expect(vars).toEqual({})
+  })
+
+  it('getResolvedVariables filters disabled cached variables', () => {
+    const ws = workspacesRepo.create({ name: 'WS' })
+    const env = createVaultSyncedEnv('Mixed', ws.id)
+    environmentsRepo.activate(env.id, ws.id)
+
+    setCachedVariables(env.id, [
+      { key: 'enabled_var', value: 'yes', enabled: true },
+      { key: 'disabled_var', value: 'no', enabled: false },
+    ])
+
+    const vars = getResolvedVariables(ws.id)
+    expect(vars.enabled_var).toBe('yes')
+    expect(vars.disabled_var).toBeUndefined()
+  })
+
+  it('collection variables override vault-cached variables', () => {
+    const ws = workspacesRepo.create({ name: 'WS' })
+    const env = createVaultSyncedEnv('Staging', ws.id)
+    environmentsRepo.activate(env.id, ws.id)
+
+    setCachedVariables(env.id, [
+      { key: 'baseUrl', value: 'https://vault-url.com', enabled: true },
+      { key: 'token', value: 'vault-token', enabled: true },
+    ])
+
+    const col = collectionsRepo.create({ name: 'Col', workspace_id: ws.id })
+    collectionsRepo.update(col.id, { variables: JSON.stringify({ baseUrl: 'https://override.com' }) })
+
+    const vars = getResolvedVariables(ws.id, col.id)
+    expect(vars.baseUrl).toBe('https://override.com')
+    expect(vars.token).toBe('vault-token')
+  })
+
+  it('substitute resolves vault-cached variables in text', () => {
+    const ws = workspacesRepo.create({ name: 'WS' })
+    const env = createVaultSyncedEnv('Dev', ws.id)
+    environmentsRepo.activate(env.id, ws.id)
+
+    setCachedVariables(env.id, [
+      { key: 'host', value: 'api.vault.dev', enabled: true },
+    ])
+
+    const result = substitute('https://{{host}}/v1/users', ws.id)
+    expect(result).toBe('https://api.vault.dev/v1/users')
+  })
+
+  it('getResolvedVariablesWithSource labels vault-cached vars correctly', () => {
+    const ws = workspacesRepo.create({ name: 'WS' })
+    const env = createVaultSyncedEnv('Prod Vault', ws.id)
+    environmentsRepo.activate(env.id, ws.id)
+
+    setCachedVariables(env.id, [
+      { key: 'secret', value: 'vault-value', enabled: true },
+    ])
+
+    const resolved = getResolvedVariablesWithSource(ws.id)
+    expect(resolved.secret.value).toBe('vault-value')
+    expect(resolved.secret.source).toBe('Env: Prod Vault')
+  })
+
+  it('getResolvedVariablesWithSource resolves nested refs from vault cache', () => {
+    const ws = workspacesRepo.create({ name: 'WS' })
+    const env = createVaultSyncedEnv('Nested', ws.id)
+    environmentsRepo.activate(env.id, ws.id)
+
+    setCachedVariables(env.id, [
+      { key: 'protocol', value: 'https', enabled: true },
+      { key: 'baseUrl', value: '{{protocol}}://api.vault.io', enabled: true },
+    ])
+
+    const resolved = getResolvedVariablesWithSource(ws.id)
+    expect(resolved.baseUrl.value).toBe('https://api.vault.io')
+  })
+
+  it('non-vault env still reads from DB (not cache)', () => {
+    const ws = workspacesRepo.create({ name: 'WS' })
+    const env = createEnvWithVars('Local', [
+      { key: 'db', value: 'local-db', enabled: true },
+    ], ws.id)
+    environmentsRepo.activate(env.id, ws.id)
+
+    // Even if there's a cache entry, it should not be used for non-vault envs
+    setCachedVariables(env.id, [
+      { key: 'db', value: 'cache-db', enabled: true },
+    ])
+
+    const vars = getResolvedVariables(ws.id)
+    expect(vars.db).toBe('local-db')
   })
 })

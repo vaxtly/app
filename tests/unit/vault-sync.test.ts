@@ -3,7 +3,14 @@ import { openTestDatabase, closeDatabase } from '../../src/main/database/connect
 import { initEncryptionForTesting } from '../../src/main/services/encryption'
 import * as settingsRepo from '../../src/main/database/repositories/settings'
 import * as workspacesRepo from '../../src/main/database/repositories/workspaces'
-import { buildPath, isConfigured, resetProvider } from '../../src/main/vault/vault-sync-service'
+import {
+  buildPath,
+  isConfigured,
+  resetProvider,
+  getCachedVariables,
+  setCachedVariables,
+  clearCache,
+} from '../../src/main/vault/vault-sync-service'
 
 beforeEach(() => {
   openTestDatabase()
@@ -65,5 +72,51 @@ describe('isConfigured', () => {
     settingsRepo.removeSetting('vault.url')
     resetProvider()
     expect(isConfigured()).toBe(false)
+  })
+})
+
+describe('in-memory secrets cache', () => {
+  it('getCachedVariables returns null when nothing cached', () => {
+    expect(getCachedVariables('nonexistent')).toBeNull()
+  })
+
+  it('setCachedVariables + getCachedVariables roundtrip', () => {
+    const vars = [
+      { key: 'DB_HOST', value: 'localhost', enabled: true },
+      { key: 'DB_PASS', value: 'secret', enabled: true },
+    ]
+    setCachedVariables('env-1', vars)
+
+    const cached = getCachedVariables('env-1')
+    expect(cached).toEqual(vars)
+  })
+
+  it('clearCache removes specific environment entry', () => {
+    setCachedVariables('env-a', [{ key: 'A', value: '1', enabled: true }])
+    setCachedVariables('env-b', [{ key: 'B', value: '2', enabled: true }])
+
+    clearCache('env-a')
+
+    expect(getCachedVariables('env-a')).toBeNull()
+    expect(getCachedVariables('env-b')).not.toBeNull()
+  })
+
+  it('resetProvider clears entire secrets cache', () => {
+    setCachedVariables('env-1', [{ key: 'K', value: 'V', enabled: true }])
+    setCachedVariables('env-2', [{ key: 'K2', value: 'V2', enabled: true }])
+
+    resetProvider()
+
+    expect(getCachedVariables('env-1')).toBeNull()
+    expect(getCachedVariables('env-2')).toBeNull()
+  })
+
+  it('setCachedVariables overwrites previous cache entry', () => {
+    setCachedVariables('env-1', [{ key: 'old', value: 'val', enabled: true }])
+    setCachedVariables('env-1', [{ key: 'new', value: 'val2', enabled: true }])
+
+    const cached = getCachedVariables('env-1')
+    expect(cached).toHaveLength(1)
+    expect(cached![0].key).toBe('new')
   })
 })

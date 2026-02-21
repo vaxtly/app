@@ -8,8 +8,10 @@ import { substitute } from '../services/variable-substitution'
 import { executePreRequestScripts, executePostResponseScripts } from '../services/script-execution'
 import { logHttp } from '../services/session-log'
 import { formatFetchError } from '../services/fetch-error'
+import * as environmentsRepo from '../database/repositories/environments'
 import * as historiesRepo from '../database/repositories/request-histories'
 import * as settingsRepo from '../database/repositories/settings'
+import * as vaultSyncService from '../vault/vault-sync-service'
 
 const activeRequests = new Map<string, AbortController>()
 const approvedFilePaths = new Set<string>()
@@ -34,6 +36,16 @@ export function registerProxyHandlers(): void {
         await executePreRequestScripts(requestId, config.collectionId, config.workspaceId)
       } catch (error) {
         logHttp('pre-script', config.url, `Pre-request script failed: ${error instanceof Error ? error.message : String(error)}`, false)
+      }
+    }
+
+    // Ensure vault secrets are in-memory before substitution
+    const activeEnv = environmentsRepo.findActive(config.workspaceId)
+    if (activeEnv?.vault_synced === 1) {
+      try {
+        await vaultSyncService.ensureLoaded(activeEnv.id, config.workspaceId)
+      } catch (e) {
+        logHttp('vault', config.url, `Failed to load vault secrets: ${e instanceof Error ? e.message : String(e)}`, false)
       }
     }
 

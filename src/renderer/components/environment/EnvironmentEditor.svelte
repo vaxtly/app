@@ -56,9 +56,6 @@
       const wsId = appStore.activeWorkspaceId ?? undefined
       const vars = await window.api.vault.fetchVariables(environmentId, wsId)
       variables = vars.length > 0 ? vars : [{ key: '', value: '', enabled: true }]
-      if (vars.length > 0) {
-        await environmentsStore.update(environmentId, { variables: JSON.stringify(vars) })
-      }
     } catch {
       variables = [{ key: '', value: '', enabled: true }]
     } finally {
@@ -85,15 +82,17 @@
     saving = true
     vaultStatus = null
     try {
-      await environmentsStore.update(environmentId, { variables: JSON.stringify($state.snapshot(variables)) })
-      isDirty = false
-
       if (vaultSynced) {
+        // Vault-synced: push to Vault only, no local DB write for variables
         const wsId = appStore.activeWorkspaceId ?? undefined
         const result = await window.api.vault.pushVariables(environmentId, $state.snapshot(variables), wsId)
+        isDirty = false
         vaultStatus = result.success
-          ? { type: 'success', message: 'Saved and pushed to Vault' }
-          : { type: 'error', message: result.message ?? 'Saved locally, but Vault push failed' }
+          ? { type: 'success', message: 'Pushed to Vault' }
+          : { type: 'error', message: result.message ?? 'Vault push failed' }
+      } else {
+        await environmentsStore.update(environmentId, { variables: JSON.stringify($state.snapshot(variables)) })
+        isDirty = false
       }
     } catch (err) {
       vaultStatus = { type: 'error', message: err instanceof Error ? err.message : 'Save failed' }
@@ -153,7 +152,7 @@
       const wsId = appStore.activeWorkspaceId ?? undefined
       const vars = await window.api.vault.fetchVariables(environmentId, wsId)
       variables = vars.length > 0 ? vars : [{ key: '', value: '', enabled: true }]
-      await environmentsStore.update(environmentId, { variables: JSON.stringify(vars) })
+      isDirty = false
       vaultStatus = { type: 'success', message: `Pulled ${vars.length} variables from Vault` }
     } catch (err) {
       vaultStatus = { type: 'error', message: err instanceof Error ? err.message : 'Pull failed' }

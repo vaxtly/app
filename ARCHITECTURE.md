@@ -157,13 +157,15 @@ vaxtly/
 ├── tests/
 │   ├── unit/
 │   │   ├── repositories.test.ts        # 34 tests: all repos + encryption + workspace settings
-│   │   ├── variable-substitution.test.ts # 12 tests for variable resolution
-│   │   ├── script-execution.test.ts    # 23 tests: extractValue + extractJsonPath + executePostResponseScripts
+│   │   ├── variable-substitution.test.ts # 20 tests: variable resolution + vault-synced cache reads
+│   │   ├── script-execution.test.ts    # 40 tests: extractValue + extractJsonPath + executePostResponseScripts + vault mirror
 │   │   ├── code-generator.test.ts      # 17 tests: 5 languages + all auth/body types
 │   │   ├── sensitive-data-scanner.test.ts # 24 tests: scan + sanitize + api-key + urlencoded
 │   │   ├── yaml-serializer.test.ts     # 12 tests: serialize + import + auth/scripts + sanitize
 │   │   ├── remote-sync.test.ts         # 18 tests: file state + isConfigured + getProvider
-│   │   ├── vault-sync.test.ts          # 9 tests: buildPath + isConfigured + resetProvider
+│   │   ├── vault-sync.test.ts          # 14 tests: buildPath + isConfigured + resetProvider + in-memory cache
+│   │   ├── vault-e2e.test.ts          # 12 tests: end-to-end vault in-memory flows (fresh install, auto-sync, cold cache, scripts)
+│   │   ├── vault-handlers.test.ts     # 20 tests: vault IPC handlers + cache-first push
 │   │   ├── data-export-import.test.ts  # 15 tests: export + import + nested + workspace
 │   │   ├── postman-import.test.ts      # 14 tests: 3 formats + form-data + URL objects + XML
 │   │   ├── encryption.test.ts          # 6 tests: round-trip, random IV, wrong key
@@ -280,7 +282,7 @@ requests 1──N request_histories
 | id | TEXT PK | uuid | |
 | workspace_id | TEXT | NULL | FK → workspaces ON DELETE CASCADE |
 | name | TEXT NOT NULL | | |
-| variables | TEXT NOT NULL | '[]' | JSON `EnvironmentVariable[]` — values encrypted with `enc:` prefix |
+| variables | TEXT NOT NULL | '[]' | JSON `EnvironmentVariable[]` — values encrypted with `enc:` prefix; always `'[]'` for vault-synced envs (secrets held in-memory only) |
 | is_active | INTEGER | 0 | Only 1 active per workspace (enforced in code) |
 | order | INTEGER | 0 | |
 | vault_synced | INTEGER | 0 | |
@@ -549,6 +551,7 @@ All stores use this pattern: module-level `$state` + `$derived` + exported objec
 - Auto-sets Content-Type headers unless user overrides
 - Parses `set-cookie` response headers into structured `ResponseCookie[]`
 - Returns timing: `{ start, ttfb, total }` via `performance.now()`
+- **Vault cache**: calls `ensureLoaded()` for vault-synced active environments before substitution (handles cold-cache on first request after app start without auto-sync)
 - **Substitutes `{{variables}}`** in URL, headers (keys+values), body, form-data text values before sending
 - **Pre-request scripts**: executes dependent requests before main send
 - **Post-response scripts**: extracts values and sets collection variables after response
@@ -563,6 +566,7 @@ All stores use this pattern: module-level `$state` + `$derived` + exported objec
 - `substituteRecord(record, wsId?, colId?)` → resolve vars in both keys and values
 - Nested reference resolution up to `MAX_VARIABLE_NESTING` (10) iterations
 - Priority: active environment vars (base) → collection vars (override)
+- **Vault-synced environments**: when `vault_synced === 1`, reads variables from in-memory cache (`getCachedVariables`) instead of parsing the DB `variables` field (which is always `'[]'`)
 
 ### Script Execution (`services/script-execution.ts`)
 - **Pre-request**: `executePreRequestScripts(reqId, colId, wsId?)` — fires dependent requests before the main one
@@ -571,7 +575,7 @@ All stores use this pattern: module-level `$state` + `$derived` + exported objec
 - Max chain depth: `DEFAULTS.MAX_SCRIPT_CHAIN_DEPTH` (3)
 - `extractValue(source, status, body, headers)` — supports `status`, `header.Name`, `body.key.nested[0].id`
 - `extractJsonPath(data, path)` — dot-notation with `[n]` array index support
-- Mirrors extracted values to active environment if key exists there
+- Mirrors extracted values to active environment if key exists there — for vault-synced environments, updates in-memory cache and pushes to Vault (fire-and-forget) instead of writing to DB
 
 ### Code Generator (`services/code-generator.ts`)
 - `generateCode(language, data, wsId?, colId?)` — generates code snippet from request data
@@ -639,16 +643,20 @@ All stores use this pattern: module-level `$state` + `$derived` + exported objec
 - SSL bypass: when `verifySsl` is false, uses undici `Agent({ connect: { rejectUnauthorized: false } })` — all HTTP calls route through `this.fetch()` wrapper which dispatches via undici when the custom Agent is present
 
 ### Vault Sync Service (`vault/vault-sync-service.ts`)
+- **In-memory only**: vault secrets are never written to the local SQLite DB. The DB stores vault metadata (`vault_synced`, `vault_path`, `name`) but `variables` is always `'[]'` for vault-synced environments. Secrets live in a session-lifetime in-memory cache (`Map<string, EnvironmentVariable[]>`)
 - Settings keys: `vault.provider`, `vault.url`, `vault.auth_method`, `vault.token`, `vault.role_id`, `vault.secret_id`, `vault.namespace` (AppRole login only), `vault.mount` (full engine path incl. namespaces), `vault.verify_ssl` — read from workspace settings with global fallback
 - `vault.verify_ssl` parsed as boolean: `'0'` and `'false'` both mean SSL verification off (UI stores `String(boolean)`)
 - `getProvider(workspaceId?)` → reads vault config from workspace settings (with global fallback), returns cached `SecretsProvider` (cache keyed by `workspaceId ?? '__global__'`)
-- `fetchVariables(envId, workspaceId?)` → get secrets from Vault, return as `EnvironmentVariable[]` (cached 60s)
-- `pushVariables(envId, vars, workspaceId?)` → push enabled variables to Vault
-- `deleteSecrets(envId, workspaceId?)` → remove secrets for an environment
-- `pullAll(wsId?)` → list all secrets at mount root, create environments for untracked paths (uses returned ID from create, not name scan)
+- `fetchVariables(envId, workspaceId?)` → get secrets from Vault, return as `EnvironmentVariable[]`, populate in-memory cache (session-lifetime, no TTL)
+- `pushVariables(envId, vars, workspaceId?)` → push enabled variables to Vault, update in-memory cache
+- `deleteSecrets(envId, workspaceId?)` → remove secrets for an environment, clear cache
+- `pullAll(wsId?)` → list all secrets at mount root, create environments for untracked paths with `variables: '[]'`, populate in-memory cache for all environments
 - `migrateEnvironment(envId, oldPath, newPath, workspaceId?)` → copy secrets to new path, delete old
-- `resetProvider(workspaceId?)` → invalidate provider cache (called automatically when vault settings change)
+- `resetProvider(workspaceId?)` → invalidate provider cache + clear secrets cache (called automatically when vault settings change)
 - `buildPath(env)` → uses `vault_path` if set, otherwise slugifies environment name
+- `getCachedVariables(envId)` → read cached secrets (returns `null` if not cached)
+- `setCachedVariables(envId, vars)` → update cached secrets (used by script-execution mirroring)
+- `ensureLoaded(envId, wsId?)` → fetch from Vault if not already cached (used by proxy handler before variable substitution)
 
 ### Data Export/Import (`services/data-export-import.ts`)
 - Export: `exportAll(wsId?)`, `exportCollections(wsId?)`, `exportEnvironments(wsId?)`, `exportConfig()`

@@ -20,12 +20,15 @@ export function registerVaultHandlers(): void {
   })
 
   ipcMain.handle(IPC.VAULT_PULL, async (_event, workspaceId?: string) => {
-    // Legacy pull — same as pull-all
     try {
       const result = await vaultService.pullAll(workspaceId)
+      const parts: string[] = []
+      if (result.created) parts.push(`created ${result.created}`)
+      if (result.refreshed) parts.push(`refreshed ${result.refreshed}`)
+      const message = parts.length > 0 ? `Pulled: ${parts.join(', ')} environment(s)` : 'No changes'
       return {
         success: result.errors.length === 0,
-        message: `Created ${result.created} environment(s)`,
+        message,
         pulled: result.created,
         errors: result.errors,
       }
@@ -39,7 +42,9 @@ export function registerVaultHandlers(): void {
       const env = environmentsRepo.findById(environmentId)
       if (!env) return { success: false, message: 'Environment not found' }
 
-      const variables: EnvironmentVariable[] = env.variables ? JSON.parse(env.variables) : []
+      // For vault-synced envs, DB variables is '[]' — read from in-memory cache
+      const cached = vaultService.getCachedVariables(environmentId)
+      const variables: EnvironmentVariable[] = cached ?? (env.variables ? JSON.parse(env.variables) : [])
       await vaultService.pushVariables(environmentId, variables, workspaceId)
       return { success: true, message: 'Pushed to Vault' }
     } catch (e) {
@@ -53,6 +58,7 @@ export function registerVaultHandlers(): void {
       return {
         success: result.errors.length === 0,
         created: result.created,
+        refreshed: result.refreshed,
         errors: result.errors,
       }
     } catch (e) {
