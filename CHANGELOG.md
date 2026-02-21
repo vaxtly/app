@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-02-21
+
+### Changed
+- macOS tab bar pills are now vertically centered within the title bar region
+
+### Fixed
+- macOS crash on reopen from dock — closing all windows shut down the database; reopening via dock icon then failed with "Database not initialized"
+
 ## [0.2.0] - 2026-02-21
 
 ### Added

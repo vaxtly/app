@@ -51,13 +51,14 @@
   }
 </script>
 
-<div class="flex shrink-0 items-end px-1 {isMac ? 'drag-region h-11' : 'h-9'}" style="border-bottom: 1px solid var(--glass-border); background: var(--glass-bg); backdrop-filter: blur(var(--glass-blur)); -webkit-backdrop-filter: blur(var(--glass-blur))">
+<div class="flex shrink-0 px-1 {isMac ? 'drag-region h-11 items-center' : 'h-9 items-end'}" style="border-bottom: 1px solid var(--glass-border); background: var(--glass-bg); backdrop-filter: blur(var(--glass-blur)); -webkit-backdrop-filter: blur(var(--glass-blur))">
   <!-- svelte-ignore a11y_no_static_element_interactions -->
-  <div class="tab-scroll no-drag flex flex-1 items-end min-w-0 overflow-x-auto" bind:this={scrollEl} onwheel={handleWheel}>
+  <div class="tab-scroll no-drag flex flex-1 min-w-0 overflow-x-auto {isMac ? 'items-center' : 'items-end'}" bind:this={scrollEl} onwheel={handleWheel}>
   {#each appStore.openTabs as tab (tab.id)}
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div
-      class="group relative flex h-7 shrink-0 cursor-pointer items-center gap-1.5 rounded-lg px-3 mb-0.5 text-xs transition-all duration-150
+      class="group relative flex h-7 shrink-0 cursor-pointer items-center gap-1.5 rounded-lg px-3 text-xs transition-all duration-150
+        {isMac ? '' : 'mb-0.5'}
         {appStore.activeTabId === tab.id
           ? 'bg-[var(--tint-strong)] text-surface-100 shadow-[inset_0_1px_0_var(--glass-highlight)]'
           : 'text-surface-400 hover:bg-[var(--tint-hover)] hover:text-surface-200'}"

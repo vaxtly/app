@@ -328,8 +328,11 @@ app.whenReady().then(() => {
 })
 
 app.on('window-all-closed', () => {
-  closeDatabase()
   if (process.platform !== 'darwin') {
     app.quit()
   }
+})
+
+app.on('will-quit', () => {
+  closeDatabase()
 })
