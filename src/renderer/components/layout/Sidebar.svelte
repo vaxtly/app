@@ -113,7 +113,7 @@
         value={searchValue}
         oninput={handleSearchInput}
         placeholder="Search..."
-        class="sidebar-search h-7 w-full rounded-md bg-surface-800/50 pl-7 pr-2 text-xs text-surface-200 placeholder-surface-500 focus:outline-none"
+        class="h-7 w-full rounded-md border border-surface-700/50 bg-surface-800/50 pl-7 pr-2 text-xs text-surface-200 placeholder-surface-500 transition-[border-color] duration-150 focus:border-brand-500 focus:outline-none"
       />
     </div>
   </div>
@@ -240,13 +240,3 @@
   </div>
 
 </div>
-
-<style>
-  .sidebar-search {
-    border: 1px solid var(--border-subtle);
-    transition: border-color 0.15s;
-  }
-  .sidebar-search:focus {
-    border-color: var(--border-focus);
-  }
-</style>

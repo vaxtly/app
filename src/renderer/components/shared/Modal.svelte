@@ -21,14 +21,14 @@
 </script>
 
 <!-- Backdrop -->
-<div class="modal-backdrop">
+<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 animate-[modal-backdrop-in_0.15s_ease-out]">
   <!-- eslint-disable-next-line svelte/valid-compile -->
   <button class="absolute inset-0" onclick={onclose} aria-label="Close"></button>
 
   <!-- Modal -->
-  <div class="modal-content w-full {width}">
+  <div class="relative z-10 w-full rounded-2xl border border-surface-700/50 bg-surface-800 shadow-xl animate-[modal-content-in_0.2s_ease-out] {width}">
     <!-- Header -->
-    <div class="modal-header">
+    <div class="flex items-center justify-between border-b border-surface-700/50 px-5 py-3">
       <h2 class="text-sm font-semibold text-surface-100">{title}</h2>
       <button
         onclick={onclose}
@@ -47,34 +47,3 @@
     </div>
   </div>
 </div>
-
-<style>
-  .modal-backdrop {
-    position: fixed;
-    inset: 0;
-    z-index: 50;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: rgba(0, 0, 0, 0.6);
-    animation: modal-backdrop-in 0.15s ease-out;
-  }
-
-  .modal-content {
-    position: relative;
-    z-index: 10;
-    border-radius: var(--radius-2xl);
-    border: 1px solid var(--border-subtle);
-    background: var(--color-surface-800);
-    box-shadow: var(--shadow-xl);
-    animation: modal-content-in 0.2s ease-out;
-  }
-
-  .modal-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    border-bottom: 1px solid var(--border-subtle);
-    padding: 12px 20px;
-  }
-</style>

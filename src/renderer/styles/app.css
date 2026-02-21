@@ -58,75 +58,17 @@
   font-display: block;
 }
 
-/* ── Semantic color variables (dark-mode defaults) ──────────────────── */
+/* ── Non-themeable tokens (use var() / color-mix() — can't go in @theme) ── */
 :root {
-  /* Font stacks */
-  --font-sans: 'Geist', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
-  --font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', ui-monospace, monospace;
   --font-feature-default: "kern" 1, "liga" 1;
   --font-feature-mono: "kern" 1, "liga" 0, "tnum" 1, "zero" 1;
 
-  /* Method colors — boosted for dark contrast */
-  --color-method-get: #5eead4;
-  --color-method-post: #38bdf8;
-  --color-method-put: #818cf8;
-  --color-method-patch: #fb923c;
-  --color-method-delete: #fb7185;
-  --color-method-head: #c084fc;
-  --color-method-options: #94a3b8;
-
-  /* Semantic feedback — boosted */
-  --color-success: #34d399;
-  --color-success-muted: #6ee7b7;
-  --color-warning: #fbbf24;
-  --color-warning-light: #fcd34d;
-  --color-danger: #f87171;
-  --color-danger-light: #fca5a5;
-  --color-danger-lighter: #fecaca;
-  --color-info: #7dd3fc;
-  --color-info-muted: #93bbfd;
-  --color-purple: #c4b5fd;
-
-  /* Status response colors */
-  --color-status-success: #34d399;
-  --color-status-redirect: #fcd34d;
-  --color-status-client-error: #fb923c;
-  --color-status-server-error: #fb7185;
-
-  /* Variable highlighting */
-  --color-var-resolved: #34d399;
-  --color-var-resolved-bg: rgba(52, 211, 153, 0.12);
-  --color-var-unresolved: #fb7185;
-  --color-var-unresolved-bg: rgba(251, 113, 133, 0.12);
-
-  /* Status banner colors */
-  --color-banner-success: #6ee7b7;
-  --color-banner-error: #fca5a5;
-
-  /* Border tokens */
+  /* Border tokens (reference other vars) */
   --border-default: var(--color-surface-700);
   --border-subtle: color-mix(in srgb, var(--color-surface-700) 50%, transparent);
   --border-muted: color-mix(in srgb, var(--color-surface-700) 30%, transparent);
   --border-focus: var(--color-brand-500);
-
-  /* Shadow tokens */
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.15);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.2), 0 1px 3px rgba(0, 0, 0, 0.1);
-  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.3), 0 2px 8px rgba(0, 0, 0, 0.15);
-  --shadow-xl: 0 12px 40px rgba(0, 0, 0, 0.4), 0 4px 12px rgba(0, 0, 0, 0.2);
-
-  /* Dropdown-specific tokens (floating panels need more pop than inline elements) */
-  --shadow-dropdown: 0 12px 32px rgba(0, 0, 0, 0.4), 0 4px 12px rgba(0, 0, 0, 0.25);
   --border-dropdown: var(--color-surface-700);
-
-  /* Border-radius tokens */
-  --radius-xs: 2px;
-  --radius-sm: 4px;
-  --radius-md: 6px;
-  --radius-lg: 8px;
-  --radius-xl: 10px;
-  --radius-2xl: 12px;
-  --radius-full: 9999px;
 }
 
 /* ── Light theme overrides ──────────────────────────────────────────── */
@@ -197,6 +139,7 @@ html.light {
 }
 
 @theme {
+  /* ── Brand & Surface scales ─────────────────────────────────────── */
   --color-brand-50: #f0f9ff;
   --color-brand-100: #e0f2fe;
   --color-brand-200: #bae6fd;
@@ -219,6 +162,63 @@ html.light {
   --color-surface-800: #111827;
   --color-surface-900: #0a0f1a;
   --color-surface-950: #050810;
+
+  /* ── Semantic feedback ──────────────────────────────────────────── */
+  --color-success: #34d399;
+  --color-success-muted: #6ee7b7;
+  --color-warning: #fbbf24;
+  --color-warning-light: #fcd34d;
+  --color-danger: #f87171;
+  --color-danger-light: #fca5a5;
+  --color-danger-lighter: #fecaca;
+  --color-info: #7dd3fc;
+  --color-info-muted: #93bbfd;
+  --color-purple: #c4b5fd;
+
+  /* ── HTTP method colors ─────────────────────────────────────────── */
+  --color-method-get: #5eead4;
+  --color-method-post: #38bdf8;
+  --color-method-put: #818cf8;
+  --color-method-patch: #fb923c;
+  --color-method-delete: #fb7185;
+  --color-method-head: #c084fc;
+  --color-method-options: #94a3b8;
+
+  /* ── Status response colors ─────────────────────────────────────── */
+  --color-status-success: #34d399;
+  --color-status-redirect: #fcd34d;
+  --color-status-client-error: #fb923c;
+  --color-status-server-error: #fb7185;
+
+  /* ── Variable highlighting ──────────────────────────────────────── */
+  --color-var-resolved: #34d399;
+  --color-var-resolved-bg: rgba(52, 211, 153, 0.12);
+  --color-var-unresolved: #fb7185;
+  --color-var-unresolved-bg: rgba(251, 113, 133, 0.12);
+
+  /* ── Status banner colors ───────────────────────────────────────── */
+  --color-banner-success: #6ee7b7;
+  --color-banner-error: #fca5a5;
+
+  /* ── Border-radius ──────────────────────────────────────────────── */
+  --radius-xs: 2px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 10px;
+  --radius-2xl: 12px;
+  --radius-full: 9999px;
+
+  /* ── Shadows ────────────────────────────────────────────────────── */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.15);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.2), 0 1px 3px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.3), 0 2px 8px rgba(0, 0, 0, 0.15);
+  --shadow-xl: 0 12px 40px rgba(0, 0, 0, 0.4), 0 4px 12px rgba(0, 0, 0, 0.2);
+  --shadow-dropdown: 0 12px 32px rgba(0, 0, 0, 0.4), 0 4px 12px rgba(0, 0, 0, 0.25);
+
+  /* ── Fonts ──────────────────────────────────────────────────────── */
+  --font-sans: 'Geist', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', ui-monospace, monospace;
 }
 
 /* ── Drag region for macOS traffic lights ──────────────────────────── */
@@ -249,7 +249,7 @@ html.light {
   background: var(--color-surface-500);
 }
 
-/* ── Modal animations ──────────────────────────────────────────────── */
+/* ── Shared animations ─────────────────────────────────────────────── */
 @keyframes modal-backdrop-in {
   from { opacity: 0; }
   to { opacity: 1; }
@@ -258,6 +258,20 @@ html.light {
 @keyframes modal-content-in {
   from { opacity: 0; transform: scale(0.97) translateY(4px); }
   to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+@keyframes dropdown-in {
+  from { opacity: 0; transform: translateY(-4px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes spin-360 {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes slide-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 /* ── CodeMirror overrides ──────────────────────────────────────────── */

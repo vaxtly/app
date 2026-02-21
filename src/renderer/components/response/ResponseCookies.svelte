@@ -8,89 +8,25 @@
   let { cookies }: Props = $props()
 </script>
 
-<div class="rc-root">
+<div class="flex flex-col gap-1.5 overflow-auto px-3 py-2.5">
   {#if cookies.length === 0}
-    <p class="rc-empty">No cookies in response.</p>
+    <p class="m-0 text-xs text-surface-500">No cookies in response.</p>
   {:else}
     {#each cookies as cookie}
-      <div class="rc-card">
-        <div class="rc-header">
-          <span class="rc-name">{cookie.name}</span>
-          <span class="rc-value">{cookie.value}</span>
+      <div class="rounded-md border border-surface-700 bg-surface-800/50 px-2.5 py-2">
+        <div class="flex items-baseline gap-2 font-mono text-xs" style="font-feature-settings: var(--font-feature-mono)">
+          <span class="shrink-0 font-semibold text-brand-400">{cookie.name}</span>
+          <span class="min-w-0 break-all text-surface-300">{cookie.value}</span>
         </div>
-        <div class="rc-meta">
-          {#if cookie.domain}<span class="rc-tag">Domain: {cookie.domain}</span>{/if}
-          {#if cookie.path}<span class="rc-tag">Path: {cookie.path}</span>{/if}
-          {#if cookie.expires}<span class="rc-tag">Expires: {cookie.expires}</span>{/if}
-          {#if cookie.httpOnly}<span class="rc-tag rc-tag--warn">HttpOnly</span>{/if}
-          {#if cookie.secure}<span class="rc-tag rc-tag--ok">Secure</span>{/if}
-          {#if cookie.sameSite}<span class="rc-tag">SameSite: {cookie.sameSite}</span>{/if}
+        <div class="mt-1.5 flex flex-wrap gap-1.5">
+          {#if cookie.domain}<span class="text-[10px] text-surface-500">Domain: {cookie.domain}</span>{/if}
+          {#if cookie.path}<span class="text-[10px] text-surface-500">Path: {cookie.path}</span>{/if}
+          {#if cookie.expires}<span class="text-[10px] text-surface-500">Expires: {cookie.expires}</span>{/if}
+          {#if cookie.httpOnly}<span class="text-[10px] text-status-client-error">HttpOnly</span>{/if}
+          {#if cookie.secure}<span class="text-[10px] text-success">Secure</span>{/if}
+          {#if cookie.sameSite}<span class="text-[10px] text-surface-500">SameSite: {cookie.sameSite}</span>{/if}
         </div>
       </div>
     {/each}
   {/if}
 </div>
-
-<style>
-  .rc-root {
-    overflow: auto;
-    padding: 10px 12px;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
-
-  .rc-empty {
-    font-size: 12px;
-    color: var(--color-surface-500);
-    margin: 0;
-  }
-
-  .rc-card {
-    padding: 8px 10px;
-    border-radius: 6px;
-    border: 1px solid var(--color-surface-700);
-    background: color-mix(in srgb, var(--color-surface-800) 50%, transparent);
-  }
-
-  .rc-header {
-    display: flex;
-    align-items: baseline;
-    gap: 8px;
-    font-family: var(--font-mono);
-    font-feature-settings: var(--font-feature-mono);
-    font-size: 12px;
-  }
-
-  .rc-name {
-    font-weight: 600;
-    color: var(--color-brand-400);
-    flex-shrink: 0;
-  }
-
-  .rc-value {
-    color: var(--color-surface-300);
-    min-width: 0;
-    word-break: break-all;
-  }
-
-  .rc-meta {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    margin-top: 6px;
-  }
-
-  .rc-tag {
-    font-size: 10px;
-    color: var(--color-surface-500);
-  }
-
-  .rc-tag--warn {
-    color: var(--color-status-client-error);
-  }
-
-  .rc-tag--ok {
-    color: var(--color-success);
-  }
-</style>

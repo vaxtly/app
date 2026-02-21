@@ -66,14 +66,14 @@
   <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
   <!-- svelte-ignore a11y_interactive_supports_focus -->
   <div
-    class="wg-backdrop fixed inset-0 z-50 flex items-center justify-center bg-black/60"
+    class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 animate-[modal-backdrop-in_0.15s_ease-out]"
     role="dialog"
     aria-modal="true"
     onkeydown={handleKeydown}
   >
     <button class="absolute inset-0" onclick={finish} aria-label="Close"></button>
 
-    <div class="wg-modal relative z-10 flex w-full max-w-xl flex-col bg-surface-900">
+    <div class="relative z-10 flex w-full max-w-xl flex-col rounded-2xl border border-surface-700/50 bg-surface-900 shadow-xl animate-[modal-content-in_0.2s_ease-out]">
       <!-- Content -->
       <div class="px-8 pb-4 pt-8">
         <!-- Icon -->
@@ -108,7 +108,7 @@
       </div>
 
       <!-- Footer -->
-      <div class="wg-footer flex items-center justify-between px-6 py-3">
+      <div class="flex items-center justify-between border-t border-surface-700/50 px-6 py-3">
         <button
           onclick={finish}
           class="text-xs text-surface-500 hover:text-surface-300"
@@ -135,18 +135,3 @@
     </div>
   </div>
 {/if}
-
-<style>
-  .wg-backdrop {
-    animation: modal-backdrop-in 0.15s ease-out;
-  }
-  .wg-modal {
-    border-radius: var(--radius-2xl);
-    border: 1px solid var(--border-subtle);
-    box-shadow: var(--shadow-xl);
-    animation: modal-content-in 0.2s ease-out;
-  }
-  .wg-footer {
-    border-top: 1px solid var(--border-subtle);
-  }
-</style>

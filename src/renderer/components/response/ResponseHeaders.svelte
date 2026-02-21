@@ -6,51 +6,11 @@
   let { headers }: Props = $props()
 </script>
 
-<div class="rh-root">
+<div class="flex flex-col gap-px overflow-auto px-3 py-2.5">
   {#each Object.entries(headers) as [key, value]}
-    <div class="rh-row">
-      <span class="rh-key">{key}</span>
-      <span class="rh-value">{value}</span>
+    <div class="flex gap-2 rounded-sm px-2 py-1 transition-colors duration-100 hover:bg-surface-700/30">
+      <span class="shrink-0 font-mono text-xs font-semibold text-brand-400" style="font-feature-settings: var(--font-feature-mono)">{key}</span>
+      <span class="min-w-0 break-all font-mono text-xs text-surface-300" style="font-feature-settings: var(--font-feature-mono)">{value}</span>
     </div>
   {/each}
 </div>
-
-<style>
-  .rh-root {
-    overflow: auto;
-    padding: 10px 12px;
-    display: flex;
-    flex-direction: column;
-    gap: 1px;
-  }
-
-  .rh-row {
-    display: flex;
-    gap: 8px;
-    padding: 4px 8px;
-    border-radius: 4px;
-    transition: background 0.1s;
-  }
-
-  .rh-row:hover {
-    background: color-mix(in srgb, var(--color-surface-700) 30%, transparent);
-  }
-
-  .rh-key {
-    flex-shrink: 0;
-    font-family: var(--font-mono);
-    font-feature-settings: var(--font-feature-mono);
-    font-size: 12px;
-    font-weight: 600;
-    color: var(--color-brand-400);
-  }
-
-  .rh-value {
-    min-width: 0;
-    word-break: break-all;
-    font-family: var(--font-mono);
-    font-feature-settings: var(--font-feature-mono);
-    font-size: 12px;
-    color: var(--color-surface-300);
-  }
-</style>

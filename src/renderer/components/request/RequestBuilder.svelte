@@ -335,7 +335,7 @@
 </script>
 
 {#if state}
-  <div class="rb-root">
+  <div class="flex flex-col h-full">
     <!-- URL Bar -->
     <UrlBar
       method={state.method}
@@ -351,34 +351,36 @@
 
     <!-- Split: request tabs + response -->
     <div
-      class="rb-split"
+      class="flex flex-1 min-h-0"
       class:rb-split--rows={layout === 'rows'}
+      class:select-none={dragging}
       class:rb-split--dragging={dragging}
       bind:this={splitContainer}
     >
       <!-- Request section -->
-      <div class="rb-request" style="flex: {splitPercent} 0 0%;">
+      <div class="flex flex-col min-w-0 min-h-0 overflow-hidden" style="flex: {splitPercent} 0 0%;">
         <!-- Sub-tabs -->
-        <div class="rb-tabs">
-          {#each requestTabs as tab}
+        <div class="flex items-stretch shrink-0 h-9 border-b border-surface-700 px-1 gap-px">
+          {#each requestTabs as tab (tab.key)}
             {@const count = tab.key === 'params' ? paramCount : tab.key === 'headers' ? headerCount : 0}
+            {@const isActive = activeRequestTab === tab.key}
             <button
               onclick={() => activeRequestTab = tab.key}
-              class="rb-tab"
-              class:rb-tab--active={activeRequestTab === tab.key}
+              class="rb-tab flex items-center gap-[5px] px-2.5 border-none bg-transparent text-xs font-inherit cursor-pointer relative whitespace-nowrap transition-[color,background] duration-[0.12s] {isActive ? 'rb-tab--active text-brand-400 hover:text-brand-400' : 'text-surface-400 hover:text-surface-200 hover:bg-surface-700/30'}"
             >
-              <span class="rb-tab-label">{tab.label}</span>
+              <span class="font-medium">{tab.label}</span>
               {#if count}
-                <span class="rb-tab-badge">{count}</span>
+                <span class="text-[10px] leading-none py-0.5 px-[5px] rounded-full font-medium {isActive ? 'bg-brand-500/15 text-brand-400' : 'bg-surface-600/60 text-surface-300'}">{count}</span>
               {/if}
             </button>
           {/each}
 
-          <span class="rb-tabs-spacer"></span>
+          <span class="flex-1"></span>
 
           <button
             onclick={() => showCodeSnippet = true}
-            class="rb-tab rb-tab--code"
+            class="rb-tab flex items-center gap-[5px] px-2.5 border-none bg-transparent font-mono text-[11px] tracking-[-0.02em] text-surface-500 cursor-pointer relative whitespace-nowrap transition-[color,background] duration-[0.12s] hover:text-surface-200 hover:bg-surface-700/30"
+            style="font-feature-settings: var(--font-feature-mono)"
             title="Generate code snippet"
           >
             &lt;/&gt;
@@ -386,7 +388,7 @@
         </div>
 
         <!-- Sub-tab content -->
-        <div class="rb-content">
+        <div class="flex-1 overflow-auto">
           {#if activeRequestTab === 'params'}
             <ParamsEditor
               params={queryParams}
@@ -437,7 +439,7 @@
       ></div>
 
       <!-- Response section -->
-      <div class="rb-response" style="flex: {100 - splitPercent} 0 0%;">
+      <div class="flex flex-col min-w-0 min-h-0 overflow-hidden" style="flex: {100 - splitPercent} 0 0%;">
         <ResponseViewer response={state.response} loading={state.loading} />
       </div>
     </div>
@@ -458,37 +460,13 @@
     onclose={() => showCodeSnippet = false}
   />
 {:else}
-  <div class="rb-empty">
-    <p>Select a request to get started</p>
+  <div class="flex h-full items-center justify-center">
+    <p class="text-[13px] text-surface-500">Select a request to get started</p>
   </div>
 {/if}
 
 <style>
-  .rb-root {
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-  }
-
-  /* --- Split layout (default: columns / side-by-side) --- */
-  .rb-split {
-    display: flex;
-    flex: 1;
-    min-height: 0;
-  }
-
-  .rb-split--dragging {
-    user-select: none;
-  }
-
-  .rb-request {
-    display: flex;
-    flex-direction: column;
-    min-width: 0;
-    min-height: 0;
-    overflow: hidden;
-  }
-
+  /* --- Divider (base + pseudo-element + hover/dragging states) --- */
   .rb-divider {
     flex-shrink: 0;
     width: 1px;
@@ -513,15 +491,7 @@
     background: var(--color-brand-500);
   }
 
-  .rb-response {
-    display: flex;
-    flex-direction: column;
-    min-width: 0;
-    min-height: 0;
-    overflow: hidden;
-  }
-
-  /* Rows layout (top / bottom) */
+  /* --- Rows layout overrides --- */
   .rb-split--rows {
     flex-direction: column;
   }
@@ -545,46 +515,7 @@
     height: 3px;
   }
 
-  /* --- Sub-tabs --- */
-  .rb-tabs {
-    display: flex;
-    align-items: stretch;
-    flex-shrink: 0;
-    height: 36px;
-    border-bottom: 1px solid var(--color-surface-700);
-    padding: 0 4px;
-    gap: 1px;
-  }
-
-  .rb-tab {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    padding: 0 10px;
-    border: none;
-    background: transparent;
-    color: var(--color-surface-400);
-    font-size: 12px;
-    font-family: inherit;
-    cursor: pointer;
-    position: relative;
-    transition: color 0.12s, background 0.12s;
-    white-space: nowrap;
-  }
-
-  .rb-tab:hover {
-    color: var(--color-surface-200);
-    background: color-mix(in srgb, var(--color-surface-700) 30%, transparent);
-  }
-
-  .rb-tab--active {
-    color: var(--color-brand-400);
-  }
-
-  .rb-tab--active:hover {
-    color: var(--color-brand-400);
-  }
-
+  /* --- Tab active indicator (pseudo-element) --- */
   .rb-tab--active::after {
     content: '';
     position: absolute;
@@ -594,59 +525,5 @@
     height: 2px;
     background: var(--color-brand-500);
     border-radius: 1px 1px 0 0;
-  }
-
-  .rb-tab--code {
-    font-family: var(--font-mono);
-    font-feature-settings: var(--font-feature-mono);
-    font-size: 11px;
-    color: var(--color-surface-500);
-    letter-spacing: -0.02em;
-  }
-
-  .rb-tab--code:hover {
-    color: var(--color-surface-200);
-  }
-
-  .rb-tabs-spacer {
-    flex: 1;
-  }
-
-  .rb-tab-label {
-    font-weight: 500;
-  }
-
-  .rb-tab-badge {
-    font-size: 10px;
-    line-height: 1;
-    padding: 2px 5px;
-    border-radius: var(--radius-full);
-    background: color-mix(in srgb, var(--color-surface-600) 60%, transparent);
-    color: var(--color-surface-300);
-    font-weight: 500;
-  }
-
-  .rb-tab--active .rb-tab-badge {
-    background: color-mix(in srgb, var(--color-brand-500) 15%, transparent);
-    color: var(--color-brand-400);
-  }
-
-  /* --- Content --- */
-  .rb-content {
-    flex: 1;
-    overflow: auto;
-  }
-
-  /* --- Empty state --- */
-  .rb-empty {
-    display: flex;
-    height: 100%;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .rb-empty p {
-    font-size: 13px;
-    color: var(--color-surface-500);
   }
 </style>

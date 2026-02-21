@@ -121,23 +121,33 @@
   })
 </script>
 
-<div class="env-selector">
+<div class="flex items-center self-stretch">
   <!-- Trigger button -->
   <button
     bind:this={buttonEl}
     onclick={toggle}
-    class="env-trigger"
+    class="env-trigger flex items-center gap-1.5 px-2.5 h-full border-none bg-transparent text-surface-400 text-[11px] font-sans cursor-pointer whitespace-nowrap border-l border-l-transparent transition-[color,background] duration-150"
     class:env-trigger--active={isActive}
     class:env-trigger--open={open}
   >
     <!-- Status LED -->
-    <span class="env-led" class:env-led--on={isActive}></span>
+    <span
+      class="env-led w-1.5 h-1.5 rounded-full bg-surface-600 shrink-0 transition-[background,box-shadow] duration-200"
+      class:env-led--on={isActive}
+    ></span>
 
-    <span class="env-label">
+    <span class="max-w-[120px] overflow-hidden text-ellipsis">
       {environmentsStore.activeEnvironment?.name ?? 'No Environment'}
     </span>
 
-    <svg class="env-chevron" class:env-chevron--open={open} width="10" height="10" viewBox="0 0 10 10" fill="none">
+    <svg
+      class="env-chevron shrink-0 opacity-50 transition-[transform,opacity] duration-200 ease-out"
+      class:env-chevron--open={open}
+      width="10"
+      height="10"
+      viewBox="0 0 10 10"
+      fill="none"
+    >
       <path d="M2.5 3.75L5 6.25L7.5 3.75" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
     </svg>
   </button>
@@ -146,27 +156,27 @@
   {#if open}
     <div
       bind:this={panelEl}
-      class="env-panel"
-      style={panelStyle}
+      class="fixed z-100 w-60 bg-surface-800 rounded-2xl shadow-dropdown overflow-hidden animate-[dropdown-in_0.12s_ease-out]"
+      style="{panelStyle} border: 1px solid var(--border-dropdown);"
     >
       <!-- Search -->
-      <div class="env-search-wrap">
-        <svg class="env-search-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <div class="flex items-center gap-1.5 px-2.5 py-2 border-b border-surface-700/50">
+        <svg class="shrink-0 text-surface-500" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <circle cx="11" cy="11" r="8"/>
           <path d="m21 21-4.35-4.35"/>
         </svg>
         <input
           bind:this={searchEl}
           type="text"
-          placeholder={"Filter environments\u2026"}
+          placeholder="Filter environments…"
           bind:value={search}
-          class="env-search"
+          class="env-search w-full bg-transparent border-none outline-none text-surface-200 text-xs font-sans"
         />
       </div>
 
       <!-- Scope indicator -->
       {#if hasAssociatedEnvs && !showAll}
-        <div class="env-scope-badge">
+        <div class="flex items-center gap-[5px] px-3 py-[5px] text-[10px] text-surface-400 bg-brand-500/[0.06] border-b border-surface-700/50 tracking-[0.02em]">
           <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
             <path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/>
           </svg>
@@ -175,42 +185,42 @@
       {/if}
 
       <!-- Environment list -->
-      <div class="env-list">
+      <div class="max-h-[220px] overflow-y-auto">
         <!-- No Environment option -->
         <button
           onclick={handleDeactivate}
-          class="env-item env-item--none"
+          class="env-item flex items-center gap-2 w-full px-3 py-1.5 border-none bg-transparent text-surface-200 text-xs font-sans cursor-pointer text-left transition-[background,color] duration-100 hover:bg-surface-700 hover:text-surface-100"
           class:env-item--selected={!environmentsStore.activeEnvironmentId}
         >
-          <span class="env-item-indicator">
+          <span class="w-3.5 h-3.5 flex items-center justify-center shrink-0">
             {#if !environmentsStore.activeEnvironmentId}
-              <span class="env-item-check"></span>
+              <span class="env-item-check w-1.5 h-1.5 rounded-full bg-success"></span>
             {/if}
           </span>
-          <span class="env-item-name env-item-name--muted">No Environment</span>
+          <span class="env-item-name--muted overflow-hidden text-ellipsis whitespace-nowrap flex-1 min-w-0">No Environment</span>
         </button>
 
-        <div class="env-divider"></div>
+        <div class="h-px bg-surface-700 my-1"></div>
 
         {#each visibleEnvironments as env (env.id)}
           {@const selected = environmentsStore.activeEnvironmentId === env.id}
           <button
             onclick={() => handleSelect(env)}
-            class="env-item"
+            class="env-item flex items-center gap-2 w-full px-3 py-1.5 border-none bg-transparent text-surface-200 text-xs font-sans cursor-pointer text-left transition-[background,color] duration-100 hover:bg-surface-700 hover:text-surface-100"
             class:env-item--selected={selected}
           >
-            <span class="env-item-indicator">
+            <span class="w-3.5 h-3.5 flex items-center justify-center shrink-0">
               {#if selected}
-                <span class="env-item-check"></span>
+                <span class="env-item-check w-1.5 h-1.5 rounded-full bg-success"></span>
               {/if}
             </span>
-            <span class="env-item-name">{env.name}</span>
+            <span class="overflow-hidden text-ellipsis whitespace-nowrap flex-1 min-w-0">{env.name}</span>
             {#if selected}
-              <span class="env-item-active-tag">Active</span>
+              <span class="text-[9px] uppercase tracking-[0.06em] text-success opacity-70 shrink-0">Active</span>
             {/if}
           </button>
         {:else}
-          <div class="env-empty">
+          <div class="px-2.5 py-3 text-center text-[11px] text-surface-500">
             {search.trim() ? 'No matches' : 'No environments'}
           </div>
         {/each}
@@ -220,7 +230,7 @@
       {#if hasAssociatedEnvs}
         <button
           onclick={() => showAll = !showAll}
-          class="env-show-all"
+          class="env-show-all flex items-center gap-1.5 w-full px-3 py-[7px] border-none border-t border-surface-700/50 bg-transparent text-brand-400 text-[11px] font-sans cursor-pointer transition-[background,color] duration-100"
         >
           {#if showAll}
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -242,30 +252,7 @@
 </div>
 
 <style>
-  /* --- Trigger button --- */
-  .env-selector {
-    display: flex;
-    align-items: center;
-    align-self: stretch;
-  }
-
-  .env-trigger {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 0 10px;
-    height: 100%;
-    border: none;
-    background: transparent;
-    color: var(--color-surface-400);
-    font-size: 11px;
-    font-family: inherit;
-    cursor: pointer;
-    transition: color 0.15s, background 0.15s;
-    border-left: 1px solid transparent;
-    white-space: nowrap;
-  }
-
+  /* --- Trigger: hover / active / open states --- */
   .env-trigger:hover {
     background: color-mix(in srgb, var(--color-surface-700) 40%, transparent);
     color: var(--color-surface-200);
@@ -281,16 +268,7 @@
     color: var(--color-surface-100);
   }
 
-  /* --- Status LED --- */
-  .env-led {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: var(--color-surface-600);
-    flex-shrink: 0;
-    transition: background 0.2s, box-shadow 0.2s;
-  }
-
+  /* --- LED glow + pulse --- */
   .env-led--on {
     background: var(--color-success);
     box-shadow: 0 0 6px color-mix(in srgb, var(--color-success) 50%, transparent);
@@ -302,153 +280,26 @@
     50% { box-shadow: 0 0 8px color-mix(in srgb, var(--color-success) 70%, transparent); }
   }
 
-  /* --- Label & chevron --- */
-  .env-label {
-    max-width: 120px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .env-chevron {
-    flex-shrink: 0;
-    opacity: 0.5;
-    transition: transform 0.2s ease, opacity 0.15s;
-  }
-
+  /* --- Chevron: parent hover + open --- */
   .env-trigger:hover .env-chevron { opacity: 0.8; }
   .env-chevron--open { transform: rotate(180deg); opacity: 0.8; }
 
-  /* --- Dropdown panel --- */
-  .env-panel {
-    position: fixed;
-    z-index: 100;
-    width: 240px;
-    background: var(--color-surface-800);
-    border: 1px solid var(--border-dropdown);
-    border-radius: var(--radius-2xl);
-    box-shadow: var(--shadow-dropdown);
-    overflow: hidden;
-    animation: env-panel-in 0.12s ease-out;
-  }
-
-  @keyframes env-panel-in {
-    from {
-      opacity: 0;
-      transform: translateY(-4px) scale(0.97);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0) scale(1);
-    }
-  }
-
-  /* --- Search --- */
-  .env-search-wrap {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 8px 10px;
-    border-bottom: 1px solid var(--border-subtle);
-  }
-
-  .env-search-icon {
-    flex-shrink: 0;
-    color: var(--color-surface-500);
-  }
-
-  .env-search {
-    width: 100%;
-    background: transparent;
-    border: none;
-    outline: none;
-    color: var(--color-surface-200);
-    font-size: 12px;
-    font-family: inherit;
-  }
-
+  /* --- Search placeholder --- */
   .env-search::placeholder {
     color: var(--color-surface-500);
   }
 
-  /* --- Scope badge --- */
-  .env-scope-badge {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    padding: 5px 12px;
-    font-size: 10px;
-    color: var(--color-surface-400);
-    background: color-mix(in srgb, var(--color-brand-500) 6%, transparent);
-    border-bottom: 1px solid var(--border-subtle);
-    letter-spacing: 0.02em;
-  }
-
-  /* --- List --- */
-  .env-list {
-    max-height: 220px;
-    overflow-y: auto;
-    padding: 0;
-  }
-
-  .env-divider {
-    height: 1px;
-    background: var(--color-surface-700);
-    margin: 4px 0;
-  }
-
-  /* --- Item --- */
-  .env-item {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    width: 100%;
-    padding: 6px 12px;
-    border: none;
-    background: transparent;
-    color: var(--color-surface-200);
-    font-size: 12px;
-    font-family: inherit;
-    cursor: pointer;
-    text-align: left;
-    transition: background 0.1s, color 0.1s;
-  }
-
-  .env-item:hover {
-    background: var(--color-surface-700);
-    color: var(--color-surface-100);
-  }
-
+  /* --- Item selection color --- */
   .env-item--selected {
     color: var(--color-surface-100);
   }
 
-  /* --- Indicator (check) --- */
-  .env-item-indicator {
-    width: 14px;
-    height: 14px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-  }
-
+  /* --- Check dot glow --- */
   .env-item-check {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: var(--color-success);
     box-shadow: 0 0 5px color-mix(in srgb, var(--color-success) 50%, transparent);
   }
 
-  /* --- Name --- */
-  .env-item-name {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    flex: 1;
-    min-width: 0;
-  }
-
+  /* --- Muted name + selected override --- */
   .env-item-name--muted {
     color: var(--color-surface-500);
     font-style: italic;
@@ -458,41 +309,7 @@
     color: var(--color-surface-300);
   }
 
-  /* --- Active tag --- */
-  .env-item-active-tag {
-    font-size: 9px;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: var(--color-success);
-    opacity: 0.7;
-    flex-shrink: 0;
-  }
-
-  /* --- Empty state --- */
-  .env-empty {
-    padding: 12px 10px;
-    text-align: center;
-    font-size: 11px;
-    color: var(--color-surface-500);
-  }
-
-  /* --- Show all button --- */
-  .env-show-all {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    width: 100%;
-    padding: 7px 12px;
-    border: none;
-    border-top: 1px solid var(--border-subtle);
-    background: transparent;
-    color: var(--color-brand-400);
-    font-size: 11px;
-    font-family: inherit;
-    cursor: pointer;
-    transition: background 0.1s, color 0.1s;
-  }
-
+  /* --- Show all: hover --- */
   .env-show-all:hover {
     background: color-mix(in srgb, var(--color-brand-500) 8%, transparent);
     color: var(--color-brand-300);

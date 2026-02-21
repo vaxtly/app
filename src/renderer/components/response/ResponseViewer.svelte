@@ -36,18 +36,18 @@
   })
 </script>
 
-<div class="rv-root">
+<div class="flex flex-col h-full">
   {#if !response && !loading}
     <!-- Empty state -->
-    <div class="rv-empty">
-      <div class="rv-empty-inner">
-        <div class="rv-empty-icon">
+    <div class="flex flex-1 items-center justify-center">
+      <div class="text-center">
+        <div class="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-surface-700/30 text-surface-600 mb-3">
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2">
             <path d="M13 10V3L4 14h7v7l9-11h-7z" />
           </svg>
         </div>
-        <p class="rv-empty-title">Send a request to see the response</p>
-        <p class="rv-empty-hint">
+        <p class="text-[13px] text-surface-400 mb-2">Send a request to see the response</p>
+        <p class="rv-empty-hint flex items-center justify-center gap-1 text-[11px] text-surface-500">
           <kbd>Cmd</kbd> + <kbd>Enter</kbd>
         </p>
       </div>
@@ -55,75 +55,78 @@
 
   {:else if loading}
     <!-- Loading state -->
-    <div class="rv-empty">
-      <div class="rv-empty-inner">
-        <div class="rv-loader">
+    <div class="flex flex-1 items-center justify-center">
+      <div class="text-center">
+        <div class="flex items-center justify-center gap-1.5 mb-3">
           <span class="rv-loader-dot"></span>
           <span class="rv-loader-dot"></span>
           <span class="rv-loader-dot"></span>
         </div>
-        <p class="rv-empty-title">Sending request...</p>
+        <p class="text-[13px] text-surface-400 mb-2">Sending request...</p>
       </div>
     </div>
 
   {:else if response}
     <!-- Status bar -->
-    <div class="rv-status rv-status--{statusClass}">
-      <div class="rv-status-left">
-        <span class="rv-status-led"></span>
-        <span class="rv-status-code">
+    <div class="rv-status--{statusClass} flex items-center justify-between shrink-0 px-3 py-1.5 border-b border-surface-700 gap-3">
+      <div class="flex items-center gap-2 min-w-0">
+        <span class="rv-status-led w-1.5 h-1.5 rounded-full shrink-0"></span>
+        <span
+          class="rv-status-code font-mono text-xs font-bold tracking-wide"
+          style="font-feature-settings: var(--font-feature-mono)"
+        >
           {response.status === 0 ? 'ERR' : response.status}
         </span>
-        <span class="rv-status-text">{response.statusText}</span>
+        <span class="text-xs text-surface-300 whitespace-nowrap overflow-hidden text-ellipsis">{response.statusText}</span>
       </div>
-      <div class="rv-status-metrics">
-        <span class="rv-metric">
-          <span class="rv-metric-label">TTFB</span>
-          <span class="rv-metric-value">{formatTime(response.timing.ttfb)}</span>
+      <div class="flex items-center gap-2 shrink-0">
+        <span class="flex items-baseline gap-1">
+          <span class="text-[9px] uppercase tracking-widest text-surface-500">TTFB</span>
+          <span class="font-mono text-[11px] text-surface-300" style="font-feature-settings: var(--font-feature-mono)">{formatTime(response.timing.ttfb)}</span>
         </span>
-        <span class="rv-metric-sep"></span>
-        <span class="rv-metric">
-          <span class="rv-metric-label">Total</span>
-          <span class="rv-metric-value">{formatTime(response.timing.total)}</span>
+        <span class="w-px h-2.5 bg-surface-700"></span>
+        <span class="flex items-baseline gap-1">
+          <span class="text-[9px] uppercase tracking-widest text-surface-500">Total</span>
+          <span class="font-mono text-[11px] text-surface-300" style="font-feature-settings: var(--font-feature-mono)">{formatTime(response.timing.total)}</span>
         </span>
-        <span class="rv-metric-sep"></span>
-        <span class="rv-metric">
-          <span class="rv-metric-label">Size</span>
-          <span class="rv-metric-value">{formatSize(response.size)}</span>
+        <span class="w-px h-2.5 bg-surface-700"></span>
+        <span class="flex items-baseline gap-1">
+          <span class="text-[9px] uppercase tracking-widest text-surface-500">Size</span>
+          <span class="font-mono text-[11px] text-surface-300" style="font-feature-settings: var(--font-feature-mono)">{formatSize(response.size)}</span>
         </span>
       </div>
     </div>
 
     <!-- Response tabs -->
-    <div class="rv-tabs">
+    <div class="flex items-stretch shrink-0 h-9 border-b border-surface-700 px-1 gap-px">
       <button
-        class="rv-tab"
+        class="rv-tab flex items-center gap-[5px] px-2.5 border-none bg-transparent text-surface-400 text-xs font-medium cursor-pointer relative whitespace-nowrap transition-colors duration-[120ms] hover:text-surface-200 hover:bg-surface-700/30"
         class:rv-tab--active={activeTab === 'body'}
         onclick={() => activeTab = 'body'}
       >
         Body
       </button>
       <button
-        class="rv-tab"
+        class="rv-tab flex items-center gap-[5px] px-2.5 border-none bg-transparent text-surface-400 text-xs font-medium cursor-pointer relative whitespace-nowrap transition-colors duration-[120ms] hover:text-surface-200 hover:bg-surface-700/30"
         class:rv-tab--active={activeTab === 'headers'}
         onclick={() => activeTab = 'headers'}
       >
         Headers
-        <span class="rv-tab-badge">{headerCount}</span>
+        <span class="rv-tab-badge text-[10px] leading-none py-0.5 px-[5px] rounded-full bg-surface-600/60 text-surface-300 font-medium">{headerCount}</span>
       </button>
       {#if cookieCount > 0}
         <button
-          class="rv-tab"
+          class="rv-tab flex items-center gap-[5px] px-2.5 border-none bg-transparent text-surface-400 text-xs font-medium cursor-pointer relative whitespace-nowrap transition-colors duration-[120ms] hover:text-surface-200 hover:bg-surface-700/30"
           class:rv-tab--active={activeTab === 'cookies'}
           onclick={() => activeTab = 'cookies'}
         >
           Cookies
-          <span class="rv-tab-badge">{cookieCount}</span>
+          <span class="rv-tab-badge text-[10px] leading-none py-0.5 px-[5px] rounded-full bg-surface-600/60 text-surface-300 font-medium">{cookieCount}</span>
         </button>
       {/if}
       {#if isHtml}
         <button
-          class="rv-tab"
+          class="rv-tab flex items-center gap-[5px] px-2.5 border-none bg-transparent text-surface-400 text-xs font-medium cursor-pointer relative whitespace-nowrap transition-colors duration-[120ms] hover:text-surface-200 hover:bg-surface-700/30"
           class:rv-tab--active={activeTab === 'preview'}
           onclick={() => activeTab = 'preview'}
         >
@@ -133,7 +136,7 @@
     </div>
 
     <!-- Content -->
-    <div class="rv-content">
+    <div class="flex-1 overflow-hidden">
       {#if activeTab === 'body'}
         <ResponseBody body={response.body} headers={response.headers} />
       {:else if activeTab === 'headers'}
@@ -148,52 +151,7 @@
 </div>
 
 <style>
-  .rv-root {
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-  }
-
-  /* --- Empty / Loading state --- */
-  .rv-empty {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .rv-empty-inner {
-    text-align: center;
-  }
-
-  .rv-empty-icon {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 48px;
-    height: 48px;
-    border-radius: var(--radius-2xl);
-    background: color-mix(in srgb, var(--color-surface-700) 30%, transparent);
-    color: var(--color-surface-600);
-    margin-bottom: 12px;
-  }
-
-  .rv-empty-title {
-    font-size: 13px;
-    color: var(--color-surface-400);
-    margin: 0 0 8px;
-  }
-
-  .rv-empty-hint {
-    font-size: 11px;
-    color: var(--color-surface-500);
-    margin: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 4px;
-  }
-
+  /* --- kbd styling (nested selector, can't do in Tailwind) --- */
   .rv-empty-hint kbd {
     display: inline-block;
     padding: 1px 5px;
@@ -206,15 +164,7 @@
     line-height: 1.4;
   }
 
-  /* --- Loader dots --- */
-  .rv-loader {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    margin-bottom: 12px;
-  }
-
+  /* --- Loader dots animation --- */
   .rv-loader-dot {
     width: 6px;
     height: 6px;
@@ -231,126 +181,21 @@
     40% { opacity: 1; transform: scale(1.1); }
   }
 
-  /* --- Status bar --- */
-  .rv-status {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    flex-shrink: 0;
-    padding: 6px 12px;
-    border-bottom: 1px solid var(--color-surface-700);
-    gap: 12px;
-  }
-
-  .rv-status-left {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    min-width: 0;
-  }
-
-  .rv-status-led {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    flex-shrink: 0;
-  }
-
+  /* --- Status LED glow cascade --- */
   .rv-status--success .rv-status-led { background: var(--color-status-success); box-shadow: 0 0 6px color-mix(in srgb, var(--color-status-success) 50%, transparent); }
   .rv-status--redirect .rv-status-led { background: var(--color-status-redirect); box-shadow: 0 0 6px color-mix(in srgb, var(--color-status-redirect) 40%, transparent); }
   .rv-status--client-error .rv-status-led { background: var(--color-status-client-error); box-shadow: 0 0 6px color-mix(in srgb, var(--color-status-client-error) 50%, transparent); }
   .rv-status--server-error .rv-status-led { background: var(--color-danger-light); box-shadow: 0 0 6px color-mix(in srgb, var(--color-danger-light) 50%, transparent); }
   .rv-status--error .rv-status-led { background: var(--color-danger-light); box-shadow: 0 0 6px color-mix(in srgb, var(--color-danger-light) 50%, transparent); }
 
-  .rv-status-code {
-    font-family: var(--font-mono);
-    font-feature-settings: var(--font-feature-mono);
-    font-size: 12px;
-    font-weight: 700;
-    letter-spacing: 0.02em;
-  }
-
+  /* --- Status code color cascade --- */
   .rv-status--success .rv-status-code { color: var(--color-status-success); }
   .rv-status--redirect .rv-status-code { color: var(--color-status-redirect); }
   .rv-status--client-error .rv-status-code { color: var(--color-status-client-error); }
   .rv-status--server-error .rv-status-code { color: var(--color-danger-light); }
   .rv-status--error .rv-status-code { color: var(--color-danger-light); }
 
-  .rv-status-text {
-    font-size: 12px;
-    color: var(--color-surface-300);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  /* --- Metrics --- */
-  .rv-status-metrics {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex-shrink: 0;
-  }
-
-  .rv-metric {
-    display: flex;
-    align-items: baseline;
-    gap: 4px;
-  }
-
-  .rv-metric-label {
-    font-size: 9px;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: var(--color-surface-500);
-  }
-
-  .rv-metric-value {
-    font-family: var(--font-mono);
-    font-feature-settings: var(--font-feature-mono);
-    font-size: 11px;
-    color: var(--color-surface-300);
-  }
-
-  .rv-metric-sep {
-    width: 1px;
-    height: 10px;
-    background: var(--color-surface-700);
-  }
-
-  /* --- Response tabs --- */
-  .rv-tabs {
-    display: flex;
-    align-items: stretch;
-    flex-shrink: 0;
-    height: 36px;
-    border-bottom: 1px solid var(--color-surface-700);
-    padding: 0 4px;
-    gap: 1px;
-  }
-
-  .rv-tab {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    padding: 0 10px;
-    border: none;
-    background: transparent;
-    color: var(--color-surface-400);
-    font-size: 12px;
-    font-weight: 500;
-    font-family: inherit;
-    cursor: pointer;
-    position: relative;
-    transition: color 0.12s, background 0.12s;
-    white-space: nowrap;
-  }
-
-  .rv-tab:hover {
-    color: var(--color-surface-200);
-    background: color-mix(in srgb, var(--color-surface-700) 30%, transparent);
-  }
-
+  /* --- Active tab indicator --- */
   .rv-tab--active {
     color: var(--color-brand-400);
   }
@@ -370,24 +215,9 @@
     border-radius: 1px 1px 0 0;
   }
 
-  .rv-tab-badge {
-    font-size: 10px;
-    line-height: 1;
-    padding: 2px 5px;
-    border-radius: var(--radius-full);
-    background: color-mix(in srgb, var(--color-surface-600) 60%, transparent);
-    color: var(--color-surface-300);
-    font-weight: 500;
-  }
-
+  /* --- Active tab badge color change --- */
   .rv-tab--active .rv-tab-badge {
     background: color-mix(in srgb, var(--color-brand-500) 15%, transparent);
     color: var(--color-brand-400);
-  }
-
-  /* --- Content --- */
-  .rv-content {
-    flex: 1;
-    overflow: hidden;
   }
 </style>

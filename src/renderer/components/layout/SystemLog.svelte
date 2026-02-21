@@ -118,7 +118,7 @@
 <!-- Collapsible bottom panel -->
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
-  class="sl-root"
+  class="flex flex-col shrink-0 bg-surface-900"
   class:select-none={dragging}
   style="height: {expanded ? panelHeight : 32}px"
 >
@@ -126,25 +126,26 @@
   {#if expanded}
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div
-      class="sl-drag"
+      class="sl-drag h-1 shrink-0 cursor-ns-resize transition-colors duration-100"
+      style="border-top: 1px solid var(--border-default)"
       onpointerdown={onDragStart}
       onpointermove={onDragMove}
       onpointerup={onDragEnd}
       onpointercancel={onDragEnd}
     ></div>
   {:else}
-    <div class="sl-drag-collapsed"></div>
+    <div class="h-0 shrink-0" style="border-top: 1px solid var(--border-default)"></div>
   {/if}
 
   <!-- Header bar (always visible) -->
-  <div class="sl-header">
+  <div class="flex items-center h-8 shrink-0 px-1" style="border-bottom: 1px solid var(--border-default)">
     <button
       onclick={() => { if (expanded && activeLogTab === 'logs') { expanded = false } else { expanded = true; activeLogTab = 'logs' } }}
-      class="sl-tab"
-      class:sl-tab--active={activeLogTab === 'logs' && expanded}
+      class="flex items-center gap-1.5 px-2 h-full border-none bg-transparent font-mono text-[11px] font-medium cursor-pointer transition-colors duration-100 {activeLogTab === 'logs' && expanded ? 'text-brand-400' : 'text-surface-400 hover:text-surface-200'}"
+      style="font-feature-settings: var(--font-feature-mono)"
     >
       <svg
-        class="sl-tab-chevron"
+        class="sl-tab-chevron w-3 h-3"
         class:sl-tab-chevron--open={expanded}
         fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"
       >
@@ -152,43 +153,46 @@
       </svg>
       Logs
       {#if logs.length > 0}
-        <span class="sl-count">{logs.length}</span>
+        <span class="px-1.5 py-px rounded-full bg-surface-700 text-[10px] font-medium text-surface-300">{logs.length}</span>
       {/if}
     </button>
 
     <button
       onclick={() => { if (expanded && activeLogTab === 'history') { expanded = false } else { expanded = true; activeLogTab = 'history' } }}
-      class="sl-tab"
-      class:sl-tab--active={activeLogTab === 'history' && expanded}
+      class="flex items-center gap-1.5 px-2 h-full border-none bg-transparent font-mono text-[11px] font-medium cursor-pointer transition-colors duration-100 {activeLogTab === 'history' && expanded ? 'text-brand-400' : 'text-surface-400 hover:text-surface-200'}"
+      style="font-feature-settings: var(--font-feature-mono)"
     >
       History
     </button>
 
-    <div class="sl-spacer"></div>
+    <div class="flex-1"></div>
 
     {#if expanded && activeLogTab === 'logs'}
-      <button onclick={clearLogs} class="sl-clear">Clear</button>
+      <button onclick={clearLogs} class="px-2 border-none bg-transparent text-[11px] text-surface-500 cursor-pointer transition-colors duration-100 hover:text-surface-300">Clear</button>
     {/if}
   </div>
 
   {#if expanded}
     <!-- Content -->
-    <div class="sl-content">
+    <div class="flex-1 overflow-auto font-mono text-[11px]" style="font-feature-settings: var(--font-feature-mono)">
       {#if activeLogTab === 'logs'}
         {#if logs.length === 0}
-          <div class="sl-empty">No log entries</div>
+          <div class="flex h-full items-center justify-center text-surface-600">No log entries</div>
         {:else}
-          {#each logs as entry}
-            <div class="sl-row">
-              <span class="sl-time">{formatTime(entry.timestamp)}</span>
+          {#each logs as entry (entry.timestamp + entry.message)}
+            <div
+              class="flex items-center gap-2 h-7 px-3 transition-colors duration-100 hover:bg-surface-800/50"
+              style="border-bottom: 1px solid var(--border-muted)"
+            >
+              <span class="shrink-0 w-18 text-surface-600" style="font-variant-numeric: tabular-nums">{formatTime(entry.timestamp)}</span>
               <span class="sl-badge" style="--cat-color: {getCategoryColor(entry.category)}">{getCategoryLabel(entry.category)}</span>
-              <span class="sl-type">{entry.type}</span>
-              <span class="sl-msg" class:sl-msg--error={!entry.success}>
-                {#each formatLogMessage(entry.message) as seg}
+              <span class="shrink-0 w-16 text-surface-500">{entry.type}</span>
+              <span class="flex-1 min-w-0 overflow-hidden text-ellipsis whitespace-nowrap {entry.success ? 'text-surface-300' : 'text-danger'}">
+                {#each formatLogMessage(entry.message) as seg, i (i)}
                   {#if seg.type === 'code'}
-                    <span class="sl-code">{seg.text}</span>
+                    <span class="px-1 py-px rounded-xs bg-surface-700/50 text-brand-400 text-[10px]">{seg.text}</span>
                   {:else if seg.type === 'url'}
-                    <span class="sl-code">{seg.text}</span>
+                    <span class="px-1 py-px rounded-xs bg-surface-700/50 text-brand-400 text-[10px]">{seg.text}</span>
                   {:else}
                     {seg.text}
                   {/if}
@@ -199,33 +203,34 @@
         {/if}
       {:else}
         {#if !activeRequestId}
-          <div class="sl-empty">Select a request to view history</div>
+          <div class="flex h-full items-center justify-center text-surface-600">Select a request to view history</div>
         {:else if histories.length === 0}
-          <div class="sl-empty">No history for this request</div>
+          <div class="flex h-full items-center justify-center text-surface-600">No history for this request</div>
         {:else}
-          {#each histories as h}
+          {#each histories as h (h.id)}
             <button
               onclick={() => selectedHistoryId = selectedHistoryId === h.id ? null : h.id}
-              class="sl-history-row"
+              class="flex w-full items-center gap-2 h-7 px-3 border-none bg-transparent text-left cursor-pointer transition-colors duration-100 font-mono text-[11px] hover:bg-surface-800/50"
+              style="border-bottom: 1px solid var(--border-muted); font-feature-settings: var(--font-feature-mono)"
             >
-              <span class="sl-time">{formatTime(h.executed_at)}</span>
-              <span class="sl-history-method">{h.method}</span>
-              <span class="sl-history-status" style:color={getStatusColor(h.status_code)}>{h.status_code || 'ERR'}</span>
-              <span class="sl-history-url">{h.url}</span>
-              <span class="sl-history-duration">{h.duration_ms ? `${h.duration_ms}ms` : '-'}</span>
+              <span class="shrink-0 w-18 text-surface-600" style="font-variant-numeric: tabular-nums">{formatTime(h.executed_at)}</span>
+              <span class="shrink-0 font-medium text-surface-400">{h.method}</span>
+              <span class="shrink-0" style="font-variant-numeric: tabular-nums; color: {getStatusColor(h.status_code)}">{h.status_code || 'ERR'}</span>
+              <span class="flex-1 min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-surface-400">{h.url}</span>
+              <span class="shrink-0 text-surface-600" style="font-variant-numeric: tabular-nums">{h.duration_ms ? `${h.duration_ms}ms` : '-'}</span>
             </button>
             {#if selectedHistoryId === h.id}
-              <div class="sl-history-detail">
-                <div class="sl-detail-label">Request Headers:</div>
-                <pre class="sl-detail-pre">{h.request_headers ?? 'None'}</pre>
+              <div class="px-3 py-2 text-[10px] bg-surface-800/30" style="border-bottom: 1px solid var(--border-default)">
+                <div class="mb-1 text-surface-500">Request Headers:</div>
+                <pre class="whitespace-pre-wrap text-surface-400 mb-2">{h.request_headers ?? 'None'}</pre>
                 {#if h.request_body}
-                  <div class="sl-detail-label">Request Body:</div>
-                  <pre class="sl-detail-pre sl-detail-pre--short">{h.request_body}</pre>
+                  <div class="mb-1 text-surface-500">Request Body:</div>
+                  <pre class="whitespace-pre-wrap text-surface-400 mb-2 max-h-24 overflow-auto">{h.request_body}</pre>
                 {/if}
-                <div class="sl-detail-label">Response Headers:</div>
-                <pre class="sl-detail-pre">{h.response_headers ?? 'None'}</pre>
-                <div class="sl-detail-label">Response Body:</div>
-                <pre class="sl-detail-pre sl-detail-pre--tall">{h.response_body ?? 'None'}</pre>
+                <div class="mb-1 text-surface-500">Response Headers:</div>
+                <pre class="whitespace-pre-wrap text-surface-400 mb-2">{h.response_headers ?? 'None'}</pre>
+                <div class="mb-1 text-surface-500">Response Body:</div>
+                <pre class="whitespace-pre-wrap text-surface-400 mb-2 max-h-32 overflow-auto">{h.response_body ?? 'None'}</pre>
               </div>
             {/if}
           {/each}
@@ -236,22 +241,7 @@
 </div>
 
 <style>
-  .sl-root {
-    display: flex;
-    flex-direction: column;
-    flex-shrink: 0;
-    background: var(--color-surface-900);
-  }
-
-  /* --- Drag handle --- */
-  .sl-drag {
-    height: 4px;
-    flex-shrink: 0;
-    cursor: ns-resize;
-    border-top: 1px solid var(--border-default);
-    transition: background 0.12s;
-  }
-
+  /* Drag handle hover/active — uses color-mix with brand */
   .sl-drag:hover {
     background: color-mix(in srgb, var(--color-brand-500) 20%, transparent);
   }
@@ -260,50 +250,8 @@
     background: color-mix(in srgb, var(--color-brand-500) 30%, transparent);
   }
 
-  .sl-drag-collapsed {
-    height: 0;
-    flex-shrink: 0;
-    border-top: 1px solid var(--border-default);
-  }
-
-  /* --- Header --- */
-  .sl-header {
-    display: flex;
-    align-items: center;
-    height: 32px;
-    flex-shrink: 0;
-    border-bottom: 1px solid var(--border-default);
-    padding: 0 4px;
-  }
-
-  .sl-tab {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 0 8px;
-    height: 100%;
-    border: none;
-    background: transparent;
-    font-family: var(--font-mono);
-    font-feature-settings: var(--font-feature-mono);
-    font-size: 11px;
-    font-weight: 500;
-    color: var(--color-surface-400);
-    cursor: pointer;
-    transition: color 0.12s;
-  }
-
-  .sl-tab:hover {
-    color: var(--color-surface-200);
-  }
-
-  .sl-tab--active {
-    color: var(--color-brand-400);
-  }
-
+  /* Chevron rotation transition */
   .sl-tab-chevron {
-    width: 12px;
-    height: 12px;
     transition: transform 0.15s;
   }
 
@@ -311,72 +259,7 @@
     transform: rotate(180deg);
   }
 
-  .sl-count {
-    padding: 1px 6px;
-    border-radius: var(--radius-full);
-    background: var(--color-surface-700);
-    font-size: 10px;
-    font-weight: 500;
-    color: var(--color-surface-300);
-  }
-
-  .sl-spacer {
-    flex: 1;
-  }
-
-  .sl-clear {
-    padding: 0 8px;
-    border: none;
-    background: transparent;
-    font-size: 11px;
-    color: var(--color-surface-500);
-    cursor: pointer;
-    transition: color 0.12s;
-  }
-
-  .sl-clear:hover {
-    color: var(--color-surface-300);
-  }
-
-  /* --- Content --- */
-  .sl-content {
-    flex: 1;
-    overflow: auto;
-    font-family: var(--font-mono);
-    font-feature-settings: var(--font-feature-mono);
-    font-size: 11px;
-  }
-
-  .sl-empty {
-    display: flex;
-    height: 100%;
-    align-items: center;
-    justify-content: center;
-    color: var(--color-surface-600);
-  }
-
-  /* --- Log rows --- */
-  .sl-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    height: 28px;
-    padding: 0 12px;
-    border-bottom: 1px solid var(--border-muted);
-    transition: background 0.1s;
-  }
-
-  .sl-row:hover {
-    background: color-mix(in srgb, var(--color-surface-800) 50%, transparent);
-  }
-
-  .sl-time {
-    flex-shrink: 0;
-    width: 72px;
-    color: var(--color-surface-600);
-    font-variant-numeric: tabular-nums;
-  }
-
+  /* Badge with dynamic --cat-color CSS variable */
   .sl-badge {
     flex-shrink: 0;
     width: 48px;
@@ -387,110 +270,5 @@
     font-weight: 500;
     color: var(--cat-color);
     background: color-mix(in srgb, var(--cat-color) 12%, transparent);
-  }
-
-  .sl-type {
-    flex-shrink: 0;
-    width: 64px;
-    color: var(--color-surface-500);
-  }
-
-  .sl-msg {
-    flex: 1;
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    color: var(--color-surface-300);
-  }
-
-  .sl-msg--error {
-    color: var(--color-danger);
-  }
-
-  .sl-code {
-    padding: 1px 5px;
-    border-radius: var(--radius-xs);
-    background: color-mix(in srgb, var(--color-surface-700) 50%, transparent);
-    color: var(--color-brand-400);
-    font-size: 10px;
-  }
-
-  /* --- History rows --- */
-  .sl-history-row {
-    display: flex;
-    width: 100%;
-    align-items: center;
-    gap: 8px;
-    height: 28px;
-    padding: 0 12px;
-    border: none;
-    border-bottom: 1px solid var(--border-muted);
-    background: transparent;
-    text-align: left;
-    cursor: pointer;
-    transition: background 0.1s;
-    font-family: var(--font-mono);
-    font-feature-settings: var(--font-feature-mono);
-    font-size: 11px;
-  }
-
-  .sl-history-row:hover {
-    background: color-mix(in srgb, var(--color-surface-800) 50%, transparent);
-  }
-
-  .sl-history-method {
-    flex-shrink: 0;
-    font-weight: 500;
-    color: var(--color-surface-400);
-  }
-
-  .sl-history-status {
-    flex-shrink: 0;
-    font-variant-numeric: tabular-nums;
-  }
-
-  .sl-history-url {
-    flex: 1;
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    color: var(--color-surface-400);
-  }
-
-  .sl-history-duration {
-    flex-shrink: 0;
-    color: var(--color-surface-600);
-    font-variant-numeric: tabular-nums;
-  }
-
-  /* --- History detail --- */
-  .sl-history-detail {
-    border-bottom: 1px solid var(--border-default);
-    background: color-mix(in srgb, var(--color-surface-800) 30%, transparent);
-    padding: 8px 12px;
-    font-size: 10px;
-  }
-
-  .sl-detail-label {
-    margin-bottom: 4px;
-    color: var(--color-surface-500);
-  }
-
-  .sl-detail-pre {
-    white-space: pre-wrap;
-    color: var(--color-surface-400);
-    margin-bottom: 8px;
-  }
-
-  .sl-detail-pre--short {
-    max-height: 96px;
-    overflow: auto;
-  }
-
-  .sl-detail-pre--tall {
-    max-height: 128px;
-    overflow: auto;
   }
 </style>

@@ -35,7 +35,7 @@
   <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
   <!-- svelte-ignore a11y_interactive_supports_focus -->
   <div
-    class="settings-backdrop fixed inset-0 z-50 flex items-center justify-center bg-black/60"
+    class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 animate-[modal-backdrop-in_0.15s_ease-out]"
     role="dialog"
     aria-modal="true"
     onkeydown={handleKeydown}
@@ -44,9 +44,9 @@
     <button class="absolute inset-0" onclick={onclose} aria-label="Close"></button>
 
     <!-- Modal -->
-    <div class="settings-modal relative z-10 flex max-h-[80vh] w-full max-w-2xl flex-col bg-surface-900">
+    <div class="relative z-10 flex max-h-[80vh] w-full max-w-2xl flex-col rounded-2xl border border-surface-700/50 bg-surface-900 shadow-xl animate-[modal-content-in_0.2s_ease-out]">
       <!-- Header -->
-      <div class="settings-header flex shrink-0 items-center justify-between px-4 py-3">
+      <div class="flex shrink-0 items-center justify-between border-b border-surface-700/50 px-4 py-3">
         <h2 class="text-sm font-semibold text-surface-200">Settings</h2>
         <button onclick={onclose} class="text-surface-500 hover:text-surface-200" aria-label="Close">
           <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -56,7 +56,7 @@
       </div>
 
       <!-- Tab navigation -->
-      <div class="settings-tabs flex shrink-0 gap-1 px-4">
+      <div class="flex shrink-0 gap-1 border-b border-surface-700/50 px-4">
         {#each tabs as tab}
           <button
             onclick={() => { activeTab = tab.key }}
@@ -89,24 +89,3 @@
     </div>
   </div>
 {/if}
-
-<style>
-  .settings-backdrop {
-    animation: modal-backdrop-in 0.15s ease-out;
-  }
-
-  .settings-modal {
-    border-radius: var(--radius-2xl);
-    border: 1px solid var(--border-subtle);
-    box-shadow: var(--shadow-xl);
-    animation: modal-content-in 0.2s ease-out;
-  }
-
-  .settings-header {
-    border-bottom: 1px solid var(--border-subtle);
-  }
-
-  .settings-tabs {
-    border-bottom: 1px solid var(--border-subtle);
-  }
-</style>

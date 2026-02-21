@@ -23,7 +23,7 @@
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <span
-  class="cb"
+  class="cb inline-flex shrink-0 cursor-pointer items-center outline-none"
   class:cb--checked={checked}
   class:cb--disabled={disabled}
   role="checkbox"
@@ -33,9 +33,9 @@
   onclick={handleClick}
   onkeydown={handleKeydown}
 >
-  <span class="cb-box">
+  <span class="cb-box flex h-4 w-4 items-center justify-center rounded-sm border-[1.5px] border-surface-500 bg-transparent transition-[background,border-color,transform] duration-150 ease-out">
     {#if checked}
-      <svg class="cb-icon" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+      <svg class="text-white animate-[cb-check-in_0.15s_ease-out]" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
         <path d="M5 13l4 4L19 7" />
       </svg>
     {/if}
@@ -43,34 +43,13 @@
 </span>
 
 <style>
-  .cb {
-    display: inline-flex;
-    align-items: center;
-    flex-shrink: 0;
-    cursor: pointer;
-    -webkit-tap-highlight-color: transparent;
-    outline: none;
-  }
-
-  .cb:focus-visible .cb-box {
-    box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-brand-500) 40%, transparent);
-  }
-
   .cb--disabled {
     cursor: not-allowed;
     opacity: 0.35;
   }
 
-  .cb-box {
-    width: 16px;
-    height: 16px;
-    border-radius: var(--radius-sm);
-    border: 1.5px solid var(--color-surface-500);
-    background: transparent;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+  .cb:focus-visible .cb-box {
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-brand-500) 40%, transparent);
   }
 
   .cb:hover:not(.cb--disabled) .cb-box {
@@ -91,19 +70,8 @@
     transform: scale(0.9);
   }
 
-  .cb-icon {
-    color: white;
-    animation: cb-check-in 0.15s ease-out;
-  }
-
   @keyframes cb-check-in {
-    from {
-      opacity: 0;
-      transform: scale(0.5);
-    }
-    to {
-      opacity: 1;
-      transform: scale(1);
-    }
+    from { opacity: 0; transform: scale(0.5); }
+    to { opacity: 1; transform: scale(1); }
   }
 </style>

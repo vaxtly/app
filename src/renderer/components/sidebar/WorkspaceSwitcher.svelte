@@ -76,52 +76,64 @@
   })
 </script>
 
-<div class="workspace-switcher ws-root no-drag">
+<div class="workspace-switcher relative no-drag">
   <!-- Trigger -->
-  <button onclick={toggleDropdown} class="ws-trigger">
-    <svg class="ws-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+  <button
+    onclick={toggleDropdown}
+    class="group flex w-full items-center gap-1.5 px-3 py-2 border-none bg-transparent text-surface-300 text-xs font-inherit cursor-pointer transition-[background,color] duration-150 text-left hover:bg-surface-700/40 hover:text-surface-100"
+  >
+    <svg class="w-3.5 h-3.5 shrink-0 text-surface-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
       <path d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25a2.25 2.25 0 01-2.25-2.25v-2.25z" />
     </svg>
-    <span class="ws-label">
+    <span class="flex-1 min-w-0 truncate font-medium">
       {appStore.activeWorkspace?.name ?? 'Workspace'}
     </span>
-    <svg class="ws-chevron" class:ws-chevron--open={dropdownOpen} width="10" height="10" viewBox="0 0 10 10" fill="none">
+    <svg
+      class="shrink-0 opacity-50 text-surface-500 transition-[transform,opacity] duration-200 ease-out group-hover:opacity-80 {dropdownOpen ? 'rotate-180 opacity-80' : ''}"
+      width="10" height="10" viewBox="0 0 10 10" fill="none"
+    >
       <path d="M2.5 3.75L5 6.25L7.5 3.75" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
     </svg>
   </button>
 
   <!-- Dropdown -->
   {#if dropdownOpen}
-    <div class="ws-panel">
+    <div
+      class="absolute left-0 right-0 top-full z-50 mt-1 bg-surface-800 rounded-2xl shadow-dropdown overflow-hidden animate-[dropdown-in_0.12s_ease-out]"
+      style="border: 1px solid var(--border-dropdown)"
+    >
       <!-- Workspace list -->
-      <div class="ws-list">
+      <div class="max-h-[220px] overflow-y-auto">
         {#each appStore.workspaces as ws (ws.id)}
           {@const isActive = ws.id === appStore.activeWorkspaceId}
-          <div class="ws-item-row" class:ws-item-row--active={isActive}>
+          <div class="group/row relative transition-colors duration-100 hover:bg-surface-700">
             {#if renamingId === ws.id}
               <input
                 bind:this={renameInput}
                 bind:value={renameValue}
                 onblur={commitRename}
                 onkeydown={handleRenameKeydown}
-                class="ws-rename-input"
+                class="flex-1 min-w-0 h-7 mx-1 my-0.5 px-2 border border-brand-500 rounded-sm bg-surface-900 text-surface-100 text-xs font-inherit outline-none"
               />
             {:else}
-              <button onclick={() => switchWorkspace(ws.id)} class="ws-item" class:ws-item--active={isActive}>
-                <span class="ws-item-indicator">
+              <button
+                onclick={() => switchWorkspace(ws.id)}
+                class="flex items-center gap-2 w-full px-3 py-1.5 border-none bg-transparent text-xs font-inherit cursor-pointer text-left transition-colors duration-100 {isActive ? 'text-surface-100' : 'text-surface-200'} group-hover/row:text-surface-100"
+              >
+                <span class="w-3.5 h-3.5 flex items-center justify-center shrink-0">
                   {#if isActive}
                     <span class="ws-item-dot"></span>
                   {/if}
                 </span>
-                <span class="ws-item-name">{ws.name}</span>
+                <span class="truncate flex-1 min-w-0">{ws.name}</span>
               </button>
 
               <!-- Hover actions (absolute overlay) -->
-              <div class="ws-actions">
+              <div class="absolute right-1 top-1/2 -translate-y-1/2 flex gap-0.5 opacity-0 transition-opacity duration-100 group-hover/row:opacity-100">
                 <button
                   onclick={(e) => { e.stopPropagation(); startRename(ws.id, ws.name) }}
                   aria-label="Rename workspace"
-                  class="ws-action"
+                  class="ws-action flex items-center justify-center w-[22px] h-[22px] shrink-0 border-none rounded-sm bg-transparent text-surface-500 cursor-pointer"
                 >
                   <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                     <path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -131,7 +143,7 @@
                   <button
                     onclick={(e) => { e.stopPropagation(); handleDelete(ws.id) }}
                     aria-label="Delete workspace"
-                    class="ws-action ws-action--danger"
+                    class="ws-action ws-action--danger flex items-center justify-center w-[22px] h-[22px] shrink-0 border-none rounded-sm bg-transparent text-surface-500 cursor-pointer"
                   >
                     <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                       <path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -145,8 +157,11 @@
       </div>
 
       <!-- Separator + New -->
-      <div class="ws-divider"></div>
-      <button onclick={createNewWorkspace} class="ws-new">
+      <div class="h-px bg-surface-700 my-1"></div>
+      <button
+        onclick={createNewWorkspace}
+        class="flex items-center gap-1.5 w-full py-[7px] px-3 border-none bg-transparent text-surface-400 text-[11px] font-inherit cursor-pointer transition-[background,color] duration-100 hover:bg-surface-600/50 hover:text-surface-200"
+      >
         <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
           <path d="M12 4v16m8-8H4" />
         </svg>
@@ -157,160 +172,7 @@
 </div>
 
 <style>
-  /* --- Root --- */
-  .ws-root {
-    position: relative;
-  }
-
-  /* --- Trigger (matches env-trigger pattern) --- */
-  .ws-trigger {
-    display: flex;
-    width: 100%;
-    align-items: center;
-    gap: 6px;
-    padding: 8px 12px;
-    border: none;
-    background: transparent;
-    color: var(--color-surface-300);
-    font-size: 12px;
-    font-family: inherit;
-    cursor: pointer;
-    transition: background 0.15s, color 0.15s;
-    text-align: left;
-  }
-
-  .ws-trigger:hover {
-    background: color-mix(in srgb, var(--color-surface-700) 40%, transparent);
-    color: var(--color-surface-100);
-  }
-
-  .ws-icon {
-    width: 14px;
-    height: 14px;
-    flex-shrink: 0;
-    color: var(--color-surface-500);
-  }
-
-  .ws-label {
-    flex: 1;
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    font-weight: 500;
-  }
-
-  .ws-chevron {
-    flex-shrink: 0;
-    opacity: 0.5;
-    transition: transform 0.2s ease, opacity 0.15s;
-    color: var(--color-surface-500);
-  }
-
-  .ws-trigger:hover .ws-chevron {
-    opacity: 0.8;
-  }
-
-  .ws-chevron--open {
-    transform: rotate(180deg);
-    opacity: 0.8;
-  }
-
-  /* --- Dropdown panel (matches env-panel) --- */
-  .ws-panel {
-    position: absolute;
-    left: 0;
-    right: 0;
-    top: 100%;
-    z-index: 50;
-    margin-top: 4px;
-    background: var(--color-surface-800);
-    border: 1px solid var(--border-dropdown);
-    border-radius: var(--radius-2xl);
-    box-shadow: var(--shadow-dropdown);
-    overflow: hidden;
-    animation: ws-panel-in 0.12s ease-out;
-  }
-
-  @keyframes ws-panel-in {
-    from {
-      opacity: 0;
-      transform: translateY(-4px) scale(0.97);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0) scale(1);
-    }
-  }
-
-  /* --- List --- */
-  .ws-list {
-    max-height: 220px;
-    overflow-y: auto;
-    padding: 0;
-  }
-
-  /* --- Item row (contains button + hover actions) --- */
-  .ws-item-row {
-    position: relative;
-    transition: background 0.1s;
-  }
-
-  .ws-item-row:hover {
-    background: var(--color-surface-700);
-  }
-
-  .ws-item-row:hover .ws-actions {
-    opacity: 1;
-  }
-
-  .ws-item-row:hover .ws-item {
-    color: var(--color-surface-100);
-  }
-
-  /* --- Item button (matches env-item) --- */
-  .ws-item {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    width: 100%;
-    padding: 6px 12px;
-    border: none;
-    background: transparent;
-    color: var(--color-surface-200);
-    font-size: 12px;
-    font-family: inherit;
-    cursor: pointer;
-    text-align: left;
-    transition: color 0.1s;
-  }
-
-  .ws-item--active {
-    color: var(--color-surface-100);
-  }
-
-  /* --- Action buttons overlay --- */
-  .ws-actions {
-    position: absolute;
-    right: 4px;
-    top: 50%;
-    transform: translateY(-50%);
-    display: flex;
-    gap: 2px;
-    opacity: 0;
-    transition: opacity 0.1s;
-  }
-
-  /* --- Indicator (matches env-item-indicator) --- */
-  .ws-item-indicator {
-    width: 14px;
-    height: 14px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-  }
-
+  /* Active workspace dot with glow effect */
   .ws-item-dot {
     width: 6px;
     height: 6px;
@@ -319,28 +181,8 @@
     box-shadow: 0 0 5px color-mix(in srgb, var(--color-brand-400) 50%, transparent);
   }
 
-  /* --- Item name --- */
-  .ws-item-name {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    flex: 1;
-    min-width: 0;
-  }
-
-  /* --- Hover action buttons --- */
+  /* Action button hover — uses color-mix */
   .ws-action {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 22px;
-    height: 22px;
-    flex-shrink: 0;
-    border: none;
-    border-radius: var(--radius-sm);
-    background: transparent;
-    color: var(--color-surface-500);
-    cursor: pointer;
     transition: color 0.12s, background 0.12s;
   }
 
@@ -352,49 +194,5 @@
   .ws-action--danger:hover {
     color: var(--color-danger);
     background: color-mix(in srgb, var(--color-danger) 12%, transparent);
-  }
-
-  /* --- Rename input --- */
-  .ws-rename-input {
-    flex: 1;
-    min-width: 0;
-    height: 28px;
-    margin: 2px 4px;
-    padding: 0 8px;
-    border: 1px solid var(--color-brand-500);
-    border-radius: var(--radius-sm);
-    background: var(--color-surface-900);
-    color: var(--color-surface-100);
-    font-size: 12px;
-    font-family: inherit;
-    outline: none;
-  }
-
-  /* --- Divider (matches env-divider) --- */
-  .ws-divider {
-    height: 1px;
-    background: var(--color-surface-700);
-    margin: 4px 0;
-  }
-
-  /* --- New workspace button (matches env-show-all) --- */
-  .ws-new {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    width: 100%;
-    padding: 7px 12px;
-    border: none;
-    background: transparent;
-    color: var(--color-surface-400);
-    font-size: 11px;
-    font-family: inherit;
-    cursor: pointer;
-    transition: background 0.1s, color 0.1s;
-  }
-
-  .ws-new:hover {
-    background: color-mix(in srgb, var(--color-surface-600) 50%, transparent);
-    color: var(--color-surface-200);
   }
 </style>

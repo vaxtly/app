@@ -131,19 +131,22 @@
   }
 </script>
 
-<div class="se-root">
+<div class="p-3 flex flex-col gap-5">
   <!-- Pre-request script -->
-  <section class="se-section">
-    <div class="se-section-header">
-      <h3 class="se-section-title">Pre-request Script</h3>
-      <button onclick={togglePreRequest} class="se-action" class:se-action--danger={hasPreRequest}>
+  <section>
+    <div class="flex items-center justify-between mb-2">
+      <h3 class="text-xs font-medium text-surface-300 m-0">Pre-request Script</h3>
+      <button
+        onclick={togglePreRequest}
+        class="border-none bg-transparent text-xs font-sans cursor-pointer p-0 transition-colors duration-[0.12s] {hasPreRequest ? 'text-danger-light hover:text-danger-lighter' : 'text-brand-400 hover:text-brand-300'}"
+      >
         {hasPreRequest ? 'Remove' : '+ Add'}
       </button>
     </div>
 
     {#if hasPreRequest}
-      <div class="se-card">
-        <span class="se-card-hint">Send dependent request first</span>
+      <div class="p-2.5 rounded-md border border-surface-700 bg-surface-800/50">
+        <span class="block text-[11px] text-surface-400 mb-1.5">Send dependent request first</span>
 
         <!-- Searchable request picker -->
         <button
@@ -153,14 +156,14 @@
           class:se-picker-trigger--open={pickerOpen}
         >
           {#if selectedRequest}
-            <span class="se-picker-method" style="color: {methodColors[selectedRequest.method] ?? '#94a3b8'}">
+            <span class="font-mono text-[10px] font-bold tracking-[0.02em] shrink-0" style="color: {methodColors[selectedRequest.method] ?? '#94a3b8'}; font-feature-settings: var(--font-feature-mono)">
               {selectedRequest.method}
             </span>
-            <span class="se-picker-name">{selectedRequest.name}</span>
+            <span class="flex-1 min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">{selectedRequest.name}</span>
           {:else}
-            <span class="se-picker-placeholder">Select a request...</span>
+            <span class="flex-1 text-surface-500">Select a request...</span>
           {/if}
-          <svg class="se-picker-chevron" class:se-picker-chevron--open={pickerOpen} width="10" height="10" viewBox="0 0 10 10" fill="none">
+          <svg class="shrink-0 text-surface-500 transition-transform duration-150 ease-in-out {pickerOpen ? 'rotate-180' : ''}" width="10" height="10" viewBox="0 0 10 10" fill="none">
             <path d="M2.5 3.75L5 6.25L7.5 3.75" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
         </button>
@@ -168,8 +171,8 @@
         {#if pickerOpen}
           <div bind:this={pickerPanelEl} class="se-picker-panel" style={pickerStyle}>
             <!-- Search -->
-            <div class="se-picker-search-wrap">
-              <svg class="se-picker-search-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <div class="flex items-center gap-1.5 px-2.5 py-2 border-b border-surface-700">
+              <svg class="shrink-0 text-surface-500" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <circle cx="11" cy="11" r="8"/>
                 <path d="m21 21-4.35-4.35"/>
               </svg>
@@ -178,31 +181,30 @@
                 type="text"
                 placeholder={"Filter requests\u2026"}
                 bind:value={pickerSearch}
-                class="se-picker-search"
+                class="w-full bg-transparent border-none outline-none text-surface-200 text-xs font-sans placeholder:text-surface-500"
               />
             </div>
 
             <!-- List -->
-            <div class="se-picker-list">
+            <div class="max-h-[200px] overflow-y-auto py-1">
               {#each filteredRequests as req (req.id)}
                 {@const isSelected = scripts.pre_request?.request_id === req.id}
                 <button
                   onclick={() => selectRequest(req.id)}
-                  class="se-picker-item"
-                  class:se-picker-item--selected={isSelected}
+                  class="flex items-center gap-2 w-full py-1.5 px-2.5 border-none bg-transparent text-xs font-sans cursor-pointer text-left transition-[background,color] duration-100 hover:bg-surface-600/50 hover:text-surface-100 {isSelected ? 'text-surface-100' : 'text-surface-300'}"
                 >
-                  <span class="se-picker-item-indicator">
+                  <span class="w-3.5 h-3.5 flex items-center justify-center shrink-0">
                     {#if isSelected}
                       <span class="se-picker-item-dot"></span>
                     {/if}
                   </span>
-                  <span class="se-picker-item-method" style="color: {methodColors[req.method] ?? '#94a3b8'}">
+                  <span class="font-mono text-[10px] font-bold tracking-[0.02em] shrink-0 w-12" style="color: {methodColors[req.method] ?? '#94a3b8'}; font-feature-settings: var(--font-feature-mono)">
                     {req.method}
                   </span>
-                  <span class="se-picker-item-name">{req.name}</span>
+                  <span class="flex-1 min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">{req.name}</span>
                 </button>
               {:else}
-                <div class="se-picker-empty">
+                <div class="py-3 px-2.5 text-center text-[11px] text-surface-500">
                   {pickerSearch.trim() ? 'No matches' : 'No requests available'}
                 </div>
               {/each}
@@ -211,54 +213,54 @@
         {/if}
 
         {#if availableRequests.length === 0}
-          <p class="se-card-note">No other requests in this collection.</p>
+          <p class="text-[11px] text-surface-500 mt-1 mb-0">No other requests in this collection.</p>
         {/if}
       </div>
     {:else}
-      <p class="se-hint">
+      <p class="text-[11px] text-surface-500 m-0 leading-relaxed">
         Fire a dependent request before this one runs. Useful for fetching auth tokens.
       </p>
     {/if}
   </section>
 
   <!-- Post-response scripts -->
-  <section class="se-section">
-    <div class="se-section-header">
-      <h3 class="se-section-title">Post-response Scripts</h3>
-      <button onclick={addPostResponse} class="se-action">
+  <section>
+    <div class="flex items-center justify-between mb-2">
+      <h3 class="text-xs font-medium text-surface-300 m-0">Post-response Scripts</h3>
+      <button onclick={addPostResponse} class="border-none bg-transparent text-brand-400 text-xs font-sans cursor-pointer p-0 transition-colors duration-[0.12s] hover:text-brand-300">
         + Add
       </button>
     </div>
 
     {#if hasPostResponse}
-      <div class="se-scripts">
-        {#each scripts.post_response ?? [] as script, i}
-          <div class="se-card se-card--row">
-            <div class="se-card-fields">
-              <div class="se-field">
-                <span class="se-field-label">Source (e.g. body.data.token, header.X-Auth, status)</span>
+      <div class="flex flex-col gap-1.5">
+        {#each scripts.post_response ?? [] as script, i (i)}
+          <div class="p-2.5 rounded-md border border-surface-700 bg-surface-800/50 flex items-start gap-2">
+            <div class="flex-1 min-w-0 flex flex-col gap-1.5">
+              <div class="flex flex-col gap-0.5">
+                <span class="text-[10px] text-surface-500">Source (e.g. body.data.token, header.X-Auth, status)</span>
                 <input
                   type="text"
                   value={script.source}
                   oninput={(e) => updatePostResponse(i, 'source', e.currentTarget.value)}
                   placeholder="body.data.access_token"
-                  class="se-input"
+                  class="h-[30px] w-full px-2 border border-transparent rounded-sm bg-surface-800 text-surface-200 text-xs font-sans outline-none transition-[border-color] duration-[0.12s] focus:border-brand-500 placeholder:text-surface-600"
                 />
               </div>
-              <div class="se-field">
-                <span class="se-field-label">Target variable name</span>
+              <div class="flex flex-col gap-0.5">
+                <span class="text-[10px] text-surface-500">Target variable name</span>
                 <input
                   type="text"
                   value={script.target}
                   oninput={(e) => updatePostResponse(i, 'target', e.currentTarget.value)}
                   placeholder="auth_token"
-                  class="se-input"
+                  class="h-[30px] w-full px-2 border border-transparent rounded-sm bg-surface-800 text-surface-200 text-xs font-sans outline-none transition-[border-color] duration-[0.12s] focus:border-brand-500 placeholder:text-surface-600"
                 />
               </div>
             </div>
             <button
               onclick={() => removePostResponse(i)}
-              class="se-remove"
+              class="flex items-center justify-center w-[26px] h-[26px] shrink-0 mt-2 border-none rounded-sm bg-transparent text-surface-500 cursor-pointer transition-[color,background] duration-100 hover:text-danger-light hover:bg-danger-light/[0.08]"
               title="Remove"
             >
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -269,7 +271,7 @@
         {/each}
       </div>
     {:else}
-      <p class="se-hint">
+      <p class="text-[11px] text-surface-500 m-0 leading-relaxed">
         Extract values from the response and set them as collection variables.
       </p>
     {/if}
@@ -277,146 +279,7 @@
 </div>
 
 <style>
-  .se-root {
-    padding: 12px;
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
-  }
-
-  .se-section-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 8px;
-  }
-
-  .se-section-title {
-    font-size: 12px;
-    font-weight: 500;
-    color: var(--color-surface-300);
-    margin: 0;
-  }
-
-  .se-action {
-    border: none;
-    background: transparent;
-    color: var(--color-brand-400);
-    font-size: 12px;
-    font-family: inherit;
-    cursor: pointer;
-    padding: 0;
-    transition: color 0.12s;
-  }
-
-  .se-action:hover { color: var(--color-brand-300); }
-  .se-action--danger { color: var(--color-danger-light); }
-  .se-action--danger:hover { color: var(--color-danger-lighter); }
-
-  .se-hint {
-    font-size: 11px;
-    color: var(--color-surface-500);
-    margin: 0;
-    line-height: 1.5;
-  }
-
-  /* --- Card --- */
-  .se-card {
-    padding: 10px;
-    border-radius: 6px;
-    border: 1px solid var(--color-surface-700);
-    background: color-mix(in srgb, var(--color-surface-800) 50%, transparent);
-  }
-
-  .se-card--row {
-    display: flex;
-    align-items: flex-start;
-    gap: 8px;
-  }
-
-  .se-card-fields {
-    flex: 1;
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
-
-  .se-card-hint {
-    display: block;
-    font-size: 11px;
-    color: var(--color-surface-400);
-    margin-bottom: 6px;
-  }
-
-  .se-card-note {
-    font-size: 11px;
-    color: var(--color-surface-500);
-    margin: 4px 0 0;
-  }
-
-  .se-scripts {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
-
-  /* --- Fields --- */
-  .se-field {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-  }
-
-  .se-field-label {
-    font-size: 10px;
-    color: var(--color-surface-500);
-  }
-
-  .se-input {
-    height: 30px;
-    width: 100%;
-    padding: 0 8px;
-    border: 1px solid transparent;
-    border-radius: 4px;
-    background: var(--color-surface-800);
-    color: var(--color-surface-200);
-    font-size: 12px;
-    font-family: inherit;
-    outline: none;
-    transition: border-color 0.12s;
-  }
-
-  .se-input:focus {
-    border-color: var(--color-brand-500);
-  }
-
-  .se-input::placeholder {
-    color: var(--color-surface-600);
-  }
-
-  .se-remove {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 26px;
-    height: 26px;
-    flex-shrink: 0;
-    margin-top: 8px;
-    border: none;
-    border-radius: 4px;
-    background: transparent;
-    color: var(--color-surface-500);
-    cursor: pointer;
-    transition: color 0.1s, background 0.1s;
-  }
-
-  .se-remove:hover {
-    color: var(--color-danger-light);
-    background: color-mix(in srgb, var(--color-danger-light) 8%, transparent);
-  }
-
-  /* --- Searchable request picker --- */
+  /* Picker trigger — open/focus state with box-shadow must stay scoped */
   .se-picker-trigger {
     display: flex;
     align-items: center;
@@ -425,7 +288,7 @@
     height: 32px;
     padding: 0 10px;
     border: 1px solid transparent;
-    border-radius: 6px;
+    border-radius: var(--radius-md);
     background: var(--color-surface-800);
     color: var(--color-surface-200);
     font-size: 12px;
@@ -445,152 +308,24 @@
     box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-brand-500) 15%, transparent);
   }
 
-  .se-picker-method {
-    font-family: var(--font-mono);
-    font-feature-settings: var(--font-feature-mono);
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 0.02em;
-    flex-shrink: 0;
-  }
-
-  .se-picker-name {
-    flex: 1;
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .se-picker-placeholder {
-    flex: 1;
-    color: var(--color-surface-500);
-  }
-
-  .se-picker-chevron {
-    flex-shrink: 0;
-    color: var(--color-surface-500);
-    transition: transform 0.15s ease;
-  }
-
-  .se-picker-chevron--open {
-    transform: rotate(180deg);
-  }
-
-  /* --- Picker dropdown panel --- */
+  /* Picker panel — fixed positioning + complex shadow */
   .se-picker-panel {
     position: fixed;
     z-index: 100;
     background: var(--color-surface-800);
     border: 1px solid var(--color-surface-600);
-    border-radius: 8px;
+    border-radius: var(--radius-lg);
     box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4), 0 0 1px rgba(0, 0, 0, 0.3);
     overflow: hidden;
-    animation: se-picker-in 0.12s ease-out;
+    animation: slide-in 0.12s ease-out;
   }
 
-  @keyframes se-picker-in {
-    from { opacity: 0; transform: translateY(-4px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
-
-  .se-picker-search-wrap {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 8px 10px;
-    border-bottom: 1px solid var(--color-surface-700);
-  }
-
-  .se-picker-search-icon {
-    flex-shrink: 0;
-    color: var(--color-surface-500);
-  }
-
-  .se-picker-search {
-    width: 100%;
-    background: transparent;
-    border: none;
-    outline: none;
-    color: var(--color-surface-200);
-    font-size: 12px;
-    font-family: inherit;
-  }
-
-  .se-picker-search::placeholder {
-    color: var(--color-surface-500);
-  }
-
-  .se-picker-list {
-    max-height: 200px;
-    overflow-y: auto;
-    padding: 4px 0;
-  }
-
-  .se-picker-item {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    width: 100%;
-    padding: 6px 10px;
-    border: none;
-    background: transparent;
-    color: var(--color-surface-300);
-    font-size: 12px;
-    font-family: inherit;
-    cursor: pointer;
-    text-align: left;
-    transition: background 0.1s, color 0.1s;
-  }
-
-  .se-picker-item:hover {
-    background: color-mix(in srgb, var(--color-surface-600) 50%, transparent);
-    color: var(--color-surface-100);
-  }
-
-  .se-picker-item--selected {
-    color: var(--color-surface-100);
-  }
-
-  .se-picker-item-indicator {
-    width: 14px;
-    height: 14px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-  }
-
+  /* Dot glow effect */
   .se-picker-item-dot {
     width: 6px;
     height: 6px;
     border-radius: 50%;
     background: var(--color-brand-400);
     box-shadow: 0 0 5px color-mix(in srgb, var(--color-brand-400) 50%, transparent);
-  }
-
-  .se-picker-item-method {
-    font-family: var(--font-mono);
-    font-feature-settings: var(--font-feature-mono);
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 0.02em;
-    flex-shrink: 0;
-    width: 48px;
-  }
-
-  .se-picker-item-name {
-    flex: 1;
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .se-picker-empty {
-    padding: 12px 10px;
-    text-align: center;
-    font-size: 11px;
-    color: var(--color-surface-500);
   }
 </style>
