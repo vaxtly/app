@@ -7,18 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.2.3] - 2026-02-21
+
 ### Changed
-- Variable resolution IPC handlers (`variables:resolve`, `variables:resolve-with-source`) now call `ensureLoaded()` for vault-synced environments before returning — variable highlighting updates immediately without needing to send a request first
-- Pre/post-request script logs now use a dedicated "script" category badge with "pre"/"post" type instead of "http" / "pre-script"
-- Error responses (status 0) now show a clean centered error message instead of duplicating the error in both the status bar and the response body; IPC wrapper text is stripped from the message
+- Variable resolution IPC handlers now call `ensureLoaded()` for vault-synced environments — variable highlighting updates immediately without needing to send a request first
+- Pre/post-request script logs use a dedicated "script" category badge with "pre"/"post" type instead of "http" / "pre-script"
+- Error responses show a clean centered error card instead of duplicating the error in both the status bar and the response body
 
 ### Fixed
 - `{{variable}}` highlighting (green/red) not updating for vault-synced environments until after the first request send
-- Git sync pushing encrypted `enc:gcm:...` ciphertext instead of original auth values (e.g. `{{token}}`) — affected single-request push (save/right-click) and collection-level push; both serialization paths now route through the repository decryption layer
+- Git sync pushing encrypted `enc:gcm:...` ciphertext instead of original auth values (e.g. `{{token}}`) — affected both single-request and collection-level push
 - SystemLog showing internal UUIDs instead of request names for pre/post-request script entries
 
 ### Added
-- 2 regression tests for YAML serializer auth decryption (bearer + basic auth round-trip through `serializeToDirectory`) — 373 total
+- 2 regression tests for YAML serializer auth decryption (373 total)
 
 ## [0.2.2] - 2026-02-21
 
