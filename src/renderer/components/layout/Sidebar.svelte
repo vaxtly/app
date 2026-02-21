@@ -50,7 +50,7 @@
 
 <div class="flex h-full flex-col glass">
   <!-- Workspace switcher -->
-  <div class="drag-region shrink-0" style="padding-top: {window.navigator.userAgent.includes('Macintosh') ? 'calc(2rem + 6px)' : '0'}">
+  <div class="drag-region shrink-0" style="padding-top: {window.navigator.userAgent.includes('Macintosh') ? '2rem' : '0'}">
     <WorkspaceSwitcher />
   </div>
 

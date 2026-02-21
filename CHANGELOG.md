@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-02-21
+
+### Added
+- Liquid glass desktop redesign — unified visual language with glass backgrounds, blur effects, and refined surface hierarchy across every component
+- Draggable sidebar resize with persisted width
+- Persisted request builder split position across sessions
+- Pull-from-remote sync for individual folders and requests, with context menu actions
+- Push single request to remote on save
+- Sync target indicator in SystemLog
+- 127 new tests for IPC handlers, sync providers, and vault provider (341 total)
+
+### Changed
+- All settings tabs, environment editor, association modal, and sidebar tree items restyled with glass treatment
+- Dropdown styles unified across context menus, workspace switcher, and environment selector
+- Light mode overhauled with theme-aware tint tokens for consistent hover/focus states
+- Divider and border styling softened throughout the UI
+- Remaining scoped CSS migrated to Tailwind utilities
+- macOS title bar spacing reduced — tab bar now serves as the drag region, eliminating the empty gap above tabs
+
+### Fixed
+- Environment selector not updating when creating a new environment
+- Environment selector dropdown rendering behind CodeMirror response body
+- Context menus stacking on repeated right-clicks instead of closing the previous one
+- Modals rendering behind parent backdrop-filter containment
+- Double border appearing when SystemLog panel is expanded
+- 1px layout shift between tabs caused by SystemLog overflow
+- Vault auto-sync logging errors on startup when no vault is configured
+- Sidebar scrollbar visibility and auto-scroll behavior when switching requests
+
 ## [0.1.5] - 2026-02-20
 
 ### Added

@@ -5,6 +5,8 @@
   import EnvironmentSelector from './EnvironmentSelector.svelte'
   import type { Tab } from '../../lib/stores/app.svelte'
 
+  const isMac = window.navigator.userAgent.includes('Macintosh')
+
   let contextMenu = $state<{ x: number; y: number; tabId: string } | null>(null)
   let scrollEl = $state<HTMLElement | null>(null)
 
@@ -49,9 +51,9 @@
   }
 </script>
 
-<div class="flex h-9 shrink-0 items-end px-1" style="border-bottom: 1px solid var(--glass-border); background: var(--glass-bg); backdrop-filter: blur(var(--glass-blur)); -webkit-backdrop-filter: blur(var(--glass-blur))">
+<div class="flex shrink-0 items-end px-1 {isMac ? 'drag-region h-11' : 'h-9'}" style="border-bottom: 1px solid var(--glass-border); background: var(--glass-bg); backdrop-filter: blur(var(--glass-blur)); -webkit-backdrop-filter: blur(var(--glass-blur))">
   <!-- svelte-ignore a11y_no_static_element_interactions -->
-  <div class="tab-scroll flex flex-1 items-end min-w-0 overflow-x-auto" bind:this={scrollEl} onwheel={handleWheel}>
+  <div class="tab-scroll no-drag flex flex-1 items-end min-w-0 overflow-x-auto" bind:this={scrollEl} onwheel={handleWheel}>
   {#each appStore.openTabs as tab (tab.id)}
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div
@@ -107,7 +109,9 @@
   {/each}
   </div>
 
-  <EnvironmentSelector />
+  <div class="no-drag flex self-stretch">
+    <EnvironmentSelector />
+  </div>
 </div>
 
 <style>
