@@ -5,9 +5,16 @@ vi.mock('electron', () => ({
   BrowserWindow: { getAllWindows: () => [] },
 }))
 
+// Mock undici for dependent HTTP requests in pre-request scripts
+const { mockUndiciFetch } = vi.hoisted(() => ({ mockUndiciFetch: vi.fn() }))
+vi.mock('undici', () => ({
+  fetch: mockUndiciFetch,
+  Agent: vi.fn(),
+}))
+
 import { openTestDatabase, closeDatabase } from '../../src/main/database/connection'
 import { initEncryptionForTesting } from '../../src/main/services/encryption'
-import { extractValue, extractJsonPath, executePostResponseScripts } from '../../src/main/services/script-execution'
+import { extractValue, extractJsonPath, executePostResponseScripts, executePreRequestScripts } from '../../src/main/services/script-execution'
 import * as collectionsRepo from '../../src/main/database/repositories/collections'
 import * as requestsRepo from '../../src/main/database/repositories/requests'
 import * as environmentsRepo from '../../src/main/database/repositories/environments'
@@ -16,6 +23,7 @@ import type { ResponseData } from '../../src/shared/types/http'
 beforeEach(() => {
   openTestDatabase()
   initEncryptionForTesting()
+  mockUndiciFetch.mockReset()
 })
 afterEach(() => closeDatabase())
 
@@ -281,5 +289,222 @@ describe('executePostResponseScripts', () => {
     // Should still only have the original variable
     expect(vars).toHaveLength(1)
     expect(vars[0].key).toBe('base_url')
+  })
+})
+
+// --- Helper for mock fetch responses ---
+function mockFetchResponse(status: number, body: unknown, headers: Record<string, string> = {}): ReturnType<typeof mockUndiciFetch> {
+  const bodyStr = typeof body === 'string' ? body : JSON.stringify(body)
+  const bodyBuffer = new TextEncoder().encode(bodyStr).buffer
+  const headerMap = new Map(Object.entries(headers))
+
+  return mockUndiciFetch.mockResolvedValue({
+    status,
+    statusText: status === 200 ? 'OK' : 'Error',
+    ok: status >= 200 && status < 300,
+    headers: {
+      get: (key: string) => headerMap.get(key) ?? null,
+      forEach: (cb: (value: string, key: string) => void) => headerMap.forEach(cb),
+      getSetCookie: () => [],
+    },
+    arrayBuffer: () => Promise.resolve(bodyBuffer),
+    body: null,
+  })
+}
+
+describe('executePreRequestScripts', () => {
+  it('returns true when request has no scripts', async () => {
+    const col = collectionsRepo.create({ name: 'C' })
+    const req = requestsRepo.create({ collection_id: col.id, name: 'R' })
+
+    const result = await executePreRequestScripts(req.id, col.id)
+    expect(result).toBe(true)
+    expect(mockUndiciFetch).not.toHaveBeenCalled()
+  })
+
+  it('returns true when scripts JSON is malformed', async () => {
+    const col = collectionsRepo.create({ name: 'C' })
+    const req = requestsRepo.create({ collection_id: col.id, name: 'R' })
+    requestsRepo.update(req.id, { scripts: '{broken json' })
+
+    const result = await executePreRequestScripts(req.id, col.id)
+    expect(result).toBe(true)
+  })
+
+  it('returns true when no pre_request key in scripts', async () => {
+    const col = collectionsRepo.create({ name: 'C' })
+    const req = requestsRepo.create({ collection_id: col.id, name: 'R' })
+    requestsRepo.update(req.id, {
+      scripts: JSON.stringify({ post_response: [{ action: 'set_variable', source: 'status', target: 'x' }] }),
+    })
+
+    const result = await executePreRequestScripts(req.id, col.id)
+    expect(result).toBe(true)
+    expect(mockUndiciFetch).not.toHaveBeenCalled()
+  })
+
+  it('fires dependent GET request with correct URL and method', async () => {
+    const col = collectionsRepo.create({ name: 'C' })
+    const dep = requestsRepo.create({ collection_id: col.id, name: 'Auth', url: 'https://api.test/auth', method: 'GET' })
+    const main = requestsRepo.create({ collection_id: col.id, name: 'Main' })
+    requestsRepo.update(main.id, {
+      scripts: JSON.stringify({ pre_request: [{ action: 'send_request', request_id: dep.id }] }),
+    })
+
+    mockFetchResponse(200, { ok: true })
+
+    await executePreRequestScripts(main.id, col.id)
+
+    expect(mockUndiciFetch).toHaveBeenCalledTimes(1)
+    const [url, opts] = mockUndiciFetch.mock.calls[0]
+    expect(url).toBe('https://api.test/auth')
+    expect(opts.method).toBe('GET')
+  })
+
+  it('applies bearer auth to dependent request headers', async () => {
+    const col = collectionsRepo.create({ name: 'C' })
+    const dep = requestsRepo.create({ collection_id: col.id, name: 'Auth', url: 'https://api.test/me', method: 'GET' })
+    requestsRepo.update(dep.id, {
+      auth: JSON.stringify({ type: 'bearer', bearer_token: 'my-token-123' }),
+    })
+    const main = requestsRepo.create({ collection_id: col.id, name: 'Main' })
+    requestsRepo.update(main.id, {
+      scripts: JSON.stringify({ pre_request: [{ action: 'send_request', request_id: dep.id }] }),
+    })
+
+    mockFetchResponse(200, {})
+
+    await executePreRequestScripts(main.id, col.id)
+
+    const [, opts] = mockUndiciFetch.mock.calls[0]
+    expect(opts.headers['Authorization']).toBe('Bearer my-token-123')
+  })
+
+  it('applies basic auth (base64) to dependent request headers', async () => {
+    const col = collectionsRepo.create({ name: 'C' })
+    const dep = requestsRepo.create({ collection_id: col.id, name: 'Auth', url: 'https://api.test/me', method: 'GET' })
+    requestsRepo.update(dep.id, {
+      auth: JSON.stringify({ type: 'basic', basic_username: 'user', basic_password: 'pass' }),
+    })
+    const main = requestsRepo.create({ collection_id: col.id, name: 'Main' })
+    requestsRepo.update(main.id, {
+      scripts: JSON.stringify({ pre_request: [{ action: 'send_request', request_id: dep.id }] }),
+    })
+
+    mockFetchResponse(200, {})
+
+    await executePreRequestScripts(main.id, col.id)
+
+    const [, opts] = mockUndiciFetch.mock.calls[0]
+    const expected = `Basic ${Buffer.from('user:pass').toString('base64')}`
+    expect(opts.headers['Authorization']).toBe(expected)
+  })
+
+  it('applies api-key auth as custom header', async () => {
+    const col = collectionsRepo.create({ name: 'C' })
+    const dep = requestsRepo.create({ collection_id: col.id, name: 'Auth', url: 'https://api.test/me', method: 'GET' })
+    requestsRepo.update(dep.id, {
+      auth: JSON.stringify({ type: 'api-key', api_key_header: 'X-API-KEY', api_key_value: 'secret-key' }),
+    })
+    const main = requestsRepo.create({ collection_id: col.id, name: 'Main' })
+    requestsRepo.update(main.id, {
+      scripts: JSON.stringify({ pre_request: [{ action: 'send_request', request_id: dep.id }] }),
+    })
+
+    mockFetchResponse(200, {})
+
+    await executePreRequestScripts(main.id, col.id)
+
+    const [, opts] = mockUndiciFetch.mock.calls[0]
+    expect(opts.headers['X-API-KEY']).toBe('secret-key')
+  })
+
+  it('runs post-response scripts on dependent request response (sets collection variable)', async () => {
+    const col = collectionsRepo.create({ name: 'C' })
+    const dep = requestsRepo.create({ collection_id: col.id, name: 'Auth', url: 'https://api.test/login', method: 'POST' })
+    requestsRepo.update(dep.id, {
+      scripts: JSON.stringify({
+        post_response: [{ action: 'set_variable', source: 'body.token', target: 'auth_token' }],
+      }),
+    })
+    const main = requestsRepo.create({ collection_id: col.id, name: 'Main' })
+    requestsRepo.update(main.id, {
+      scripts: JSON.stringify({ pre_request: [{ action: 'send_request', request_id: dep.id }] }),
+    })
+
+    mockFetchResponse(200, { token: 'jwt-refreshed-abc' })
+
+    await executePreRequestScripts(main.id, col.id)
+
+    const updated = collectionsRepo.findById(col.id)!
+    const vars = JSON.parse(updated.variables!)
+    expect(vars.auth_token).toBe('jwt-refreshed-abc')
+  })
+
+  it('handles pre_request as single object (not just array)', async () => {
+    const col = collectionsRepo.create({ name: 'C' })
+    const dep = requestsRepo.create({ collection_id: col.id, name: 'Dep', url: 'https://api.test/dep', method: 'GET' })
+    const main = requestsRepo.create({ collection_id: col.id, name: 'Main' })
+    requestsRepo.update(main.id, {
+      scripts: JSON.stringify({ pre_request: { action: 'send_request', request_id: dep.id } }),
+    })
+
+    mockFetchResponse(200, {})
+
+    await executePreRequestScripts(main.id, col.id)
+    expect(mockUndiciFetch).toHaveBeenCalledTimes(1)
+  })
+
+  it('self-referencing request executes once (no recursion in dependent requests)', async () => {
+    // executeDependentRequest does NOT recursively invoke pre-request scripts
+    // of the dependent request, so self-reference just fires the HTTP call once
+    const col = collectionsRepo.create({ name: 'C' })
+    const reqA = requestsRepo.create({ collection_id: col.id, name: 'A', url: 'https://api.test/a', method: 'GET' })
+    requestsRepo.update(reqA.id, {
+      scripts: JSON.stringify({ pre_request: [{ action: 'send_request', request_id: reqA.id }] }),
+    })
+
+    mockFetchResponse(200, {})
+
+    const result = await executePreRequestScripts(reqA.id, col.id)
+    expect(result).toBe(true)
+    expect(mockUndiciFetch).toHaveBeenCalledTimes(1)
+  })
+
+  it('multiple dependent requests in one pre_request array all fire', async () => {
+    const col = collectionsRepo.create({ name: 'C' })
+    const dep1 = requestsRepo.create({ collection_id: col.id, name: 'D1', url: 'https://api.test/d1', method: 'GET' })
+    const dep2 = requestsRepo.create({ collection_id: col.id, name: 'D2', url: 'https://api.test/d2', method: 'GET' })
+    const main = requestsRepo.create({ collection_id: col.id, name: 'Main' })
+    requestsRepo.update(main.id, {
+      scripts: JSON.stringify({
+        pre_request: [
+          { action: 'send_request', request_id: dep1.id },
+          { action: 'send_request', request_id: dep2.id },
+        ],
+      }),
+    })
+
+    mockFetchResponse(200, {})
+
+    await executePreRequestScripts(main.id, col.id)
+    expect(mockUndiciFetch).toHaveBeenCalledTimes(2)
+  })
+
+  it('applies variable substitution to dependent request URL', async () => {
+    const col = collectionsRepo.create({ name: 'C' })
+    collectionsRepo.update(col.id, { variables: JSON.stringify({ base_url: 'https://api.resolved.com' }) })
+    const dep = requestsRepo.create({ collection_id: col.id, name: 'Dep', url: '{{base_url}}/auth', method: 'GET' })
+    const main = requestsRepo.create({ collection_id: col.id, name: 'Main' })
+    requestsRepo.update(main.id, {
+      scripts: JSON.stringify({ pre_request: [{ action: 'send_request', request_id: dep.id }] }),
+    })
+
+    mockFetchResponse(200, {})
+
+    await executePreRequestScripts(main.id, col.id)
+
+    const [url] = mockUndiciFetch.mock.calls[0]
+    expect(url).toBe('https://api.resolved.com/auth')
   })
 })
