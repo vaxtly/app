@@ -179,6 +179,11 @@ export async function pushVariables(environmentId: string, variables: Environmen
 
   // Update cache with pushed values
   secretsCache.set(environmentId, variables)
+
+  // Ensure DB variables are cleared — secrets live in-memory only for vault-synced envs
+  if (env.vault_synced === 1 && env.variables !== '[]') {
+    environmentsRepo.update(environmentId, { variables: '[]' })
+  }
 }
 
 /**

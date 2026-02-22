@@ -9,7 +9,6 @@ import { executePreRequestScripts, executePostResponseScripts } from '../service
 import { logHttp } from '../services/session-log'
 import { formatFetchError } from '../services/fetch-error'
 import * as environmentsRepo from '../database/repositories/environments'
-import * as historiesRepo from '../database/repositories/request-histories'
 import * as settingsRepo from '../database/repositories/settings'
 import * as vaultSyncService from '../vault/vault-sync-service'
 
@@ -175,26 +174,6 @@ export function registerProxyHandlers(): void {
       })
 
       const cookies = parseCookies(response.headers)
-
-      // Auto-save to request history (template values, NOT resolved — vault secrets stay out of DB)
-      try {
-        const templateBody = config.bodyType === 'form-data' && config.formData
-          ? JSON.stringify(config.formData.filter((e) => e.enabled).map((e) => `${e.key}=${e.value}`).join('&'))
-          : config.body ?? undefined
-        historiesRepo.create({
-          request_id: requestId,
-          method: config.method,
-          url: config.url,
-          status_code: response.status,
-          request_headers: JSON.stringify(config.headers),
-          request_body: templateBody,
-          response_body: body,
-          response_headers: JSON.stringify(headers),
-          duration_ms: Math.round(total),
-        })
-      } catch {
-        // Don't fail the request if history save fails
-      }
 
       const result: ResponseData = {
         status: response.status,

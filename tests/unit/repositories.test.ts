@@ -6,7 +6,6 @@ import * as collectionsRepo from '../../src/main/database/repositories/collectio
 import * as foldersRepo from '../../src/main/database/repositories/folders'
 import * as requestsRepo from '../../src/main/database/repositories/requests'
 import * as environmentsRepo from '../../src/main/database/repositories/environments'
-import * as historiesRepo from '../../src/main/database/repositories/request-histories'
 import * as settingsRepo from '../../src/main/database/repositories/settings'
 
 beforeEach(() => {
@@ -235,49 +234,6 @@ describe('environments repository', () => {
     const parsed = JSON.parse(env.variables)
     expect(parsed).toHaveLength(2)
     expect(parsed[0].key).toBe('baseUrl')
-  })
-})
-
-// --- Request Histories ---
-
-describe('request-histories repository', () => {
-  it('creates and retrieves history entries', () => {
-    const col = collectionsRepo.create({ name: 'Col' })
-    const req = requestsRepo.create({ collection_id: col.id, name: 'R' })
-
-    const h = historiesRepo.create({
-      request_id: req.id,
-      method: 'GET',
-      url: 'https://example.com',
-      status_code: 200,
-      duration_ms: 150,
-      response_body: '{"ok": true}',
-    })
-
-    expect(h.id).toBeDefined()
-    expect(h.status_code).toBe(200)
-
-    const list = historiesRepo.findByRequest(req.id)
-    expect(list).toHaveLength(1)
-  })
-
-  it('prunes old entries', () => {
-    const col = collectionsRepo.create({ name: 'Col' })
-    const req = requestsRepo.create({ collection_id: col.id, name: 'R' })
-
-    historiesRepo.create({
-      request_id: req.id,
-      method: 'GET',
-      url: 'https://example.com',
-    })
-
-    // Prune with future cutoff (negative days = delete everything created before tomorrow)
-    // Use a very large retention window that still catches the entry
-    // The entry's executed_at is "now", so we need cutoff > now
-    // prune(-1) sets cutoff to tomorrow, so everything before tomorrow gets deleted
-    const pruned = historiesRepo.prune(-1)
-    expect(pruned).toBe(1)
-    expect(historiesRepo.findByRequest(req.id)).toHaveLength(0)
   })
 })
 

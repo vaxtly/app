@@ -7,10 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.2.5] - 2026-02-21
+
 ### Added
 - Toast notifications for vault and git sync failures — liquid glass cards with category icons, countdown progress bar, and hover-to-pause
 - Vault secret pre-fetch on environment activation — secrets are loaded eagerly when switching to a vault-synced environment instead of waiting for the first request
 - Vault health LED in environment selector — green dot turns red when vault secrets fail to load, providing immediate visual feedback
+
+### Removed
+- Request history feature — removed `request_histories` table, History tab in SystemLog, and history retention setting from General settings. Session-level logs (method, status, URL, timing) remain in the Logs panel. Existing `request_histories` tables are dropped on upgrade.
+
+### Fixed
+- Toggling vault sync on did not clear existing local variables from the DB — encrypted secrets remained orphaned in the `variables` column. Now cleared at toggle time, after successful push, and as a boot-time safety scrub for existing users.
+- Toggling vault sync off could leak in-memory vault secrets into the DB on next save — now clears variables in both directions and resets the editor to an empty row.
+- SSL verification toggle showing "off" on fresh install while requests actually verified SSL — UI default now matches runtime default (`true`).
 
 ### Changed
 - CodeEditor defers CodeMirror initialization via `requestIdleCallback` to avoid blocking the main thread on mount

@@ -32,7 +32,6 @@ import { openTestDatabase, closeDatabase } from '../../src/main/database/connect
 import { initEncryptionForTesting } from '../../src/main/services/encryption'
 import { registerProxyHandlers } from '../../src/main/ipc/proxy'
 import * as settingsRepo from '../../src/main/database/repositories/settings'
-import * as historiesRepo from '../../src/main/database/repositories/request-histories'
 import * as collectionsRepo from '../../src/main/database/repositories/collections'
 import * as requestsRepo from '../../src/main/database/repositories/requests'
 import type { RequestConfig } from '../../src/shared/types/http'
@@ -270,30 +269,6 @@ describe('proxy:send — error handling', () => {
     const result = await invoke('proxy:send', 'req-1', makeConfig({ collectionId: col.id }))
     // Should still make the request and return success
     expect(result.status).toBe(200)
-  })
-})
-
-describe('proxy:send — history', () => {
-  it('saves to request_histories table', async () => {
-    mockFetchResponse(200, '{"ok":true}')
-    const col = collectionsRepo.create({ name: 'C' })
-    const req = requestsRepo.create({ collection_id: col.id, name: 'R' })
-
-    await invoke('proxy:send', req.id, makeConfig())
-    const histories = historiesRepo.findByRequest(req.id)
-    expect(histories.length).toBeGreaterThanOrEqual(1)
-    expect(histories[0].status_code).toBe(200)
-    expect(histories[0].url).toBe('https://api.test/data')
-  })
-
-  it('history save failure does not fail request', async () => {
-    mockFetchResponse(200, '{"ok":true}')
-    // Spy on historiesRepo.create and make it throw
-    const createSpy = vi.spyOn(historiesRepo, 'create').mockImplementationOnce(() => { throw new Error('DB fail') })
-
-    const result = await invoke('proxy:send', 'req-1', makeConfig())
-    expect(result.status).toBe(200)
-    createSpy.mockRestore()
   })
 })
 

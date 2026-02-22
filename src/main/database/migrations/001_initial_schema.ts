@@ -123,34 +123,6 @@ const migration: MigrationFile = {
     `)
 
     db.exec(`
-      CREATE TABLE IF NOT EXISTS request_histories (
-        id TEXT PRIMARY KEY NOT NULL,
-        request_id TEXT NOT NULL,
-        method TEXT NOT NULL DEFAULT 'GET',
-        url TEXT NOT NULL DEFAULT '',
-        status_code INTEGER,
-        request_headers TEXT,
-        request_body TEXT,
-        request_query_params TEXT,
-        response_body TEXT,
-        response_headers TEXT,
-        duration_ms INTEGER,
-        executed_at TEXT NOT NULL DEFAULT (datetime('now')),
-        created_at TEXT DEFAULT (datetime('now')),
-        updated_at TEXT DEFAULT (datetime('now')),
-        FOREIGN KEY (request_id) REFERENCES requests(id) ON DELETE CASCADE
-      )
-    `)
-
-    db.exec(`
-      CREATE INDEX IF NOT EXISTS idx_request_histories_request_id ON request_histories(request_id)
-    `)
-
-    db.exec(`
-      CREATE INDEX IF NOT EXISTS idx_request_histories_executed_at ON request_histories(executed_at)
-    `)
-
-    db.exec(`
       CREATE TABLE IF NOT EXISTS app_settings (
         key TEXT PRIMARY KEY NOT NULL,
         value TEXT NOT NULL

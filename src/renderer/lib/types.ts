@@ -14,7 +14,6 @@ export type {
   Folder,
   Request,
   Environment,
-  RequestHistory,
   AppSetting,
   WindowState,
   KeyValueEntry,

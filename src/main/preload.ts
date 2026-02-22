@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { IPC } from '../shared/types/ipc'
-import type { Workspace, Collection, Folder, Request, Environment, RequestHistory, AppSetting, WindowState } from '../shared/types/models'
+import type { Workspace, Collection, Folder, Request, Environment, AppSetting, WindowState } from '../shared/types/models'
 import type { RequestConfig, ResponseData } from '../shared/types/http'
 import type { SyncResult, SessionLogEntry } from '../shared/types/sync'
 import type { SensitiveFinding } from './services/sensitive-data-scanner'
@@ -84,17 +84,6 @@ const api = {
       ipcRenderer.invoke(IPC.ENVIRONMENTS_ACTIVATE, id, workspaceId),
     deactivate: (id: string): Promise<void> =>
       ipcRenderer.invoke(IPC.ENVIRONMENTS_DEACTIVATE, id),
-  },
-
-  histories: {
-    list: (requestId: string): Promise<RequestHistory[]> =>
-      ipcRenderer.invoke(IPC.HISTORIES_LIST, requestId),
-    get: (id: string): Promise<RequestHistory | undefined> =>
-      ipcRenderer.invoke(IPC.HISTORIES_GET, id),
-    delete: (id: string): Promise<boolean> =>
-      ipcRenderer.invoke(IPC.HISTORIES_DELETE, id),
-    prune: (retentionDays: number): Promise<number> =>
-      ipcRenderer.invoke(IPC.HISTORIES_PRUNE, retentionDays),
   },
 
   variables: {

@@ -45,7 +45,6 @@ export const SENSITIVE_PARAM_KEYS = [
 /** Default settings */
 export const DEFAULTS = {
   REQUEST_TIMEOUT_MS: 30000,
-  HISTORY_RETENTION_DAYS: 30,
   FOLLOW_REDIRECTS: true,
   VERIFY_SSL: true,
   MAX_SCRIPT_CHAIN_DEPTH: 3,

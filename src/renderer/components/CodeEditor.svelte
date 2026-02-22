@@ -33,7 +33,14 @@
 
   let container: HTMLDivElement
   let view: EditorView | undefined
+  let idleHandle: number | ReturnType<typeof setTimeout> | undefined
   const themeCompartment = new Compartment()
+  const schedule = typeof requestIdleCallback === 'function'
+    ? requestIdleCallback
+    : (cb: () => void) => setTimeout(cb, 1)
+  const cancelSchedule = typeof cancelIdleCallback === 'function'
+    ? cancelIdleCallback
+    : (id: ReturnType<typeof setTimeout>) => clearTimeout(id)
 
   function getLanguageExtension(lang: string): Extension {
     switch (lang) {
@@ -52,47 +59,50 @@
   }
 
   onMount(() => {
-    const extensions: Extension[] = [
-      basicSetup,
-      themeCompartment.of(resolveIsDark() ? oneDark : []),
-      getLanguageExtension(language),
-      EditorView.lineWrapping,
-      keymap.of([...defaultKeymap, ...historyKeymap]),
-      history()
-    ]
+    idleHandle = schedule(() => {
+      const extensions: Extension[] = [
+        basicSetup,
+        themeCompartment.of(resolveIsDark() ? oneDark : []),
+        getLanguageExtension(language),
+        EditorView.lineWrapping,
+        keymap.of([...defaultKeymap, ...historyKeymap]),
+        history()
+      ]
 
-    if (readonly) {
-      extensions.push(EditorState.readOnly.of(true))
-    }
+      if (readonly) {
+        extensions.push(EditorState.readOnly.of(true))
+      }
 
-    if (placeholder) {
-      extensions.push(placeholderExt(placeholder))
-    }
+      if (placeholder) {
+        extensions.push(placeholderExt(placeholder))
+      }
 
-    if (enableVariableHighlight && getResolvedVariables) {
-      extensions.push(variableHighlight(getResolvedVariables))
-    }
+      if (enableVariableHighlight && getResolvedVariables) {
+        extensions.push(variableHighlight(getResolvedVariables))
+      }
 
-    if (onchange && !readonly) {
-      extensions.push(
-        EditorView.updateListener.of((update) => {
-          if (update.docChanged) {
-            onchange(update.state.doc.toString())
-          }
-        })
-      )
-    }
+      if (onchange && !readonly) {
+        extensions.push(
+          EditorView.updateListener.of((update) => {
+            if (update.docChanged) {
+              onchange(update.state.doc.toString())
+            }
+          })
+        )
+      }
 
-    view = new EditorView({
-      state: EditorState.create({
-        doc: value,
-        extensions
-      }),
-      parent: container
+      view = new EditorView({
+        state: EditorState.create({
+          doc: value,
+          extensions
+        }),
+        parent: container
+      })
     })
   })
 
   onDestroy(() => {
+    cancelSchedule(idleHandle as any)
     view?.destroy()
   })
 

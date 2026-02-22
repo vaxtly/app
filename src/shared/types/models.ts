@@ -77,23 +77,6 @@ export interface Environment {
   updated_at: string
 }
 
-export interface RequestHistory {
-  id: string
-  request_id: string
-  method: string
-  url: string
-  status_code: number | null
-  request_headers: string | null // JSON
-  request_body: string | null // JSON
-  request_query_params: string | null // JSON
-  response_body: string | null
-  response_headers: string | null // JSON
-  duration_ms: number | null
-  executed_at: string
-  created_at: string
-  updated_at: string
-}
-
 export interface AppSetting {
   key: string
   value: string

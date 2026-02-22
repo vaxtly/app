@@ -47,12 +47,6 @@ export const IPC = {
   ENVIRONMENTS_ACTIVATE: 'environments:activate',
   ENVIRONMENTS_DEACTIVATE: 'environments:deactivate',
 
-  // Request Histories
-  HISTORIES_LIST: 'histories:list',
-  HISTORIES_GET: 'histories:get',
-  HISTORIES_DELETE: 'histories:delete',
-  HISTORIES_PRUNE: 'histories:prune',
-
   // Variables
   VARIABLES_RESOLVE: 'variables:resolve',
   VARIABLES_RESOLVE_WITH_SOURCE: 'variables:resolve-with-source',

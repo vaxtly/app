@@ -142,7 +142,16 @@
   async function toggleVaultSync(): Promise<void> {
     if (!environment) return
     const newValue = vaultSynced ? 0 : 1
-    await environmentsStore.update(environmentId, { vault_synced: newValue })
+    // Both directions clear variables:
+    // - Enabling: secrets move to vault, clear DB
+    // - Disabling: don't leak vault secrets into DB, start with empty env
+    await environmentsStore.update(environmentId, {
+      vault_synced: newValue,
+      variables: '[]',
+    })
+    // Reset the editor to an empty row
+    variables = [{ key: '', value: '', enabled: true }]
+    isDirty = false
   }
 
   async function pullFromVault(): Promise<void> {

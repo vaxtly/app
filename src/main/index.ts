@@ -15,16 +15,13 @@ import { registerSyncHandlers } from './ipc/sync'
 import { registerVaultHandlers } from './ipc/vault'
 import { registerSettingsHandlers } from './ipc/settings'
 import { registerVariableHandlers } from './ipc/variables'
-import { registerHistoryHandlers } from './ipc/histories'
 import { registerSessionLogHandlers } from './ipc/session-log'
 import { registerCodeGeneratorHandlers } from './ipc/code-generator'
 import { registerDataImportExportHandlers } from './ipc/data-import-export'
 import { registerUpdaterHandlers } from './ipc/updater'
 import { initUpdater, checkForUpdates } from './services/updater'
 import * as workspacesRepo from './database/repositories/workspaces'
-import * as historiesRepo from './database/repositories/request-histories'
 import { getSetting, setSetting } from './database/repositories/settings'
-import { DEFAULTS } from '../shared/constants'
 import { encryptValue } from './services/encryption'
 import * as vaultSyncService from './vault/vault-sync-service'
 import * as remoteSyncService from './sync/remote-sync-service'
@@ -159,7 +156,6 @@ function registerAllIpcHandlers(): void {
   registerVaultHandlers()
   registerSettingsHandlers()
   registerVariableHandlers()
-  registerHistoryHandlers()
   registerSessionLogHandlers()
   registerCodeGeneratorHandlers()
   registerDataImportExportHandlers()
@@ -307,9 +303,15 @@ app.whenReady().then(() => {
   // Register IPC handlers
   registerAllIpcHandlers()
 
-  // Prune old request histories
-  const retentionDays = parseInt(getSetting('history.retention_days') ?? '', 10) || DEFAULTS.HISTORY_RETENTION_DAYS
-  historiesRepo.prune(retentionDays)
+  // Drop legacy request_histories table (feature removed)
+  getDatabase().exec('DROP TABLE IF EXISTS request_histories')
+
+  // Scrub orphaned secrets from vault-synced environments
+  // (safety net for users who enabled vault sync before the fix that clears variables on toggle)
+  getDatabase().prepare(`
+    UPDATE environments SET variables = '[]', updated_at = datetime('now')
+    WHERE vault_synced = 1 AND variables != '[]'
+  `).run()
 
   // Build native menu
   buildMenu()

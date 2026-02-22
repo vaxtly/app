@@ -193,11 +193,6 @@
     }
   })
 
-  // Active request ID for system log history tab
-  let activeRequestId = $derived(
-    appStore.activeTab?.type === 'request' ? appStore.activeTab.entityId : undefined,
-  )
-
   function handleRequestClick(requestId: string): void {
     const request = collectionsStore.getRequestById(requestId)
     if (request) {
@@ -479,7 +474,7 @@
       </div>
 
       <!-- System log panel -->
-      <SystemLog {activeRequestId} />
+      <SystemLog />
     </div>
   </div>
 

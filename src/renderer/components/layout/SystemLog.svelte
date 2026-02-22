@@ -1,19 +1,10 @@
 <script lang="ts">
   import { onMount } from 'svelte'
-  import type { SessionLogEntry, RequestHistory } from '../../lib/types'
+  import type { SessionLogEntry } from '../../lib/types'
 
   let logs = $state<SessionLogEntry[]>([])
-  let histories = $state<RequestHistory[]>([])
-  let activeLogTab = $state<'logs' | 'history'>('logs')
-  let selectedHistoryId = $state<string | null>(null)
   let expanded = $state(false)
   let panelHeight = $state(200)
-
-  // Selected request ID for history (from active tab context)
-  interface Props {
-    activeRequestId?: string
-  }
-  let { activeRequestId }: Props = $props()
 
   onMount(async () => {
     // Load existing logs
@@ -26,17 +17,6 @@
 
     return cleanup
   })
-
-  // Load history when request changes
-  $effect(() => {
-    if (activeRequestId && activeLogTab === 'history') {
-      loadHistory(activeRequestId)
-    }
-  })
-
-  async function loadHistory(requestId: string): Promise<void> {
-    histories = await window.api.histories.list(requestId)
-  }
 
   async function clearLogs(): Promise<void> {
     await window.api.log.clear()
@@ -107,13 +87,6 @@
     }
     return segments.length > 0 ? segments : [{ text: message, type: 'text' }]
   }
-
-  function getStatusColor(code: number | null): string {
-    if (!code || code === 0) return 'var(--color-danger)'
-    if (code < 300) return 'var(--color-success)'
-    if (code < 400) return 'var(--color-warning)'
-    return 'var(--color-danger)'
-  }
 </script>
 
 <!-- Collapsible bottom panel -->
@@ -138,8 +111,8 @@
   <!-- Header bar (always visible) -->
   <div class="flex items-center h-8 shrink-0 px-1" style={expanded ? undefined : `border-top: 1px solid var(--glass-border)`}>
     <button
-      onclick={() => { if (expanded && activeLogTab === 'logs') { expanded = false } else { expanded = true; activeLogTab = 'logs' } }}
-      class="flex items-center gap-1.5 px-2 h-full border-none bg-transparent font-mono text-[11px] font-medium cursor-pointer transition-colors duration-100 {activeLogTab === 'logs' && expanded ? 'text-brand-400' : 'text-surface-400 hover:text-surface-200'}"
+      onclick={() => { expanded = !expanded }}
+      class="flex items-center gap-1.5 px-2 h-full border-none bg-transparent font-mono text-[11px] font-medium cursor-pointer transition-colors duration-100 {expanded ? 'text-brand-400' : 'text-surface-400 hover:text-surface-200'}"
       style="font-feature-settings: var(--font-feature-mono)"
     >
       <svg
@@ -155,17 +128,9 @@
       {/if}
     </button>
 
-    <button
-      onclick={() => { if (expanded && activeLogTab === 'history') { expanded = false } else { expanded = true; activeLogTab = 'history' } }}
-      class="flex items-center gap-1.5 px-2 h-full border-none bg-transparent font-mono text-[11px] font-medium cursor-pointer transition-colors duration-100 {activeLogTab === 'history' && expanded ? 'text-brand-400' : 'text-surface-400 hover:text-surface-200'}"
-      style="font-feature-settings: var(--font-feature-mono)"
-    >
-      History
-    </button>
-
     <div class="flex-1"></div>
 
-    {#if expanded && activeLogTab === 'logs'}
+    {#if expanded}
       <button onclick={clearLogs} class="px-2 border-none bg-transparent text-[11px] text-surface-500 cursor-pointer transition-colors duration-100 hover:text-surface-300">Clear</button>
     {/if}
   </div>
@@ -173,69 +138,33 @@
   {#if expanded}
     <!-- Content -->
     <div class="sl-log-content flex-1 overflow-auto font-mono text-[11px]" style="font-feature-settings: var(--font-feature-mono)">
-      {#if activeLogTab === 'logs'}
-        {#if logs.length === 0}
-          <div class="flex h-full items-center justify-center text-surface-600">No log entries</div>
-        {:else}
-          {#each logs as entry (entry.timestamp + entry.message)}
-            <div
-              class="sl-log-row flex items-center gap-2 h-7 px-3 whitespace-nowrap transition-colors duration-100 hover:bg-[var(--tint-faint)]"
-              style="border-bottom: 1px solid var(--border-muted)"
-            >
-              <span class="shrink-0 w-18 text-surface-600" style="font-variant-numeric: tabular-nums">{formatTime(entry.timestamp)}</span>
-              <span class="sl-badge" style="--cat-color: {getCategoryColor(entry.category)}">{getCategoryLabel(entry.category)}</span>
-              <span class="shrink-0 w-16 text-surface-500">{entry.type}</span>
-              {#if entry.target}
-                <span class="shrink-0 text-surface-200">{entry.target}</span>
-              {/if}
-              <span class="shrink-0 {entry.success ? 'text-surface-300' : 'text-danger'}">
-                {#each formatLogMessage(entry.message) as seg, i (i)}
-                  {#if seg.type === 'code'}
-                    <span class="px-1 py-px rounded-xs bg-surface-700/50 text-brand-400 text-[10px]">{seg.text}</span>
-                  {:else if seg.type === 'url'}
-                    <span class="px-1 py-px rounded-xs bg-surface-700/50 text-brand-400 text-[10px]">{seg.text}</span>
-                  {:else}
-                    {seg.text}
-                  {/if}
-                {/each}
-              </span>
-            </div>
-          {/each}
-        {/if}
+      {#if logs.length === 0}
+        <div class="flex h-full items-center justify-center text-surface-600">No log entries</div>
       {:else}
-        {#if !activeRequestId}
-          <div class="flex h-full items-center justify-center text-surface-600">Select a request to view history</div>
-        {:else if histories.length === 0}
-          <div class="flex h-full items-center justify-center text-surface-600">No history for this request</div>
-        {:else}
-          {#each histories as h (h.id)}
-            <button
-              onclick={() => selectedHistoryId = selectedHistoryId === h.id ? null : h.id}
-              class="flex w-full items-center gap-2 h-7 px-3 border-none bg-transparent text-left cursor-pointer transition-colors duration-100 font-mono text-[11px] hover:bg-[var(--tint-faint)]"
-              style="border-bottom: 1px solid var(--border-muted); font-feature-settings: var(--font-feature-mono)"
-            >
-              <span class="shrink-0 w-18 text-surface-600" style="font-variant-numeric: tabular-nums">{formatTime(h.executed_at)}</span>
-              <span class="shrink-0 font-medium text-surface-400">{h.method}</span>
-              <span class="shrink-0" style="font-variant-numeric: tabular-nums; color: {getStatusColor(h.status_code)}">{h.status_code || 'ERR'}</span>
-              <span class="flex-1 min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-surface-400">{h.url}</span>
-              <span class="shrink-0 text-surface-600" style="font-variant-numeric: tabular-nums">{h.duration_ms ? `${h.duration_ms}ms` : '-'}</span>
-            </button>
-            {#if selectedHistoryId === h.id}
-              <div class="px-3 py-2 text-[10px] bg-surface-800/30" style="border-bottom: 1px solid var(--border-default)">
-                <div class="mb-1 text-surface-500">Request Headers:</div>
-                <pre class="whitespace-pre-wrap text-surface-400 mb-2">{h.request_headers ?? 'None'}</pre>
-                {#if h.request_body}
-                  <div class="mb-1 text-surface-500">Request Body:</div>
-                  <pre class="whitespace-pre-wrap text-surface-400 mb-2 max-h-24 overflow-auto">{h.request_body}</pre>
-                {/if}
-                <div class="mb-1 text-surface-500">Response Headers:</div>
-                <pre class="whitespace-pre-wrap text-surface-400 mb-2">{h.response_headers ?? 'None'}</pre>
-                <div class="mb-1 text-surface-500">Response Body:</div>
-                <pre class="whitespace-pre-wrap text-surface-400 mb-2 max-h-32 overflow-auto">{h.response_body ?? 'None'}</pre>
-              </div>
+        {#each logs as entry (entry.timestamp + entry.message)}
+          <div
+            class="sl-log-row flex items-center gap-2 h-7 px-3 whitespace-nowrap transition-colors duration-100 hover:bg-[var(--tint-faint)]"
+            style="border-bottom: 1px solid var(--border-muted)"
+          >
+            <span class="shrink-0 w-18 text-surface-600" style="font-variant-numeric: tabular-nums">{formatTime(entry.timestamp)}</span>
+            <span class="sl-badge" style="--cat-color: {getCategoryColor(entry.category)}">{getCategoryLabel(entry.category)}</span>
+            <span class="shrink-0 w-16 text-surface-500">{entry.type}</span>
+            {#if entry.target}
+              <span class="shrink-0 text-surface-200">{entry.target}</span>
             {/if}
-          {/each}
-        {/if}
+            <span class="shrink-0 {entry.success ? 'text-surface-300' : 'text-danger'}">
+              {#each formatLogMessage(entry.message) as seg, i (i)}
+                {#if seg.type === 'code'}
+                  <span class="px-1 py-px rounded-xs bg-surface-700/50 text-brand-400 text-[10px]">{seg.text}</span>
+                {:else if seg.type === 'url'}
+                  <span class="px-1 py-px rounded-xs bg-surface-700/50 text-brand-400 text-[10px]">{seg.text}</span>
+                {:else}
+                  {seg.text}
+                {/if}
+              {/each}
+            </span>
+          </div>
+        {/each}
       {/if}
     </div>
   {/if}

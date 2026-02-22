@@ -47,7 +47,6 @@ vaxtly/
 │   │   │       ├── folders.ts
 │   │   │       ├── requests.ts
 │   │   │       ├── environments.ts
-│   │   │       ├── request-histories.ts
 │   │   │       └── settings.ts
 │   │   ├── ipc/                        # IPC handler registration per domain
 │   │   │   ├── workspaces.ts
@@ -55,9 +54,8 @@ vaxtly/
 │   │   │   ├── folders.ts
 │   │   │   ├── requests.ts
 │   │   │   ├── environments.ts
-│   │   │   ├── proxy.ts               # HTTP proxy + var substitution + pre/post scripts + history save
+│   │   │   ├── proxy.ts               # HTTP proxy + var substitution + pre/post scripts
 │   │   │   ├── variables.ts           # Variable resolution IPC (resolve, resolveWithSource) — async, ensures vault cache
-│   │   │   ├── histories.ts           # Request history CRUD + prune
 │   │   │   ├── session-log.ts         # Session log list + clear
 │   │   │   ├── code-generator.ts      # Code snippet generation
 │   │   │   ├── sync.ts                # Git sync: test, pull, push, resolve, scan
@@ -111,7 +109,7 @@ vaxtly/
 │           ├── layout/
 │           │   ├── Sidebar.svelte      # Mode tabs (Collections/Environments) + search + tree + footer toolbar
 │           │   ├── TabBar.svelte       # Horizontal tabs + env icon for environment tabs
-│           │   └── SystemLog.svelte    # Collapsible bottom panel: logs + request history
+│           │   └── SystemLog.svelte    # Collapsible bottom panel: session logs
 │           ├── sidebar/
 │           │   ├── CollectionTree.svelte # Recursive tree with search filter
 │           │   ├── CollectionItem.svelte # Expand/collapse, rename, sync, drag-drop target + auto-sync on move
@@ -128,7 +126,7 @@ vaxtly/
 │           │   ├── AuthEditor.svelte     # 4 auth types: none/bearer/basic/api-key
 │           │   └── ScriptsEditor.svelte  # Pre-request + post-response script config
 │           ├── environment/
-│           │   └── EnvironmentEditor.svelte # Name, active toggle, variables, Save button, vault sync
+│           │   └── EnvironmentEditor.svelte # Name, active toggle, variables, Save button, vault sync (toggle clears variables in both directions)
 │           ├── response/
 │           │   ├── ResponseViewer.svelte  # Status bar + Body/Headers/Cookies/Preview tabs
 │           │   ├── ResponseBody.svelte    # Read-only CodeMirror, auto-detect language
@@ -137,7 +135,7 @@ vaxtly/
 │           │   └── HtmlPreview.svelte     # Sandboxed iframe (blob: URL, empty sandbox) HTML response preview
 │           ├── settings/
 │           │   ├── SettingsModal.svelte   # 4-tab bespoke modal (General/Data/Remote/Vault)
-│           │   ├── GeneralTab.svelte      # Layout, timeout, SSL, redirects, retention, about
+│           │   ├── GeneralTab.svelte      # Layout, timeout, SSL, redirects, about
 │           │   ├── DataTab.svelte         # Export (type pills) + Import (Vaxtly/Postman)
 │           │   ├── RemoteSyncTab.svelte   # Git provider config, test/pull/push + conflict modal
 │           │   └── VaultTab.svelte        # Vault URL, auth, namespace, actions
@@ -158,7 +156,7 @@ vaxtly/
 │               └── ToastContainer.svelte  # Fixed bottom-right toast notifications (vault/git failures)
 ├── tests/
 │   ├── unit/
-│   │   ├── repositories.test.ts        # 34 tests: all repos + encryption + workspace settings
+│   │   ├── repositories.test.ts        # 32 tests: all repos + encryption + workspace settings
 │   │   ├── variable-substitution.test.ts # 20 tests: variable resolution + vault-synced cache reads
 │   │   ├── script-execution.test.ts    # 40 tests: extractValue + extractJsonPath + executePostResponseScripts + vault mirror
 │   │   ├── code-generator.test.ts      # 17 tests: 5 languages + all auth/body types
@@ -211,7 +209,6 @@ collections 1──N folders
 collections 1──N requests
 folders 1──N folders (self-referential, max ~3 levels)
 folders 1──N requests (ON DELETE SET NULL)
-requests 1──N request_histories
 ```
 
 ### Tables
@@ -292,24 +289,6 @@ requests 1──N request_histories
 | created_at | TEXT | datetime('now') | |
 | updated_at | TEXT | datetime('now') | |
 
-#### `request_histories`
-| Column | Type | Default | Notes |
-|--------|------|---------|-------|
-| id | TEXT PK | uuid | |
-| request_id | TEXT NOT NULL | | FK → requests ON DELETE CASCADE |
-| method | TEXT | 'GET' | |
-| url | TEXT | '' | |
-| status_code | INTEGER | NULL | |
-| request_headers | TEXT | NULL | JSON |
-| request_body | TEXT | NULL | |
-| request_query_params | TEXT | NULL | JSON |
-| response_body | TEXT | NULL | |
-| response_headers | TEXT | NULL | JSON |
-| duration_ms | INTEGER | NULL | |
-| executed_at | TEXT NOT NULL | datetime('now') | Indexed for prune queries |
-| created_at | TEXT | datetime('now') | |
-| updated_at | TEXT | datetime('now') | |
-
 #### `app_settings`
 | Column | Type | Notes |
 |--------|------|-------|
@@ -372,10 +351,6 @@ Pattern: `ipcMain.handle('domain:action', handler)` in main, `ipcRenderer.invoke
 | `proxy:pick-file` | ipc/proxy.ts | dialog.showOpenDialog | `api.proxy.pickFile()` |
 | `variables:resolve` | ipc/variables.ts | `ensureLoaded()` + `getResolvedVariables()` | `api.variables.resolve(wsId?, colId?)` |
 | `variables:resolve-with-source` | ipc/variables.ts | `ensureLoaded()` + `getResolvedVariablesWithSource()` | `api.variables.resolveWithSource(wsId?, colId?)` |
-| `histories:list` | ipc/histories.ts | `findByRequest(reqId)` | `api.histories.list(reqId)` |
-| `histories:get` | ipc/histories.ts | `findById(id)` | `api.histories.get(id)` |
-| `histories:delete` | ipc/histories.ts | `remove(id)` | `api.histories.delete(id)` |
-| `histories:prune` | ipc/histories.ts | `prune(days)` | `api.histories.prune(days)` |
 | `code:generate` | ipc/code-generator.ts | `generateCode(lang, data, ...)` | `api.codeGenerator.generate(...)` |
 | `log:list` | ipc/session-log.ts | `getLogs()` | `api.log.list()` |
 | `log:clear` | ipc/session-log.ts | `clearLogs()` | `api.log.clear()` |
@@ -437,9 +412,6 @@ interface Request { id, collection_id, folder_id?, name, url, method, headers?, 
     body?, body_type, auth?, scripts?, order, created_at, updated_at }
 interface Environment { id, workspace_id?, name, variables (JSON string), is_active (0|1),
     order, vault_synced, vault_path?, created_at, updated_at }
-interface RequestHistory { id, request_id, method, url, status_code?, request_headers?,
-    request_body?, request_query_params?, response_body?, response_headers?, duration_ms?,
-    executed_at, created_at, updated_at }
 interface AppSetting { key, value }
 interface WindowState { id?, x?, y?, width, height, is_maximized }
 interface KeyValueEntry { key, value, description?, enabled }
@@ -470,7 +442,7 @@ BODY_TYPES = ['none','json','xml','form-data','urlencoded','raw','graphql'] as c
 AUTH_TYPES = ['none','bearer','basic','api-key'] as const
 SENSITIVE_HEADERS = ['authorization','x-api-key','cookie','set-cookie', ...]
 SENSITIVE_PARAM_KEYS = ['api_key','apikey','token','secret','password', ...]
-DEFAULTS = { REQUEST_TIMEOUT_MS: 30000, HISTORY_RETENTION_DAYS: 30, FOLLOW_REDIRECTS: true,
+DEFAULTS = { REQUEST_TIMEOUT_MS: 30000, FOLLOW_REDIRECTS: true,
     VERIFY_SSL: true, MAX_SCRIPT_CHAIN_DEPTH: 3, MAX_VARIABLE_NESTING: 10, SESSION_LOG_MAX_ENTRIES: 100 }
 ```
 
@@ -526,7 +498,7 @@ Pause/resume supports hover-to-hold: `pauseToast` clears the JS timeout and reco
 
 **State**: `allSettings: Record<string, string>`
 
-**Actions**: `loadAll`, `get(key)`, `set(key, value)` — typed settings keys with IPC persistence. Used for app-wide preferences (layout orientation, timeout, SSL, history retention, etc.).
+**Actions**: `loadAll`, `get(key)`, `set(key, value)` — typed settings keys with IPC persistence. Used for app-wide preferences (layout orientation, timeout, SSL, theme, etc.).
 
 ---
 
@@ -569,7 +541,6 @@ Pause/resume supports hover-to-hold: `pauseToast` clears the JS timeout and reco
 - **Substitutes `{{variables}}`** in URL, headers (keys+values), body, form-data text values before sending
 - **Pre-request scripts**: executes dependent requests before main send
 - **Post-response scripts**: extracts values and sets collection variables after response
-- **Auto-saves history** to `request_histories` table (try/catch — doesn't fail the request)
 - **Logs** template URL (not resolved URL with secrets) to session log; error bodies use `error.message` (not stack traces)
 - **Security validation**: URL scheme whitelist (http/https only), HTTP method whitelist, timeout clamped 1-300s, response body size limit 50MB (content-length check), form-data file paths validated against dialog-approved set
 
@@ -662,7 +633,7 @@ Pause/resume supports hover-to-hold: `pauseToast` clears the JS timeout and reco
 - `vault.verify_ssl` parsed as boolean: `'0'` and `'false'` both mean SSL verification off (UI stores `String(boolean)`)
 - `getProvider(workspaceId?)` → reads vault config from workspace settings (with global fallback), returns cached `SecretsProvider` (cache keyed by `workspaceId ?? '__global__'`)
 - `fetchVariables(envId, workspaceId?)` → get secrets from Vault, return as `EnvironmentVariable[]`, populate in-memory cache (session-lifetime, no TTL)
-- `pushVariables(envId, vars, workspaceId?)` → push enabled variables to Vault, update in-memory cache
+- `pushVariables(envId, vars, workspaceId?)` → push enabled variables to Vault, update in-memory cache, scrub DB `variables` to `'[]'` if non-empty (defense-in-depth)
 - `deleteSecrets(envId, workspaceId?)` → remove secrets for an environment, clear cache
 - `pullAll(wsId?)` → list all secrets at mount root, create environments for untracked paths with `variables: '[]'`, populate in-memory cache for all environments
 - `migrateEnvironment(envId, oldPath, newPath, workspaceId?)` → copy secrets to new path, delete old
@@ -795,14 +766,15 @@ All method colors are theme-aware via `--color-method-*` CSS variables. Componen
 2. openDatabase(dbPath)          — Open SQLite + run pending migrations
 3. migrateToEncryptedStorage()   — One-time: encrypt existing plaintext sensitive data
 4. ensureDefaultWorkspace()      — Create "Default Workspace" if table is empty
-5. registerAllIpcHandlers()      — Register all domain handlers (incl. workspace-settings, histories, session-log, code-generator, updater)
-6. pruneHistories()              — Auto-prune old request histories based on retention setting (default 30 days)
-7. buildMenu()                   — Set native application menu (using IPC.MENU_* constants)
-8. initUpdater()                 — Configure electron-updater (no-op in dev; macOS: notify only; Win/Linux: auto-download)
-9. applyThemeSetting()           — Read app.theme, set nativeTheme.themeSource + resolve backgroundColor
-10. createWindow()               — BrowserWindow (sandbox: true, CSP, navigation guards, permission deny-all)
-10. runAutoSync()                — On ready-to-show: iterates all workspaces, resolves effective auto_sync setting (workspace → global fallback), runs vault pullAll + git pull per workspace
-11. checkForUpdates()            — On ready-to-show: check for available updates
+5. registerAllIpcHandlers()      — Register all domain handlers (incl. workspace-settings, session-log, code-generator, updater)
+6. dropLegacyTables()            — DROP TABLE IF EXISTS request_histories (feature removed)
+7. scrubVaultSecrets()           — UPDATE environments SET variables='[]' WHERE vault_synced=1 AND variables!='[]' (safety net for orphaned secrets)
+8. buildMenu()                   — Set native application menu (using IPC.MENU_* constants)
+9. initUpdater()                 — Configure electron-updater (no-op in dev; macOS: notify only; Win/Linux: auto-download)
+10. applyThemeSetting()           — Read app.theme, set nativeTheme.themeSource + resolve backgroundColor
+11. createWindow()               — BrowserWindow (sandbox: true, CSP, navigation guards, permission deny-all)
+12. runAutoSync()                — On ready-to-show: iterates all workspaces, resolves effective auto_sync setting (workspace → global fallback), runs vault pullAll + git pull per workspace
+13. checkForUpdates()            — On ready-to-show: check for available updates
 ```
 
 ---
@@ -824,12 +796,16 @@ All method colors are theme-aware via `--color-method-*` CSS variables. Componen
 - **Data import**: replaced arbitrary `data:read-file` with dialog-based `data:pick-and-read`, JSON import size capped at 50MB
 - **Vault migrate**: path traversal blocked (`..`, leading `/`)
 - **Sync**: conflict resolution value strictly validated
-- **Histories**: retention days clamped 1-365
 
 ### Encryption
 - AES-256-GCM with 12-byte IV and 16-byte auth tag (authenticated encryption)
 - Legacy AES-256-CBC data decrypted transparently (backward compat)
 - `basic_username` added to encrypted auth fields
+
+### Vault Secret Isolation (three-layer protection)
+- **Toggle-time**: `EnvironmentEditor.toggleVaultSync()` clears DB `variables` to `'[]'` in both directions (enable and disable) — prevents orphaned secrets and vault-to-DB leakage
+- **Service-level**: `pushVariables()` scrubs DB `variables` after successful Vault push if non-empty
+- **Boot-time**: SQL scrub on startup clears any vault-synced environments with non-empty `variables` (safety net for pre-fix databases)
 
 ### Other
 - **HtmlPreview**: blob: URL with empty sandbox (no scripts, no same-origin access)

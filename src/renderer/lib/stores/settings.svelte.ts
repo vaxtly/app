@@ -10,7 +10,6 @@ export interface SettingsMap {
   'request.timeout': number
   'request.verify_ssl': boolean
   'request.follow_redirects': boolean
-  'history.retention_days': number
   'app.version': string
   'app.welcomed': boolean
   'app.theme': 'dark' | 'light' | 'system'
@@ -25,9 +24,8 @@ type SettingsKey = keyof SettingsMap
 const defaults: SettingsMap = {
   'request.layout': 'columns',
   'request.timeout': 30,
-  'request.verify_ssl': false,
+  'request.verify_ssl': true,
   'request.follow_redirects': true,
-  'history.retention_days': 30,
   'app.version': '0.0.0',
   'app.welcomed': false,
   'app.theme': 'dark',

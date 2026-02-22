@@ -7,7 +7,6 @@
   let timeout = $derived(settingsStore.get('request.timeout'))
   let verifySsl = $derived(settingsStore.get('request.verify_ssl'))
   let followRedirects = $derived(settingsStore.get('request.follow_redirects'))
-  let retentionDays = $derived(settingsStore.get('history.retention_days'))
   let appVersion = $derived(settingsStore.get('app.version'))
 
   let updateStatus: 'idle' | 'checking' | 'available' | 'up-to-date' | 'error' = $state('idle')
@@ -53,11 +52,6 @@
   function handleTimeoutChange(e: Event): void {
     const value = Math.max(1, Math.min(300, Number((e.target as HTMLInputElement).value) || 30))
     settingsStore.set('request.timeout', value)
-  }
-
-  function handleRetentionChange(e: Event): void {
-    const value = Number((e.target as HTMLSelectElement).value)
-    settingsStore.set('history.retention_days', value)
   }
 
   function toggleSsl(value: boolean): void {
@@ -215,41 +209,6 @@
 
   <div class="divider"></div>
 
-  <!-- History section -->
-  <section class="section">
-    <div class="section-header">
-      <div class="section-icon history-icon">
-        <svg viewBox="0 0 18 18" fill="none">
-          <path d="M9 5.5V9L11.5 11.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
-          <circle cx="9" cy="9" r="6.5" stroke="currentColor" stroke-width="1.3"/>
-        </svg>
-      </div>
-      <div>
-        <div class="section-title">History</div>
-        <div class="section-subtitle">Request history retention</div>
-      </div>
-    </div>
-
-    <div class="setting-row last">
-      <div class="setting-info">
-        <span class="setting-label">Keep history for</span>
-        <span class="setting-desc">Older entries are automatically deleted</span>
-      </div>
-      <select
-        value={retentionDays}
-        onchange={handleRetentionChange}
-        class="select-input"
-      >
-        <option value={1}>1 day</option>
-        <option value={7}>7 days</option>
-        <option value={30}>30 days</option>
-        <option value={90}>90 days</option>
-      </select>
-    </div>
-  </section>
-
-  <div class="divider"></div>
-
   <!-- About -->
   <section class="about">
     <div class="about-card">
@@ -318,10 +277,6 @@
   .http-icon {
     background: color-mix(in srgb, var(--color-brand-500) 15%, transparent);
     color: var(--color-brand-400);
-  }
-  .history-icon {
-    background: color-mix(in srgb, var(--color-warning) 12%, transparent);
-    color: var(--color-warning-light);
   }
   .section-title {
     font-size: 13px;
@@ -459,22 +414,6 @@
     font-size: 11px;
     color: var(--color-surface-500);
   }
-  .select-input {
-    height: 28px;
-    padding: 0 8px;
-    border-radius: 8px;
-    border: 1px solid var(--border-subtle);
-    background: var(--tint-muted);
-    color: var(--color-surface-100);
-    font-size: 12px;
-    outline: none;
-    transition: border-color 0.12s;
-    cursor: pointer;
-  }
-  .select-input:focus {
-    border-color: var(--color-brand-500);
-  }
-
   /* Divider */
   .divider {
     height: 1px;
