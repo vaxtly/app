@@ -601,9 +601,10 @@ Pause/resume supports hover-to-hold: `pauseToast` clears the JS timeout and reco
 - **GitLab**: Repository API v4 (tree listing with pagination via `x-next-page` header, Files API, Commits API with actions array for atomic commits). Uses `encodeURIComponent` per GitLab's file path encoding requirement.
 - Key difference: GitHub uses blob SHA for conflict detection, GitLab uses `last_commit_id`
 - Both: `listDirectoryRecursive()`, `getDirectoryTree()`, `getFile()`, `createFile()`, `updateFile()`, `deleteFile()`, `deleteDirectory()`, `commitMultipleFiles()`, `testConnection()`
+- **Self-hosted support**: both accept an optional `baseUrl` constructor parameter. GitHub Enterprise derives `{baseUrl}/api/v3`, GitLab derives `{baseUrl}/api/v4`. When omitted, defaults to the public cloud API.
 
 ### Remote Sync Service (`sync/remote-sync-service.ts`)
-- Settings keys: `sync.provider`, `sync.repository`, `sync.token`, `sync.branch` — read via workspace settings with global fallback (transparent decryption)
+- Settings keys: `sync.provider`, `sync.repository`, `sync.token`, `sync.branch`, `sync.base_url` — read via workspace settings with global fallback (transparent decryption)
 - `getProvider(workspaceId?)` → creates git provider from workspace-scoped config, falls back to global `app_settings`
 - `pull(workspaceId?)` → `SyncResult` — pulls all collections, detects conflicts, collects per-collection errors
 - `pushCollection(collection, sanitize?, workspaceId?)` — 3-way merge per file, atomic commit
