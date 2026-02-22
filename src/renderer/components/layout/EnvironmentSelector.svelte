@@ -77,8 +77,10 @@
     if (open) {
       search = ''
       if (buttonEl) {
-        const rect = buttonEl.getBoundingClientRect()
-        panelStyle = `top: ${rect.bottom + 6}px; right: ${window.innerWidth - rect.right}px;`
+        requestAnimationFrame(() => {
+          const rect = buttonEl!.getBoundingClientRect()
+          panelStyle = `top: ${rect.bottom + 6}px; right: ${window.innerWidth - rect.right}px;`
+        })
       }
     }
   }
@@ -143,7 +145,8 @@
     <!-- Status LED -->
     <span
       class="env-led w-1.5 h-1.5 rounded-full bg-surface-600 shrink-0 transition-[background,box-shadow] duration-200"
-      class:env-led--on={isActive}
+      class:env-led--on={isActive && environmentsStore.vaultHealthy !== false}
+      class:env-led--error={isActive && environmentsStore.vaultHealthy === false}
     ></span>
 
     <span class="max-w-[120px] overflow-hidden text-ellipsis">
@@ -287,9 +290,20 @@
     animation: led-pulse 2.5s ease-in-out infinite;
   }
 
+  .env-led--error {
+    background: var(--color-danger);
+    box-shadow: 0 0 6px color-mix(in srgb, var(--color-danger) 50%, transparent);
+    animation: led-pulse-error 2.5s ease-in-out infinite;
+  }
+
   @keyframes led-pulse {
     0%, 100% { box-shadow: 0 0 4px color-mix(in srgb, var(--color-success) 40%, transparent); }
     50% { box-shadow: 0 0 8px color-mix(in srgb, var(--color-success) 70%, transparent); }
+  }
+
+  @keyframes led-pulse-error {
+    0%, 100% { box-shadow: 0 0 4px color-mix(in srgb, var(--color-danger) 40%, transparent); }
+    50% { box-shadow: 0 0 8px color-mix(in srgb, var(--color-danger) 70%, transparent); }
   }
 
   /* --- Chevron: parent hover + open --- */

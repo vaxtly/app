@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- Toast notifications for vault and git sync failures — liquid glass cards with category icons, countdown progress bar, and hover-to-pause
+- Vault secret pre-fetch on environment activation — secrets are loaded eagerly when switching to a vault-synced environment instead of waiting for the first request
+- Vault health LED in environment selector — green dot turns red when vault secrets fail to load, providing immediate visual feedback
+
+### Changed
+- CodeEditor defers CodeMirror initialization via `requestIdleCallback` to avoid blocking the main thread on mount
+- EnvironmentSelector computes dropdown position in `requestAnimationFrame` instead of synchronous `getBoundingClientRect()` in the click handler
+- `environments:activate` IPC now returns `{ vaultFailed: boolean }` for vault-synced environments
+
 ## [0.2.4] - 2026-02-21
 
 ### Changed

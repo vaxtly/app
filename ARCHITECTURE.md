@@ -100,6 +100,7 @@ vaxtly/
 │       │   │   ├── collections.svelte.ts # Tree, CRUD, expand/collapse
 │       │   │   ├── environments.svelte.ts # Environment list, activation
 │       │   │   ├── settings.svelte.ts  # App settings with typed keys + IPC persistence
+│       │   │   ├── toasts.svelte.ts   # Toast notifications for vault/git failures
 │       │   │   └── drag.svelte.ts      # Drag-and-drop state for sidebar items
 │       │   └── utils/
 │       │       ├── http-colors.ts      # getMethodColor(), getStatusColor() → CSS variable strings
@@ -153,7 +154,8 @@ vaxtly/
 │               ├── ContextMenu.svelte     # Right-click menu with position correction
 │               ├── Modal.svelte           # Generic modal with backdrop + Escape
 │               ├── Toggle.svelte          # Pill-shaped sliding switch (settings)
-│               └── Checkbox.svelte        # Square checkbox with checkmark animation
+│               ├── Checkbox.svelte        # Square checkbox with checkmark animation
+│               └── ToastContainer.svelte  # Fixed bottom-right toast notifications (vault/git failures)
 ├── tests/
 │   ├── unit/
 │   │   ├── repositories.test.ts        # 34 tests: all repos + encryption + workspace settings
@@ -363,7 +365,7 @@ Pattern: `ipcMain.handle('domain:action', handler)` in main, `ipcRenderer.invoke
 | `environments:update` | ipc/environments.ts | `update(id, data)` | `api.environments.update(id, data)` |
 | `environments:delete` | ipc/environments.ts | `remove(id)` | `api.environments.delete(id)` |
 | `environments:reorder` | ipc/environments.ts | `reorder(ids)` | `api.environments.reorder(ids)` |
-| `environments:activate` | ipc/environments.ts | `activate(id, wsId?)` | `api.environments.activate(id, wsId?)` |
+| `environments:activate` | ipc/environments.ts | `activate(id, wsId?)` + vault pre-fetch | `api.environments.activate(id, wsId?)` → `{ vaultFailed }?` |
 | `environments:deactivate` | ipc/environments.ts | `deactivate(id)` | `api.environments.deactivate(id)` |
 | `proxy:send` | ipc/proxy.ts | native fetch + var substitution | `api.proxy.send(reqId, config)` |
 | `proxy:cancel` | ipc/proxy.ts | AbortController | `api.proxy.cancel(reqId)` |
@@ -504,9 +506,21 @@ All stores use this pattern: module-level `$state` + `$derived` + exported objec
 
 ### `environmentsStore` — `lib/stores/environments.svelte.ts`
 
-**State**: `environments`, `activeEnvironmentId`
+**State**: `environments`, `activeEnvironmentId`, `vaultHealthy` (`true | false | null` — null when not vault-synced or not yet checked)
 
 **Actions**: `loadAll`, `create`, `update`, `remove`, `activate`, `deactivate`, `getById`
+
+**Vault pre-fetch**: `activate()` and `loadAll()` (on startup) trigger `environments:activate` IPC which pre-fetches vault secrets. The return value sets `vaultHealthy`, which drives the EnvironmentSelector LED color (green = healthy, red = failed).
+
+### `toastsStore` — `lib/stores/toasts.svelte.ts`
+
+**State**: `toasts: Toast[]` (max 3 visible, auto-dismiss after 8s)
+
+**Actions**: `addToast(category, message)`, `dismissToast(id)`, `pauseToast(id)`, `resumeToast(id)`
+
+**Toast interface**: `{ id, category: 'sync' | 'vault', message, timestamp }`
+
+Pause/resume supports hover-to-hold: `pauseToast` clears the JS timeout and records remaining time; `resumeToast` restarts with the remaining duration. The CSS countdown bar pauses via `animation-play-state: paused` on hover.
 
 ### `settingsStore` — `lib/stores/settings.svelte.ts`
 
@@ -722,12 +736,14 @@ All stores use this pattern: module-level `$state` + `$derived` + exported objec
 
 ## App-Level Reactive Behaviors (`App.svelte`)
 
-Four `$effect` hooks in `App.svelte` drive cross-cutting UX behaviors:
+Four `$effect` hooks and two `onMount` listeners in `App.svelte` drive cross-cutting UX behaviors:
 
 1. **Session save**: Watches `openTabs.length` + `activeTabId`, debounce-writes to `session.tabs.{workspaceId}` setting (skipped until initial restore completes via `sessionRestored` flag). Sessions are scoped per workspace.
 2. **Sidebar auto-reveal**: When active tab changes — request tabs: expands ancestor tree nodes + switches sidebar to "collections"; environment tabs: switches sidebar to "environments".
 3. **Default environment auto-activation**: When a request tab becomes active, resolves the nearest `default_environment_id` (folder chain → collection) and activates it if different from current.
 4. **Theme application**: Reads `app.theme` setting (`dark` | `light` | `system`), toggles `light` class on `<html>`. In `system` mode listens to `matchMedia('prefers-color-scheme: dark')` with cleanup.
+5. **Toast notifications**: `onMount` listener on `logPush` — filters `success: false` entries with `category === 'vault' || 'sync'` and calls `toastsStore.addToast()`. Also replays recent failures (within 30s) from `log.list()` on mount to catch auto-sync errors that fired before the renderer mounted. `<ToastContainer />` is mounted at root level.
+6. **Vault health LED**: `environmentsStore.vaultHealthy` drives the EnvironmentSelector LED color — green when vault secrets loaded successfully, red when fetch failed, gray when no environment is active.
 
 ---
 

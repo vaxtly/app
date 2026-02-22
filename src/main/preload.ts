@@ -80,7 +80,7 @@ const api = {
       ipcRenderer.invoke(IPC.ENVIRONMENTS_DELETE, id),
     reorder: (ids: string[]): Promise<void> =>
       ipcRenderer.invoke(IPC.ENVIRONMENTS_REORDER, ids),
-    activate: (id: string, workspaceId?: string): Promise<void> =>
+    activate: (id: string, workspaceId?: string): Promise<{ vaultFailed: boolean } | undefined> =>
       ipcRenderer.invoke(IPC.ENVIRONMENTS_ACTIVATE, id, workspaceId),
     deactivate: (id: string): Promise<void> =>
       ipcRenderer.invoke(IPC.ENVIRONMENTS_DEACTIVATE, id),

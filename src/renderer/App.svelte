@@ -8,10 +8,12 @@
   import SettingsModal from './components/settings/SettingsModal.svelte'
   import WelcomeGuide from './components/modals/WelcomeGuide.svelte'
   import UserManual from './components/help/UserManual.svelte'
+  import ToastContainer from './components/shared/ToastContainer.svelte'
   import { appStore } from './lib/stores/app.svelte'
   import { collectionsStore } from './lib/stores/collections.svelte'
   import { environmentsStore } from './lib/stores/environments.svelte'
   import { settingsStore } from './lib/stores/settings.svelte'
+  import { toastsStore } from './lib/stores/toasts.svelte'
 
   // Track the active RequestBuilder for save/send shortcuts
   let activeBuilder = $state<{ save: () => Promise<void>; send: () => Promise<void> } | undefined>(undefined)
@@ -283,7 +285,26 @@
       window.api.on.updateError(() => {
         // Silently ignore update errors — don't disrupt the user
       }),
+      // Surface vault/git failures as toast notifications
+      window.api.on.logPush((entry) => {
+        if (!entry.success && (entry.category === 'vault' || entry.category === 'sync')) {
+          const label = entry.category === 'vault' ? 'Vault' : 'Git sync'
+          toastsStore.addToast(entry.category, `${label}: ${entry.message}`)
+        }
+      }),
     ]
+
+    // Replay recent vault/git failures (covers auto-sync that fired before renderer mounted)
+    const recentLogs = await window.api.log.list()
+    const thirtySecondsAgo = Date.now() - 30_000
+    for (const entry of recentLogs) {
+      if (!entry.success && (entry.category === 'vault' || entry.category === 'sync')) {
+        if (new Date(entry.timestamp).getTime() > thirtySecondsAgo) {
+          const label = entry.category === 'vault' ? 'Vault' : 'Git sync'
+          toastsStore.addToast(entry.category, `${label}: ${entry.message}`)
+        }
+      }
+    }
 
     // Global keyboard shortcuts
     function handleKeydown(e: KeyboardEvent): void {
@@ -465,6 +486,7 @@
   <UserManual open={appStore.showManual} onclose={() => appStore.closeManual()} />
   <SettingsModal open={appStore.showSettings} onclose={() => appStore.closeSettings()} />
   <WelcomeGuide open={showWelcome} onclose={() => { showWelcome = false }} />
+  <ToastContainer />
 </div>
 
 <style>
