@@ -52,6 +52,12 @@ vi.mock('../../src/main/vault/hashicorp-vault-provider', () => ({
   },
 }))
 
+vi.mock('../../src/main/vault/aws-secrets-manager-provider', () => ({
+  AwsSecretsManagerProvider: {
+    create: vi.fn(async () => fakeProvider),
+  },
+}))
+
 import { openTestDatabase, closeDatabase } from '../../src/main/database/connection'
 import { initEncryptionForTesting } from '../../src/main/services/encryption'
 import * as settingsRepo from '../../src/main/database/repositories/settings'
@@ -75,6 +81,20 @@ function configureVault(workspaceId?: string): void {
   set('vault.provider', 'hashicorp')
   set('vault.url', 'https://vault.fake.test')
   set('vault.token', 'test-root-token')
+}
+
+function configureAwsVault(workspaceId?: string): void {
+  const set = (key: string, value: string) => {
+    if (workspaceId) {
+      workspacesRepo.setWorkspaceSetting(workspaceId, key, value)
+    } else {
+      settingsRepo.setSetting(key, value)
+    }
+  }
+  set('vault.provider', 'aws')
+  set('vault.aws_region', 'us-east-1')
+  set('vault.aws_access_key_id', 'AKIATEST')
+  set('vault.aws_secret_access_key', 'testsecret')
 }
 
 function makeResponse(overrides: Partial<ResponseData> = {}): ResponseData {
@@ -465,5 +485,71 @@ describe('vault delete clears cache', () => {
     expect(vaultSyncService.getCachedVariables(env.id)).toBeNull()
     // Vault cleared
     expect(fakeProvider.store['to-delete']).toBeUndefined()
+  })
+})
+
+// ────────────────────────────────────────────────────────────────────────
+// AWS Secrets Manager — configure → pullAll → fetch → push
+// ────────────────────────────────────────────────────────────────────────
+
+describe('AWS Secrets Manager: configure → pull → use', () => {
+  it('full flow: pullAll creates envs, caches secrets, push updates', async () => {
+    const ws = workspacesRepo.create({ name: 'AWS Workspace' })
+
+    fakeProvider = createFakeVaultProvider({
+      'production': { API_KEY: 'aws-prod-key', DB_HOST: 'rds.prod.internal' },
+      'staging': { API_KEY: 'aws-staging-key' },
+    })
+    configureAwsVault(ws.id)
+
+    // Pull All
+    const result = await vaultSyncService.pullAll(ws.id)
+    expect(result.created).toBe(2)
+    expect(result.errors).toEqual([])
+
+    // Verify DB records
+    const envs = environmentsRepo.findByWorkspace(ws.id).filter(e => e.vault_synced === 1)
+    expect(envs).toHaveLength(2)
+
+    const prodEnv = envs.find(e => e.vault_path === 'production')!
+    expect(prodEnv).toBeDefined()
+    expect(JSON.parse(prodEnv.variables)).toEqual([])
+
+    // Verify in-memory cache
+    const prodCached = vaultSyncService.getCachedVariables(prodEnv.id)!
+    expect(prodCached).toHaveLength(2)
+    expect(prodCached.find(v => v.key === 'API_KEY')!.value).toBe('aws-prod-key')
+
+    // Activate and resolve variables
+    environmentsRepo.activate(prodEnv.id, ws.id)
+    const vars = getResolvedVariables(ws.id)
+    expect(vars.API_KEY).toBe('aws-prod-key')
+    expect(vars.DB_HOST).toBe('rds.prod.internal')
+
+    // Push updated variables
+    const newVars = [
+      { key: 'API_KEY', value: 'aws-updated-key', enabled: true },
+      { key: 'NEW_KEY', value: 'new-value', enabled: true },
+    ]
+    await vaultSyncService.pushVariables(prodEnv.id, newVars, ws.id)
+
+    expect(fakeProvider.store['production']).toEqual({ API_KEY: 'aws-updated-key', NEW_KEY: 'new-value' })
+  })
+
+  it('fetchVariables works with AWS provider', async () => {
+    const ws = workspacesRepo.create({ name: 'WS' })
+    const env = environmentsRepo.create({ name: 'Dev', workspace_id: ws.id, variables: '[]' })
+    environmentsRepo.update(env.id, { vault_synced: 1, vault_path: 'dev' })
+
+    fakeProvider = createFakeVaultProvider({
+      'dev': { TOKEN: 'aws-fetched-token' },
+    })
+    configureAwsVault(ws.id)
+
+    await vaultSyncService.ensureLoaded(env.id, ws.id)
+
+    const cached = vaultSyncService.getCachedVariables(env.id)!
+    expect(cached).toHaveLength(1)
+    expect(cached[0].value).toBe('aws-fetched-token')
   })
 })

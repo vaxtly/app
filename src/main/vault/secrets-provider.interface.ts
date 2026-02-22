@@ -1,4 +1,4 @@
-/** Interface for secrets management providers (e.g., HashiCorp Vault). */
+/** Interface for secrets management providers (e.g., HashiCorp Vault, AWS Secrets Manager). */
 
 export interface SecretsProvider {
   listSecrets(basePath?: string): Promise<string[]>

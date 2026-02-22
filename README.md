@@ -30,7 +30,7 @@ Download the latest release from the [Releases page](https://github.com/vaxtly/a
 
 **Git Sync** — Push/pull collections to GitHub or GitLab. 3-way merge with conflict resolution. Sensitive data scanning before push. Per-collection or bulk sync.
 
-**Vault Integration** — HashiCorp Vault KV v2. Token and AppRole auth with auto-refresh. Namespace support for Enterprise/HCP. Sync environment variables to/from Vault.
+**Vault Integration** — HashiCorp Vault KV v2 and AWS Secrets Manager. Token and AppRole auth with auto-refresh. Namespace support for Enterprise/HCP. Sync environment variables to/from your secrets provider.
 
 **Code Generation** — Generate request snippets in cURL, Python, PHP (Laravel), JavaScript (fetch), and Node.js (axios).
 

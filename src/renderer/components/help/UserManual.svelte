@@ -418,13 +418,28 @@
           <div data-section="vault" class="section">
             <h3 class="section-title">Vault Integration</h3>
             <p class="prose">
-              Integrate with <strong>HashiCorp Vault</strong> (KV v1 and v2 secrets engines) to manage
-              sensitive environment variables externally. Works with open-source Vault, Vault Enterprise,
-              and HCP Vault.
+              Vaxtly can sync environment variables with an external secrets manager so sensitive values
+              (API keys, database passwords, tokens) never live in the local database. Two providers
+              are supported: <strong>HashiCorp Vault</strong> and <strong>AWS Secrets Manager</strong>.
             </p>
-            <h4 class="subsection-title">Configuration Fields</h4>
+
+            <h4 class="subsection-title">Choosing a Provider</h4>
             <p class="prose">
-              Open <strong>Settings &rarr; Vault</strong> and fill in the following fields:
+              Open <strong>Settings &rarr; Vault</strong>. At the top of the page you will see a
+              <strong>Provider</strong> toggle with two options: <strong>HashiCorp Vault</strong> and
+              <strong>AWS Secrets Manager</strong>. Select the one you use and the form below will
+              update to show the relevant fields.
+            </p>
+
+            <!-- ── HashiCorp Vault ─────────────────────────────── -->
+
+            <h4 class="subsection-title">HashiCorp Vault</h4>
+            <p class="prose">
+              Works with open-source Vault, Vault Enterprise, and HCP Vault (KV v1 and v2 secrets
+              engines).
+            </p>
+            <p class="prose">
+              Fill in the following fields:
             </p>
             <ul class="list">
               <li><strong>Vault URL</strong> — The base URL of your Vault server, e.g. <code>https://vault.example.com</code> or <code>https://vault-cluster.vault.xxxxx.aws.hashicorp.cloud:8200</code>. Do not include a trailing slash or any path.</li>
@@ -442,39 +457,183 @@
               If your KV engine is nested inside Vault namespaces, include the full namespace path in the Engine Path
               field, not in the Namespace field.
             </div>
-            <h4 class="subsection-title">Testing the Connection</h4>
-            <p class="prose">
-              Click <strong>Test Connection</strong> to verify your configuration. This checks that
-              authentication succeeds and that the configured engine path exists. The test will show
-              descriptive error messages for common issues like SSL errors, DNS failures, or
-              authentication problems.
-            </p>
-            <h4 class="subsection-title">Pull & Push Secrets</h4>
-            <p class="prose">
-              <strong>Pull All</strong> lists all secrets at the engine root and creates local
-              environments for each one that doesn't already exist locally. Use this for initial
-              setup or to discover new secrets added by teammates.
-            </p>
-            <p class="prose">
-              <strong>Push</strong> sends your local environment variables to Vault. You can push from
-              individual environment editors (for vault-synced environments) or use the Vault settings
-              tab for bulk operations.
-            </p>
-            <h4 class="subsection-title">Vault-Synced Environments</h4>
-            <p class="prose">
-              When editing an environment, you can enable <strong>Vault sync</strong> to link it with a
-              specific Vault path. This allows granular pull/push of individual environments. The Vault
-              path defaults to a slugified version of the environment name, but you can customize it.
-            </p>
-            <h4 class="subsection-title">Migrate Path</h4>
-            <p class="prose">
-              If you need to move secrets between Vault paths (e.g., after renaming an environment),
-              use the <strong>Migrate</strong> feature to copy secrets from the old path to the new one
-              and delete the old path, without manual re-entry.
-            </p>
             <div class="tip">
               <strong>Tip:</strong> Vaxtly automatically tries both KV v2 and KV v1 API formats when listing
               secrets, so it works with either engine version without extra configuration.
+            </div>
+
+            <!-- ── AWS Secrets Manager ─────────────────────────── -->
+
+            <h4 class="subsection-title">AWS Secrets Manager</h4>
+            <p class="prose">
+              AWS Secrets Manager is a fully managed service that stores secrets as JSON objects in the
+              AWS cloud. Each Vaxtly environment maps to one AWS secret whose value is a JSON object
+              with key-value pairs.
+            </p>
+
+            <p class="prose">
+              <strong>How secrets are stored:</strong> Vaxtly stores every environment as a single
+              secret in AWS Secrets Manager. The secret name matches the environment's vault path
+              (by default, a slugified version of the environment name). The secret value is a JSON
+              object where each key is a variable name and each value is the variable's value.
+              For example, an environment called "Production" would be stored as a secret named
+              <code>production</code> with the content:
+            </p>
+            <p class="prose">
+              <code>{"{\u0022DB_HOST\u0022: \u0022db.prod.internal\u0022, \u0022API_KEY\u0022: \u0022sk-live-abc123\u0022}"}</code>
+            </p>
+
+            <p class="prose">
+              Fill in the following fields:
+            </p>
+            <ul class="list">
+              <li><strong>Region</strong> — The AWS region where your secrets are stored (e.g. <code>us-east-1</code>, <code>eu-west-1</code>, <code>ap-southeast-1</code>). You can find this in the AWS Console URL bar or in your AWS CLI config. If you are unsure, check your AWS Console: open Secrets Manager and look at the region name in the top-right corner of the page.</li>
+              <li><strong>Profile</strong> — <em>Optional.</em> The name of an AWS CLI named profile from your <code>~/.aws/credentials</code> file. Use this if you have multiple AWS accounts configured on your machine. Leave empty to use the default credential chain (environment variables, default profile, or EC2/ECS instance role).</li>
+              <li><strong>Access Key ID</strong> — <em>Optional.</em> An IAM access key ID (starts with <code>AKIA</code>). Only needed if you want to authenticate with static credentials instead of a profile or the default credential chain.</li>
+              <li><strong>Secret Access Key</strong> — <em>Optional.</em> The secret access key that pairs with the Access Key ID above.</li>
+              <li><strong>Auto Sync</strong> — When enabled, automatically pulls secrets from AWS on application startup.</li>
+            </ul>
+
+            <div class="note">
+              <strong>How authentication works:</strong> Vaxtly tries credentials in this order:
+              (1) If you provide an <strong>Access Key ID</strong> and <strong>Secret Access Key</strong>,
+              those are used directly.
+              (2) If you provide a <strong>Profile</strong> name, Vaxtly reads that profile from your
+              <code>~/.aws/credentials</code> file.
+              (3) If you leave all three empty, Vaxtly uses the AWS SDK default credential chain, which
+              checks environment variables (<code>AWS_ACCESS_KEY_ID</code>, <code>AWS_SECRET_ACCESS_KEY</code>),
+              the default profile in <code>~/.aws/credentials</code>, and EC2/ECS instance roles.
+              You only need to fill in one of these three methods.
+            </div>
+
+            <h4 class="subsection-title">Step-by-Step: Creating an AWS IAM User for Vaxtly</h4>
+            <p class="prose">
+              If you don't already have AWS credentials, follow these steps to create a dedicated
+              IAM user with the minimum permissions Vaxtly needs:
+            </p>
+            <ul class="list">
+              <li><strong>1.</strong> Open the <strong>AWS Console</strong> and go to <strong>IAM &rarr; Users &rarr; Create user</strong>.</li>
+              <li><strong>2.</strong> Enter a name (e.g. <code>vaxtly-secrets</code>) and click <strong>Next</strong>.</li>
+              <li><strong>3.</strong> Choose <strong>Attach policies directly</strong>, then click <strong>Create policy</strong>.</li>
+              <li><strong>4.</strong> In the policy editor, switch to the <strong>JSON</strong> tab and paste this policy (replace <code>123456789012</code> with your actual AWS account ID and <code>us-east-1</code> with your region):</li>
+            </ul>
+            <p class="prose">
+              <code>{"{\u0022Version\u0022: \u00222012-10-17\u0022, \u0022Statement\u0022: [{\u0022Effect\u0022: \u0022Allow\u0022, \u0022Action\u0022: [\u0022secretsmanager:ListSecrets\u0022, \u0022secretsmanager:GetSecretValue\u0022, \u0022secretsmanager:PutSecretValue\u0022, \u0022secretsmanager:CreateSecret\u0022, \u0022secretsmanager:DeleteSecret\u0022], \u0022Resource\u0022: \u0022*\u0022}]}"}</code>
+            </p>
+            <ul class="list">
+              <li><strong>5.</strong> Name the policy (e.g. <code>VaxtlySecretsManagerAccess</code>), create it, then go back and attach it to your new user.</li>
+              <li><strong>6.</strong> On the user summary page, go to <strong>Security credentials &rarr; Create access key</strong>. Choose <strong>Application running outside AWS</strong>.</li>
+              <li><strong>7.</strong> Copy the <strong>Access Key ID</strong> and <strong>Secret Access Key</strong> and paste them into Vaxtly's settings.</li>
+            </ul>
+            <div class="tip">
+              <strong>Tip:</strong> To restrict access to specific secrets instead of all secrets,
+              replace <code>"Resource": "*"</code> in the policy with a specific ARN pattern, e.g.
+              <code>{"\"Resource\": \"arn:aws:secretsmanager:us-east-1:123456789012:secret:myapp/*\""}</code>.
+              This limits Vaxtly to secrets whose names start with <code>myapp/</code>.
+            </div>
+
+            <h4 class="subsection-title">Step-by-Step: Using an Existing AWS CLI Profile</h4>
+            <p class="prose">
+              If you already have the AWS CLI installed and configured, you can skip creating access
+              keys and just point Vaxtly at an existing profile:
+            </p>
+            <ul class="list">
+              <li><strong>1.</strong> Open a terminal and run <code>aws configure list-profiles</code> to see your available profiles.</li>
+              <li><strong>2.</strong> Pick the profile that has access to Secrets Manager (or use <code>default</code>).</li>
+              <li><strong>3.</strong> In Vaxtly &rarr; Settings &rarr; Vault, select <strong>AWS Secrets Manager</strong> as the provider.</li>
+              <li><strong>4.</strong> Enter the <strong>Region</strong> (e.g. <code>us-east-1</code>) and type the profile name in the <strong>Profile</strong> field.</li>
+              <li><strong>5.</strong> Leave <strong>Access Key ID</strong> and <strong>Secret Access Key</strong> empty.</li>
+              <li><strong>6.</strong> Click <strong>Test Connection</strong>. If it succeeds, click <strong>Save</strong>.</li>
+            </ul>
+            <div class="note">
+              <strong>Note:</strong> If you leave the <strong>Profile</strong> field empty and don't
+              provide access keys, Vaxtly will use the AWS SDK default credential chain. This works
+              automatically if you have a <code>default</code> profile in <code>~/.aws/credentials</code>
+              or if you set the <code>AWS_ACCESS_KEY_ID</code> and <code>AWS_SECRET_ACCESS_KEY</code>
+              environment variables before launching Vaxtly.
+            </div>
+
+            <h4 class="subsection-title">Step-by-Step: Creating Your First Secret in AWS</h4>
+            <p class="prose">
+              If you want to create secrets directly in the AWS Console before pulling them into Vaxtly:
+            </p>
+            <ul class="list">
+              <li><strong>1.</strong> Open the <strong>AWS Console</strong> and go to <strong>Secrets Manager</strong> (search for it in the top search bar).</li>
+              <li><strong>2.</strong> Make sure you are in the correct <strong>region</strong> (top-right corner of the console).</li>
+              <li><strong>3.</strong> Click <strong>Store a new secret</strong>.</li>
+              <li><strong>4.</strong> Choose <strong>Other type of secret</strong>, then select <strong>Plaintext</strong> and paste a JSON object with your variables, for example:</li>
+            </ul>
+            <p class="prose">
+              <code>{"{\u0022DB_HOST\u0022: \u0022db.prod.internal\u0022, \u0022DB_PASSWORD\u0022: \u0022s3cret\u0022, \u0022API_KEY\u0022: \u0022sk-live-abc123\u0022}"}</code>
+            </p>
+            <ul class="list">
+              <li><strong>5.</strong> Click <strong>Next</strong>. For the secret name, use a simple slug like <code>production</code> or <code>staging</code>. This name will become the environment name in Vaxtly when you pull.</li>
+              <li><strong>6.</strong> Skip rotation settings and click <strong>Store</strong>.</li>
+              <li><strong>7.</strong> In Vaxtly, go to <strong>Settings &rarr; Vault</strong>, make sure AWS is configured, and click <strong>Pull All</strong>. Your new secret will appear as a Vaxtly environment.</li>
+            </ul>
+
+            <!-- ── Shared: Testing, Pull/Push, Sync, Migrate ─── -->
+
+            <h4 class="subsection-title">Testing the Connection</h4>
+            <p class="prose">
+              Click <strong>Test Connection</strong> to verify your configuration. For HashiCorp Vault
+              this checks authentication and engine path. For AWS Secrets Manager this verifies that
+              Vaxtly can list secrets using your credentials and region. The test will show descriptive
+              error messages for common issues like invalid credentials, wrong region, or network problems.
+            </p>
+
+            <h4 class="subsection-title">Pull & Push Secrets</h4>
+            <p class="prose">
+              <strong>Pull All</strong> lists all secrets from your provider and creates a local
+              environment for each one that doesn't already exist. Use this for initial setup or to
+              discover new secrets added by teammates.
+            </p>
+            <p class="prose">
+              <strong>Push</strong> sends your local environment variables to the provider. You can push
+              from individual environment editors (for synced environments) or use the Vault settings
+              tab for bulk operations.
+            </p>
+
+            <h4 class="subsection-title">Vault-Synced Environments</h4>
+            <p class="prose">
+              When editing an environment, you can enable <strong>Vault Sync</strong> (the toggle says
+              "Sync variables with HashiCorp Vault" or "Sync variables with AWS Secrets Manager"
+              depending on your provider). This links the environment to a specific secret path.
+              The path defaults to a slugified version of the environment name, but you can customize it.
+            </p>
+            <p class="prose">
+              With sync enabled, <strong>Save</strong> pushes variables to the provider instead of
+              writing them to the local database. The <strong>Pull from Vault</strong> button fetches
+              fresh values from the provider.
+            </p>
+
+            <h4 class="subsection-title">Migrate Path</h4>
+            <p class="prose">
+              If you need to move secrets between paths (e.g., after renaming an environment),
+              use the <strong>Migrate</strong> feature to copy secrets from the old path to the new one
+              and delete the old path, without manual re-entry.
+            </p>
+
+            <h4 class="subsection-title">Workspace-Scoped Configuration</h4>
+            <p class="prose">
+              Each workspace can have its own vault provider and credentials. When you save vault settings
+              inside a workspace, those settings override the global defaults for that workspace only.
+              This lets you connect different workspaces to different AWS accounts or Vault servers.
+              A banner at the top indicates when you are viewing inherited global defaults.
+            </p>
+
+            <h4 class="subsection-title">How Secrets Are Stored Locally</h4>
+            <p class="prose">
+              Vaxtly <strong>never writes secret values to the local database</strong>. When vault sync
+              is enabled, the database only stores metadata (environment name, vault path, sync status).
+              Actual secret values are held in memory for the current session and fetched fresh from
+              the provider on each app launch (or when you pull manually). This means if someone gains
+              access to your Vaxtly database file, they will not find any secret values.
+            </p>
+            <div class="note">
+              <strong>Note:</strong> Your vault credentials (Vault token, AWS access keys) are stored
+              locally, but they are encrypted at rest using AES-256-CBC backed by your operating
+              system's secure key storage.
             </div>
           </div>
 

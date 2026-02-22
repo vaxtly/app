@@ -119,6 +119,7 @@
 
   // Vault sync
   let vaultConfigured = $state(false)
+  let vaultProviderLabel = $state('Vault')
   let vaultSynced = $derived(environment?.vault_synced === 1)
   let vaultPulling = $state(false)
   let vaultStatus = $state<{ type: 'success' | 'error'; message: string } | null>(null)
@@ -129,14 +130,26 @@
 
   async function checkVaultConfigured(): Promise<void> {
     const wsId = appStore.activeWorkspaceId
-    let url: string | undefined
-    if (wsId) {
-      url = await window.api.workspaceSettings.get(wsId, 'vault.url')
+
+    async function get(key: string): Promise<string | undefined> {
+      if (wsId) {
+        const v = await window.api.workspaceSettings.get(wsId, key)
+        if (v !== undefined) return v
+      }
+      return window.api.settings.get(key)
     }
-    if (!url) {
-      url = await window.api.settings.get('vault.url')
+
+    const providerType = await get('vault.provider')
+
+    if (providerType === 'aws') {
+      const region = await get('vault.aws_region')
+      vaultConfigured = !!region
+      vaultProviderLabel = 'AWS Secrets Manager'
+    } else {
+      const url = await get('vault.url')
+      vaultConfigured = !!url
+      vaultProviderLabel = 'HashiCorp Vault'
     }
-    vaultConfigured = !!url
   }
 
   async function toggleVaultSync(): Promise<void> {
@@ -219,7 +232,7 @@
           <div class="mb-3 flex items-center justify-between">
             <div>
               <div class="text-xs font-medium text-surface-300">Vault Sync</div>
-              <div class="text-[10px] text-surface-500">Sync variables with HashiCorp Vault</div>
+              <div class="text-[10px] text-surface-500">Sync variables with {vaultProviderLabel}</div>
             </div>
             <button
               type="button"

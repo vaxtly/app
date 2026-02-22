@@ -39,6 +39,8 @@
     "vitest": "^4.0.18"
   },
   "dependencies": {
+    "@aws-sdk/client-secrets-manager": "^3.995.0",
+    "@aws-sdk/credential-providers": "^3.995.0",
     "@codemirror/lang-html": "^6.0.0",
     "@codemirror/lang-json": "^6.0.0",
     "@codemirror/lang-xml": "^6.0.0",

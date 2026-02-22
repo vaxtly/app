@@ -76,9 +76,10 @@ vaxtly/
 │   │   │   ├── postman-import.ts      # Import Postman collections/environments (3 formats)
 │   │   │   └── updater.ts            # electron-updater: init, check, quit-and-install, install-source detection
 │   │   ├── vault/
-│   │   │   ├── secrets-provider.interface.ts # SecretsProvider interface
-│   │   │   ├── hashicorp-vault-provider.ts   # HashiCorp Vault KV v2 provider
-│   │   │   └── vault-sync-service.ts         # Vault sync: fetch/push vars, pullAll, migrate
+│   │   │   ├── secrets-provider.interface.ts      # SecretsProvider interface
+│   │   │   ├── hashicorp-vault-provider.ts        # HashiCorp Vault KV v2 provider
+│   │   │   ├── aws-secrets-manager-provider.ts    # AWS Secrets Manager provider
+│   │   │   └── vault-sync-service.ts              # Vault sync: fetch/push vars, pullAll, migrate
 │   │   └── sync/
 │   │       ├── git-provider.interface.ts # GitProvider interface (list, get, commit, delete)
 │   │       ├── github-provider.ts      # GitHub Git Data API provider
@@ -293,7 +294,7 @@ folders 1──N requests (ON DELETE SET NULL)
 | Column | Type | Notes |
 |--------|------|-------|
 | key | TEXT PK | |
-| value | TEXT NOT NULL | Sensitive keys (`vault.token`, `vault.role_id`, `vault.secret_id`, `sync.token`) stored as AES-256-GCM encrypted base64 |
+| value | TEXT NOT NULL | Sensitive keys (`vault.token`, `vault.role_id`, `vault.secret_id`, `vault.aws_access_key_id`, `vault.aws_secret_access_key`, `sync.token`) stored as AES-256-GCM encrypted base64 |
 
 #### `window_state`
 | Column | Type | Default | Notes |
@@ -511,7 +512,7 @@ Pause/resume supports hover-to-hold: `pauseToast` clears the JS timeout and reco
 - `decryptValue(encrypted)` → detects format: `gcm:` prefix → AES-256-GCM; otherwise → legacy AES-256-CBC fallback for backward compatibility
 - `initEncryptionForTesting(key?)` → bypass safeStorage for Vitest
 - **Repository-layer integration**: encryption is transparent at the repository layer — callers (IPC, services, UI) are unaware
-  - **Settings**: `SENSITIVE_KEYS` set (`vault.token`, `vault.role_id`, `vault.secret_id`, `sync.token`) — encrypted on write, decrypted on read with try/catch fallback for pre-migration plaintext
+  - **Settings**: `SENSITIVE_KEYS` set (`vault.token`, `vault.role_id`, `vault.secret_id`, `vault.aws_access_key_id`, `vault.aws_secret_access_key`, `sync.token`) — encrypted on write, decrypted on read with try/catch fallback for pre-migration plaintext
   - **Environments**: variable values encrypted with `enc:` prefix — `encryptVariables()`/`decryptVariables()` in all CRUD paths
   - **Requests**: auth credentials (`bearer_token`, `basic_username`, `basic_password`, `api_key_value`) encrypted with `enc:` prefix — `encryptAuth()`/`decryptAuth()` in all CRUD paths; double-encryption guard checks `enc:` prefix before encrypting
   - **Workspace settings**: sensitive fields in `workspaces.settings` JSON column encrypted/decrypted using the same key set as `app_settings`
@@ -522,7 +523,7 @@ Pause/resume supports hover-to-hold: `pauseToast` clears the JS timeout and reco
 - `getWorkspaceSettings(wsId)` → parse JSON, decrypt sensitive fields, return nested object
 - `setWorkspaceSetting(wsId, key, value)` → read-modify-write; key uses dot-notation (e.g., `sync.provider`)
 - `getWorkspaceSetting(wsId, key)` → convenience: dot-path into nested object
-- Sensitive keys encrypted: `sync.token`, `vault.token`, `vault.role_id`, `vault.secret_id`
+- Sensitive keys encrypted: `sync.token`, `vault.token`, `vault.role_id`, `vault.secret_id`, `vault.aws_access_key_id`, `vault.aws_secret_access_key`
 - **Fallback pattern**: Services (`getProvider`) try workspace settings first, fall back to global `app_settings` if workspace has no config for that domain
 - Provider cache invalidation: `ipc/settings.ts` monitors `PROVIDER_KEYS` set and calls `resetVaultProvider()` when relevant keys change
 
@@ -627,11 +628,25 @@ Pause/resume supports hover-to-hold: `pauseToast` clears the JS timeout and reco
 - Static factory: `HashiCorpVaultProvider.create(opts)` handles async AppRole login
 - SSL bypass: when `verifySsl` is false, uses undici `Agent({ connect: { rejectUnauthorized: false } })` — all HTTP calls route through `this.fetch()` wrapper which dispatches via undici when the custom Agent is present
 
+### AWS Secrets Manager Provider (`vault/aws-secrets-manager-provider.ts`)
+- Implements `SecretsProvider` interface from `vault/secrets-provider.interface.ts`
+- One JSON secret per environment (key-value pairs stored as `SecretString`)
+- `listSecrets(basePath?)` → `ListSecretsCommand` with pagination, optional name prefix filter
+- `getSecrets(path)` → `GetSecretValueCommand`, parses `SecretString` as JSON, returns `null` on `ResourceNotFoundException`
+- `putSecrets(path, data)` → `PutSecretValueCommand`, falls back to `CreateSecretCommand` on 404
+- `deleteSecrets(path)` → `DeleteSecretCommand` with `ForceDeleteWithoutRecovery: true`, ignores 404
+- `testConnection()` → `ListSecretsCommand({ MaxResults: 1 })`, returns boolean
+- Credential resolution order: (1) explicit `accessKeyId` + `secretAccessKey`, (2) `fromIni({ profile })` for named profiles, (3) SDK default credential chain
+- Private constructor; use static factory `AwsSecretsManagerProvider.create(opts)`
+
 ### Vault Sync Service (`vault/vault-sync-service.ts`)
 - **In-memory only**: vault secrets are never written to the local SQLite DB. The DB stores vault metadata (`vault_synced`, `vault_path`, `name`) but `variables` is always `'[]'` for vault-synced environments. Secrets live in a session-lifetime in-memory cache (`Map<string, EnvironmentVariable[]>`)
-- Settings keys: `vault.provider`, `vault.url`, `vault.auth_method`, `vault.token`, `vault.role_id`, `vault.secret_id`, `vault.namespace` (AppRole login only), `vault.mount` (full engine path incl. namespaces), `vault.verify_ssl` — read from workspace settings with global fallback
+- Settings keys (HashiCorp): `vault.provider`, `vault.url`, `vault.auth_method`, `vault.token`, `vault.role_id`, `vault.secret_id`, `vault.namespace`, `vault.mount`, `vault.verify_ssl`
+- Settings keys (AWS): `vault.provider`, `vault.aws_region`, `vault.aws_access_key_id`, `vault.aws_secret_access_key`, `vault.aws_profile`
+- All settings read from workspace settings with global fallback
 - `vault.verify_ssl` parsed as boolean: `'0'` and `'false'` both mean SSL verification off (UI stores `String(boolean)`)
-- `getProvider(workspaceId?)` → reads vault config from workspace settings (with global fallback), returns cached `SecretsProvider` (cache keyed by `workspaceId ?? '__global__'`)
+- `getProvider(workspaceId?)` → reads vault config, dispatches to HashiCorp or AWS based on `vault.provider`, returns cached `SecretsProvider` (cache keyed by `workspaceId ?? '__global__'`)
+- `isConfigured(workspaceId?)` → provider-specific: HashiCorp needs `vault.url`, AWS needs `vault.aws_region`
 - `fetchVariables(envId, workspaceId?)` → get secrets from Vault, return as `EnvironmentVariable[]`, populate in-memory cache (session-lifetime, no TTL)
 - `pushVariables(envId, vars, workspaceId?)` → push enabled variables to Vault, update in-memory cache, scrub DB `variables` to `'[]'` if non-empty (defense-in-depth)
 - `deleteSecrets(envId, workspaceId?)` → remove secrets for an environment, clear cache

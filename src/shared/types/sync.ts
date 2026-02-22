@@ -33,14 +33,17 @@ export interface SyncConflict {
 }
 
 export interface VaultConfig {
-  url: string
-  auth_method: 'token' | 'approle'
+  provider?: 'hashicorp' | 'aws'
+  url?: string
+  auth_method?: 'token' | 'approle'
   token?: string
   role_id?: string
   secret_id?: string
-  mount: string
+  mount?: string
   namespace?: string
-  verify_ssl: boolean
+  verify_ssl?: boolean
+  aws_region?: string
+  aws_profile?: string
 }
 
 export interface SessionLogEntry {

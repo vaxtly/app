@@ -3,6 +3,9 @@
   import { environmentsStore } from '../../lib/stores/environments.svelte'
   import Toggle from '../shared/Toggle.svelte'
 
+  let provider = $state<'hashicorp' | 'aws'>('hashicorp')
+
+  // HashiCorp fields
   let url = $state('')
   let authMethod = $state<'token' | 'approle'>('token')
   let token = $state('')
@@ -11,6 +14,14 @@
   let namespace = $state('')
   let enginePath = $state('secret')
   let verifySsl = $state(true)
+
+  // AWS fields
+  let awsRegion = $state('us-east-1')
+  let awsProfile = $state('')
+  let awsAccessKeyId = $state('')
+  let awsSecretAccessKey = $state('')
+
+  // Shared
   let autoSync = $state(false)
 
   let testing = $state(false)
@@ -54,7 +65,8 @@
       hasWorkspaceConfig = false
     }
 
-    const [u, am, t, ri, si, ns, ep, vs, as_] = await Promise.all([
+    const [p, u, am, t, ri, si, ns, ep, vs, as_, ar, ap, aak, asak] = await Promise.all([
+      getSetting('vault.provider'),
       getSetting('vault.url'),
       getSetting('vault.auth_method'),
       getSetting('vault.token'),
@@ -64,7 +76,12 @@
       getSetting('vault.mount'),
       getSetting('vault.verify_ssl'),
       getSetting('vault.auto_sync'),
+      getSetting('vault.aws_region'),
+      getSetting('vault.aws_profile'),
+      getSetting('vault.aws_access_key_id'),
+      getSetting('vault.aws_secret_access_key'),
     ])
+    provider = p === 'aws' ? 'aws' : 'hashicorp'
     url = u ?? ''
     if (am === 'token' || am === 'approle') authMethod = am
     else authMethod = 'token'
@@ -75,26 +92,44 @@
     enginePath = ep ?? 'secret'
     verifySsl = vs !== 'false' && vs !== '0'
     autoSync = as_ === 'true' || as_ === '1'
+    awsRegion = ar || 'us-east-1'
+    awsProfile = ap ?? ''
+    awsAccessKeyId = aak ?? ''
+    awsSecretAccessKey = asak ?? ''
   }
 
   async function saveConfig(): Promise<void> {
     saving = true
     status = null
     try {
-      await Promise.all([
-        setSetting('vault.provider', 'hashicorp'),
-        setSetting('vault.url', url),
-        setSetting('vault.auth_method', authMethod),
-        setSetting('vault.token', token),
-        setSetting('vault.role_id', roleId),
-        setSetting('vault.secret_id', secretId),
-        setSetting('vault.namespace', namespace),
-        setSetting('vault.mount', enginePath),
-        setSetting('vault.verify_ssl', String(verifySsl)),
+      const promises: Promise<void>[] = [
+        setSetting('vault.provider', provider),
         setSetting('vault.auto_sync', String(autoSync)),
-      ])
+      ]
+
+      if (provider === 'hashicorp') {
+        promises.push(
+          setSetting('vault.url', url),
+          setSetting('vault.auth_method', authMethod),
+          setSetting('vault.token', token),
+          setSetting('vault.role_id', roleId),
+          setSetting('vault.secret_id', secretId),
+          setSetting('vault.namespace', namespace),
+          setSetting('vault.mount', enginePath),
+          setSetting('vault.verify_ssl', String(verifySsl)),
+        )
+      } else {
+        promises.push(
+          setSetting('vault.aws_region', awsRegion),
+          setSetting('vault.aws_profile', awsProfile),
+          setSetting('vault.aws_access_key_id', awsAccessKeyId),
+          setSetting('vault.aws_secret_access_key', awsSecretAccessKey),
+        )
+      }
+
+      await Promise.all(promises)
       if (wsId) hasWorkspaceConfig = true
-      status = { type: 'success', message: 'Vault configuration saved' }
+      status = { type: 'success', message: 'Configuration saved' }
     } catch (err) {
       status = { type: 'error', message: err instanceof Error ? err.message : 'Failed to save' }
     } finally {
@@ -186,126 +221,203 @@
     </div>
   {/if}
 
+  <!-- Provider picker -->
+  <div class="setting-row">
+    <div class="setting-info">
+      <span class="setting-label">Provider</span>
+    </div>
+    <div class="auth-picker">
+      <button
+        class="auth-option"
+        class:is-active={provider === 'hashicorp'}
+        onclick={() => { provider = 'hashicorp' }}
+      >HashiCorp Vault</button>
+      <button
+        class="auth-option"
+        class:is-active={provider === 'aws'}
+        onclick={() => { provider = 'aws' }}
+      >AWS Secrets Manager</button>
+    </div>
+  </div>
+
   <!-- Server section -->
   <section class="section">
     <div class="section-header">
-      <div class="section-icon vault-icon">
-        <svg viewBox="0 0 18 18" fill="none">
-          <path d="M9 11V12.5M5 15H13C13.828 15 14.5 14.328 14.5 13.5V9C14.5 8.172 13.828 7.5 13 7.5H5C4.172 7.5 3.5 8.172 3.5 9V13.5C3.5 14.328 4.172 15 5 15Z" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
-          <path d="M6 7.5V5.5C6 3.843 7.343 2.5 9 2.5C10.657 2.5 12 3.843 12 5.5V7.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
+      <div class="section-icon" class:vault-icon={provider === 'hashicorp'} class:aws-icon={provider === 'aws'}>
+        {#if provider === 'hashicorp'}
+          <svg viewBox="0 0 18 18" fill="none">
+            <path d="M9 11V12.5M5 15H13C13.828 15 14.5 14.328 14.5 13.5V9C14.5 8.172 13.828 7.5 13 7.5H5C4.172 7.5 3.5 8.172 3.5 9V13.5C3.5 14.328 4.172 15 5 15Z" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M6 7.5V5.5C6 3.843 7.343 2.5 9 2.5C10.657 2.5 12 3.843 12 5.5V7.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        {:else}
+          <svg viewBox="0 0 18 18" fill="none">
+            <path d="M9 2L15.5 5.5V12.5L9 16L2.5 12.5V5.5L9 2Z" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M9 8.5V16M2.5 5.5L9 8.5M9 8.5L15.5 5.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        {/if}
       </div>
       <div>
-        <div class="section-title">HashiCorp Vault</div>
+        <div class="section-title">{provider === 'hashicorp' ? 'HashiCorp Vault' : 'AWS Secrets Manager'}</div>
         <div class="section-subtitle">Secrets management for environment variables{#if appStore.activeWorkspace} — {appStore.activeWorkspace.name}{/if}</div>
       </div>
     </div>
 
-    <!-- URL -->
-    <div class="field-group">
-      <span class="field-label">Vault URL</span>
-      <input
-        type="text"
-        value={url}
-        oninput={(e) => { url = (e.target as HTMLInputElement).value }}
-        placeholder="https://vault.example.com"
-        class="text-input"
-      />
-    </div>
-
-    <!-- Auth Method -->
-    <div class="setting-row">
-      <div class="setting-info">
-        <span class="setting-label">Authentication</span>
-      </div>
-      <div class="auth-picker">
-        <button
-          class="auth-option"
-          class:is-active={authMethod === 'token'}
-          onclick={() => { authMethod = 'token' }}
-        >Token</button>
-        <button
-          class="auth-option"
-          class:is-active={authMethod === 'approle'}
-          onclick={() => { authMethod = 'approle' }}
-        >AppRole</button>
-      </div>
-    </div>
-
-    <!-- Conditional auth fields -->
-    {#if authMethod === 'token'}
+    {#if provider === 'hashicorp'}
+      <!-- URL -->
       <div class="field-group">
-        <span class="field-label">Token</span>
+        <span class="field-label">Vault URL</span>
         <input
-          type="password"
-          value={token}
-          oninput={(e) => { token = (e.target as HTMLInputElement).value }}
-          placeholder="hvs...."
+          type="text"
+          value={url}
+          oninput={(e) => { url = (e.target as HTMLInputElement).value }}
+          placeholder="https://vault.example.com"
           class="text-input"
         />
       </div>
-    {:else}
+
+      <!-- Auth Method -->
+      <div class="setting-row">
+        <div class="setting-info">
+          <span class="setting-label">Authentication</span>
+        </div>
+        <div class="auth-picker">
+          <button
+            class="auth-option"
+            class:is-active={authMethod === 'token'}
+            onclick={() => { authMethod = 'token' }}
+          >Token</button>
+          <button
+            class="auth-option"
+            class:is-active={authMethod === 'approle'}
+            onclick={() => { authMethod = 'approle' }}
+          >AppRole</button>
+        </div>
+      </div>
+
+      <!-- Conditional auth fields -->
+      {#if authMethod === 'token'}
+        <div class="field-group">
+          <span class="field-label">Token</span>
+          <input
+            type="password"
+            value={token}
+            oninput={(e) => { token = (e.target as HTMLInputElement).value }}
+            placeholder="hvs...."
+            class="text-input"
+          />
+        </div>
+      {:else}
+        <div class="field-row">
+          <div class="field-group">
+            <span class="field-label">Role ID</span>
+            <input
+              type="text"
+              value={roleId}
+              oninput={(e) => { roleId = (e.target as HTMLInputElement).value }}
+              class="text-input"
+            />
+          </div>
+          <div class="field-group">
+            <span class="field-label">Secret ID</span>
+            <input
+              type="password"
+              value={secretId}
+              oninput={(e) => { secretId = (e.target as HTMLInputElement).value }}
+              class="text-input"
+            />
+          </div>
+        </div>
+      {/if}
+
+      <!-- Namespace + Engine Path side by side -->
       <div class="field-row">
         <div class="field-group">
-          <span class="field-label">Role ID</span>
+          <span class="field-label">Namespace</span>
           <input
             type="text"
-            value={roleId}
-            oninput={(e) => { roleId = (e.target as HTMLInputElement).value }}
+            value={namespace}
+            oninput={(e) => { namespace = (e.target as HTMLInputElement).value }}
+            placeholder="Optional — AppRole auth only"
+            class="text-input"
+          />
+          <span class="field-hint">Only used during AppRole login. Leave empty for token auth.</span>
+        </div>
+        <div class="field-group">
+          <span class="field-label">Engine Path</span>
+          <input
+            type="text"
+            value={enginePath}
+            oninput={(e) => { enginePath = (e.target as HTMLInputElement).value }}
+            placeholder="org/ns/kv-engine"
+            class="text-input"
+          />
+          <span class="field-hint">Full path to the KV engine, including namespaces if applicable.</span>
+        </div>
+      </div>
+
+      <!-- Verify SSL (HashiCorp only) -->
+      <div class="setting-row">
+        <div class="setting-info">
+          <span class="setting-label">Verify SSL</span>
+          <span class="setting-desc">Validate server certificate</span>
+        </div>
+        <Toggle checked={verifySsl} onchange={toggleSsl} />
+      </div>
+    {:else}
+      <!-- AWS: Region + Profile -->
+      <div class="field-row">
+        <div class="field-group">
+          <span class="field-label">Region</span>
+          <input
+            type="text"
+            value={awsRegion}
+            oninput={(e) => { awsRegion = (e.target as HTMLInputElement).value }}
+            placeholder="us-east-1"
             class="text-input"
           />
         </div>
         <div class="field-group">
-          <span class="field-label">Secret ID</span>
+          <span class="field-label">Profile</span>
+          <input
+            type="text"
+            value={awsProfile}
+            oninput={(e) => { awsProfile = (e.target as HTMLInputElement).value }}
+            placeholder="Optional — uses default chain if empty"
+            class="text-input"
+          />
+          <span class="field-hint">Named profile from ~/.aws/credentials. Leave empty for default credential chain.</span>
+        </div>
+      </div>
+
+      <!-- AWS: Access Key ID + Secret Access Key -->
+      <div class="field-row">
+        <div class="field-group">
+          <span class="field-label">Access Key ID</span>
           <input
             type="password"
-            value={secretId}
-            oninput={(e) => { secretId = (e.target as HTMLInputElement).value }}
+            value={awsAccessKeyId}
+            oninput={(e) => { awsAccessKeyId = (e.target as HTMLInputElement).value }}
+            placeholder="AKIA..."
+            class="text-input"
+          />
+        </div>
+        <div class="field-group">
+          <span class="field-label">Secret Access Key</span>
+          <input
+            type="password"
+            value={awsSecretAccessKey}
+            oninput={(e) => { awsSecretAccessKey = (e.target as HTMLInputElement).value }}
+            placeholder="Optional — uses profile or default chain if empty"
             class="text-input"
           />
         </div>
       </div>
     {/if}
 
-    <!-- Namespace + Engine Path side by side -->
-    <div class="field-row">
-      <div class="field-group">
-        <span class="field-label">Namespace</span>
-        <input
-          type="text"
-          value={namespace}
-          oninput={(e) => { namespace = (e.target as HTMLInputElement).value }}
-          placeholder="Optional — AppRole auth only"
-          class="text-input"
-        />
-        <span class="field-hint">Only used during AppRole login. Leave empty for token auth.</span>
-      </div>
-      <div class="field-group">
-        <span class="field-label">Engine Path</span>
-        <input
-          type="text"
-          value={enginePath}
-          oninput={(e) => { enginePath = (e.target as HTMLInputElement).value }}
-          placeholder="org/ns/kv-engine"
-          class="text-input"
-        />
-        <span class="field-hint">Full path to the KV engine, including namespaces if applicable.</span>
-      </div>
-    </div>
-
-    <!-- Toggles -->
-    <div class="setting-row">
-      <div class="setting-info">
-        <span class="setting-label">Verify SSL</span>
-        <span class="setting-desc">Validate server certificate</span>
-      </div>
-      <Toggle checked={verifySsl} onchange={toggleSsl} />
-    </div>
-
     <div class="setting-row last">
       <div class="setting-info">
         <span class="setting-label">Auto Sync</span>
-        <span class="setting-desc">Sync vault secrets on startup</span>
+        <span class="setting-desc">Sync secrets on startup</span>
       </div>
       <Toggle checked={autoSync} onchange={toggleAutoSync} />
     </div>
@@ -417,6 +529,10 @@
   .vault-icon {
     background: color-mix(in srgb, var(--color-warning) 12%, transparent);
     color: var(--color-warning-light);
+  }
+  .aws-icon {
+    background: color-mix(in srgb, var(--color-brand-500) 12%, transparent);
+    color: var(--color-brand-300);
   }
   .section-title {
     font-size: 13px;

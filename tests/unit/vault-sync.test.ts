@@ -62,6 +62,17 @@ describe('isConfigured', () => {
     expect(isConfigured()).toBe(false)
   })
 
+  it('returns true for AWS when region is set', () => {
+    settingsRepo.setSetting('vault.provider', 'aws')
+    settingsRepo.setSetting('vault.aws_region', 'us-east-1')
+    expect(isConfigured()).toBe(true)
+  })
+
+  it('returns false for AWS without region', () => {
+    settingsRepo.setSetting('vault.provider', 'aws')
+    expect(isConfigured()).toBe(false)
+  })
+
   it('resetProvider clears cached provider', () => {
     settingsRepo.setSetting('vault.provider', 'hashicorp')
     settingsRepo.setSetting('vault.url', 'https://vault.example.com')

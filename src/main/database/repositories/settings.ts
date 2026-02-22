@@ -9,6 +9,8 @@ const SENSITIVE_KEYS = new Set([
   'vault.role_id',
   'vault.secret_id',
   'sync.token',
+  'vault.aws_access_key_id',
+  'vault.aws_secret_access_key',
 ])
 
 export function getSetting(key: string): string | undefined {

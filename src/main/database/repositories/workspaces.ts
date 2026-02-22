@@ -9,6 +9,8 @@ const SENSITIVE_KEYS = new Set([
   'vault.token',
   'vault.role_id',
   'vault.secret_id',
+  'vault.aws_access_key_id',
+  'vault.aws_secret_access_key',
 ])
 
 export function create(data: { name: string; description?: string }): Workspace {

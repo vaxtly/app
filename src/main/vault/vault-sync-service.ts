@@ -8,6 +8,7 @@
 
 import type { SecretsProvider } from './secrets-provider.interface'
 import { HashiCorpVaultProvider } from './hashicorp-vault-provider'
+import { AwsSecretsManagerProvider } from './aws-secrets-manager-provider'
 import * as settingsRepo from '../database/repositories/settings'
 import * as workspacesRepo from '../database/repositories/workspaces'
 import * as environmentsRepo from '../database/repositories/environments'
@@ -34,22 +35,26 @@ export async function getProvider(workspaceId?: string): Promise<SecretsProvider
   if (cached) return cached
 
   const providerType = getVaultSetting('vault.provider', workspaceId)
-  const url = getVaultSetting('vault.url', workspaceId)
-  const authMethod = (getVaultSetting('vault.auth_method', workspaceId) ?? 'token') as 'token' | 'approle'
-  const token = getVaultSetting('vault.token', workspaceId) ?? ''
-  const roleId = getVaultSetting('vault.role_id', workspaceId)
-  const secretId = getVaultSetting('vault.secret_id', workspaceId)
-  const namespace = getVaultSetting('vault.namespace', workspaceId)
-  const mount = getVaultSetting('vault.mount', workspaceId) ?? 'secret'
-  const verifySslRaw = getVaultSetting('vault.verify_ssl', workspaceId)
-  const verifySsl = verifySslRaw !== '0' && verifySslRaw !== 'false'
+  if (!providerType) return null
 
-  if (!providerType || !url) return null
-  if (authMethod === 'token' && !token) return null
-  if (authMethod === 'approle' && (!roleId || !secretId)) return null
+  let provider: SecretsProvider | null = null
 
   if (providerType === 'hashicorp') {
-    const provider = await HashiCorpVaultProvider.create({
+    const url = getVaultSetting('vault.url', workspaceId)
+    if (!url) return null
+    const authMethod = (getVaultSetting('vault.auth_method', workspaceId) ?? 'token') as 'token' | 'approle'
+    const token = getVaultSetting('vault.token', workspaceId) ?? ''
+    const roleId = getVaultSetting('vault.role_id', workspaceId)
+    const secretId = getVaultSetting('vault.secret_id', workspaceId)
+    const namespace = getVaultSetting('vault.namespace', workspaceId)
+    const mount = getVaultSetting('vault.mount', workspaceId) ?? 'secret'
+    const verifySslRaw = getVaultSetting('vault.verify_ssl', workspaceId)
+    const verifySsl = verifySslRaw !== '0' && verifySslRaw !== 'false'
+
+    if (authMethod === 'token' && !token) return null
+    if (authMethod === 'approle' && (!roleId || !secretId)) return null
+
+    provider = await HashiCorpVaultProvider.create({
       url: url.replace(/\/+$/, ''),
       token,
       namespace: namespace || null,
@@ -59,11 +64,27 @@ export async function getProvider(workspaceId?: string): Promise<SecretsProvider
       secretId: secretId ?? undefined,
       verifySsl,
     })
-    providerCache.set(cacheKey, provider)
-    return provider
+  } else if (providerType === 'aws') {
+    const region = getVaultSetting('vault.aws_region', workspaceId)
+    if (!region) return null
+
+    const accessKeyId = getVaultSetting('vault.aws_access_key_id', workspaceId)
+    const secretAccessKey = getVaultSetting('vault.aws_secret_access_key', workspaceId)
+    const profile = getVaultSetting('vault.aws_profile', workspaceId)
+
+    provider = await AwsSecretsManagerProvider.create({
+      region,
+      accessKeyId: accessKeyId || undefined,
+      secretAccessKey: secretAccessKey || undefined,
+      profile: profile || undefined,
+    })
   }
 
-  return null
+  if (provider) {
+    providerCache.set(cacheKey, provider)
+  }
+
+  return provider
 }
 
 /** Reset cached provider (call when settings change). */
@@ -78,8 +99,16 @@ export function resetProvider(workspaceId?: string): void {
 
 export function isConfigured(workspaceId?: string): boolean {
   const providerType = getVaultSetting('vault.provider', workspaceId)
-  const url = getVaultSetting('vault.url', workspaceId)
-  return !!providerType && !!url
+  if (!providerType) return false
+
+  if (providerType === 'hashicorp') {
+    return !!getVaultSetting('vault.url', workspaceId)
+  }
+  if (providerType === 'aws') {
+    return !!getVaultSetting('vault.aws_region', workspaceId)
+  }
+
+  return false
 }
 
 export async function testConnection(workspaceId?: string): Promise<boolean> {
