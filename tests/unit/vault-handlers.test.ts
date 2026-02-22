@@ -16,6 +16,12 @@ vi.mock('../../src/main/vault/vault-sync-service', () => ({
   deleteSecrets: vi.fn(),
   migrateEnvironment: vi.fn(),
   getCachedVariables: vi.fn().mockReturnValue(null),
+  clearCache: vi.fn(),
+}))
+
+// Mock session-log (logVault is called by fetch-variables handler)
+vi.mock('../../src/main/services/session-log', () => ({
+  logVault: vi.fn(),
 }))
 
 import { openTestDatabase, closeDatabase } from '../../src/main/database/connection'
@@ -165,6 +171,7 @@ describe('vault:fetch-variables', () => {
     const vars = [{ key: 'DB_HOST', value: 'localhost', enabled: true }]
     vi.mocked(vaultService.fetchVariables).mockResolvedValue(vars)
     const result = await invoke('vault:fetch-variables', 'env-1', 'ws-1')
+    expect(vaultService.clearCache).toHaveBeenCalledWith('env-1')
     expect(vaultService.fetchVariables).toHaveBeenCalledWith('env-1', 'ws-1')
     expect(result).toEqual(vars)
   })

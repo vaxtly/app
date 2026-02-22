@@ -3,6 +3,7 @@ import { IPC } from '../../shared/types/ipc'
 import * as vaultService from '../vault/vault-sync-service'
 import * as environmentsRepo from '../database/repositories/environments'
 import { formatFetchError } from '../services/fetch-error'
+import { logVault } from '../services/session-log'
 import type { EnvironmentVariable } from '../../shared/types/models'
 
 function errorMessage(e: unknown): string {
@@ -67,9 +68,16 @@ export function registerVaultHandlers(): void {
   })
 
   ipcMain.handle(IPC.VAULT_FETCH_VARIABLES, async (_event, environmentId: string, workspaceId?: string) => {
+    const env = environmentsRepo.findById(environmentId)
+    const label = env?.name ?? environmentId
     try {
-      return await vaultService.fetchVariables(environmentId, workspaceId)
+      // Clear cache so we always fetch fresh from Vault
+      vaultService.clearCache(environmentId)
+      const vars = await vaultService.fetchVariables(environmentId, workspaceId)
+      logVault('pull', label, `Pulled ${vars.length} variable(s)`)
+      return vars
     } catch (e) {
+      logVault('pull', label, `Failed: ${errorMessage(e)}`, false)
       throw new Error(errorMessage(e))
     }
   })
