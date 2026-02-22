@@ -95,7 +95,6 @@ export function registerProxyHandlers(): void {
         : undefined
 
       // Build request body
-      let requestBodyForHistory: string | undefined = resolvedBody ?? undefined
       let fetchBody: any = undefined
 
       if (method !== 'GET' && method !== 'HEAD') {
@@ -130,8 +129,7 @@ export function registerProxyHandlers(): void {
           fetchBody = formBody
           // Remove Content-Type so undici sets multipart boundary automatically
           deleteHeader(fetchHeaders, 'Content-Type')
-          // Save resolved form data for history
-          requestBodyForHistory = JSON.stringify(resolvedFormData.filter((e) => e.enabled).map((e) => `${e.key}=${e.value}`).join('&'))
+          // Form-data body: template entries stored in history via config.formData
         } else if (config.bodyType === 'urlencoded' && resolvedBody) {
           // Parse, substitute variables in each key/value, re-encode
           const params = new URLSearchParams(resolvedBody)
@@ -178,15 +176,18 @@ export function registerProxyHandlers(): void {
 
       const cookies = parseCookies(response.headers)
 
-      // Auto-save to request history
+      // Auto-save to request history (template values, NOT resolved — vault secrets stay out of DB)
       try {
+        const templateBody = config.bodyType === 'form-data' && config.formData
+          ? JSON.stringify(config.formData.filter((e) => e.enabled).map((e) => `${e.key}=${e.value}`).join('&'))
+          : config.body ?? undefined
         historiesRepo.create({
           request_id: requestId,
           method: config.method,
-          url: resolvedUrl,
+          url: config.url,
           status_code: response.status,
-          request_headers: JSON.stringify(resolvedHeaders),
-          request_body: requestBodyForHistory,
+          request_headers: JSON.stringify(config.headers),
+          request_body: templateBody,
           response_body: body,
           response_headers: JSON.stringify(headers),
           duration_ms: Math.round(total),
