@@ -225,11 +225,6 @@ const api = {
       ipcRenderer.on(IPC.MENU_OPEN_SETTINGS, handler)
       return () => ipcRenderer.removeListener(IPC.MENU_OPEN_SETTINGS, handler)
     },
-    menuOpenManual: (callback: () => void): (() => void) => {
-      const handler = (): void => callback()
-      ipcRenderer.on(IPC.MENU_OPEN_MANUAL, handler)
-      return () => ipcRenderer.removeListener(IPC.MENU_OPEN_MANUAL, handler)
-    },
     menuCheckUpdates: (callback: () => void): (() => void) => {
       const handler = (): void => callback()
       ipcRenderer.on(IPC.MENU_CHECK_UPDATES, handler)

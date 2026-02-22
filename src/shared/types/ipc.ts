@@ -110,7 +110,6 @@ export const IPC = {
   MENU_NEW_REQUEST: 'menu:new-request',
   MENU_SAVE_REQUEST: 'menu:save-request',
   MENU_OPEN_SETTINGS: 'menu:open-settings',
-  MENU_OPEN_MANUAL: 'menu:open-manual',
   MENU_CHECK_UPDATES: 'menu:check-updates',
 
   // Auto-update (main→renderer push + renderer→main invoke)

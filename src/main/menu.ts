@@ -127,7 +127,9 @@ export function buildMenu(): void {
         {
           label: 'User Manual',
           accelerator: 'F1',
-          click: (): void => sendToFocused(IPC.MENU_OPEN_MANUAL),
+          click: (): void => {
+            shell.openExternal('https://vaxtly.app/docs/')
+          },
         },
         {
           label: 'Report a Problem...',

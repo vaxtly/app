@@ -125,7 +125,7 @@ function createWindow(): void {
   })
 
   // Open whitelisted external URLs in the system browser, deny everything else
-  const ALLOWED_EXTERNAL_ORIGINS = ['https://github.com/vaxtly/']
+  const ALLOWED_EXTERNAL_ORIGINS = ['https://github.com/vaxtly/', 'https://vaxtly.app/']
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     if (ALLOWED_EXTERNAL_ORIGINS.some((origin) => url.startsWith(origin))) {
       shell.openExternal(url)

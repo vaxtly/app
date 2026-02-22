@@ -48,7 +48,6 @@ let sidebarWidth = $state(244)
 let sidebarMode = $state<SidebarMode>('collections')
 let sidebarSearch = $state('')
 let showSettings = $state(false)
-let showManual = $state(false)
 
 // Per-tab request state cache (reactive object so $derived tracks changes)
 let tabStates = $state<Record<string, TabRequestState>>({})
@@ -211,14 +210,6 @@ function closeSettings(): void {
   showSettings = false
 }
 
-function openManual(): void {
-  showManual = true
-}
-
-function closeManual(): void {
-  showManual = false
-}
-
 function getTabState(tabId: string): TabRequestState | undefined {
   return tabStates[tabId]
 }
@@ -278,7 +269,6 @@ export const appStore = {
   get sidebarMode() { return sidebarMode },
   get sidebarSearch() { return sidebarSearch },
   get showSettings() { return showSettings },
-  get showManual() { return showManual },
 
   setWorkspaces,
   setActiveWorkspace,
@@ -300,8 +290,6 @@ export const appStore = {
   setSidebarSearch,
   openSettings,
   closeSettings,
-  openManual,
-  closeManual,
   getTabState,
   updateTabState,
   markTabSaved,
