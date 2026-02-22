@@ -7,11 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-02-22
+
 ### Added
 - AWS Secrets Manager as alternative secrets provider — configure in Settings > Vault with Region, Profile, or Access Key credentials; supports the same sync workflow as HashiCorp Vault
 
+### Changed
+- In-app manual replaced with browser link to vaxtly.app/docs
+
 ### Fixed
-- "Pull from Vault" button returned stale cached data instead of fetching fresh secrets from Vault — now clears the in-memory cache before fetching
+- "Pull from Vault" button returned stale cached data instead of fetching fresh secrets — now clears the in-memory cache before fetching
 - "Pull from Vault" not generating a session log entry — now logs success/failure with the environment name
 
 ## [0.2.5] - 2026-02-21
