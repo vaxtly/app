@@ -75,7 +75,7 @@
 
         <!-- Name (clickable) -->
         <button
-          onclick={() => onenvironmentclick(env.id)}
+          onclick={() => toggleActive(env.id)}
           class="min-w-0 flex-1 truncate text-left text-[13px] {env.is_active ? 'font-medium' : 'text-surface-300'}"
           style:color={env.is_active ? 'var(--color-success)' : undefined}
         >

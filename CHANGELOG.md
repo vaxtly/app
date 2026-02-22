@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+- Clicking an environment name in the sidebar now toggles it active/inactive (previously only the radio dot did this)
+
 ## [0.3.0] - 2026-02-22
 
 ### Added
