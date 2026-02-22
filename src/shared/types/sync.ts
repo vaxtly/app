@@ -42,6 +42,7 @@ export interface VaultConfig {
   mount?: string
   namespace?: string
   verify_ssl?: boolean
+  aws_auth_method?: 'keys' | 'profile' | 'default'
   aws_region?: string
   aws_profile?: string
 }

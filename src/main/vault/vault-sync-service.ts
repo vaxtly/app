@@ -68,12 +68,20 @@ export async function getProvider(workspaceId?: string): Promise<SecretsProvider
     const region = getVaultSetting('vault.aws_region', workspaceId)
     if (!region) return null
 
+    const authMethod = getVaultSetting('vault.aws_auth_method', workspaceId) as 'keys' | 'profile' | 'default' | undefined
+    if (!authMethod) return null
+
     const accessKeyId = getVaultSetting('vault.aws_access_key_id', workspaceId)
     const secretAccessKey = getVaultSetting('vault.aws_secret_access_key', workspaceId)
     const profile = getVaultSetting('vault.aws_profile', workspaceId)
 
+    // Validate required fields per auth method
+    if (authMethod === 'keys' && (!accessKeyId || !secretAccessKey)) return null
+    if (authMethod === 'profile' && !profile) return null
+
     provider = await AwsSecretsManagerProvider.create({
       region,
+      authMethod,
       accessKeyId: accessKeyId || undefined,
       secretAccessKey: secretAccessKey || undefined,
       profile: profile || undefined,
@@ -105,7 +113,9 @@ export function isConfigured(workspaceId?: string): boolean {
     return !!getVaultSetting('vault.url', workspaceId)
   }
   if (providerType === 'aws') {
-    return !!getVaultSetting('vault.aws_region', workspaceId)
+    const region = getVaultSetting('vault.aws_region', workspaceId)
+    const authMethod = getVaultSetting('vault.aws_auth_method', workspaceId)
+    return !!region && !!authMethod
   }
 
   return false

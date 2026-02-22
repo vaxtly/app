@@ -9,7 +9,7 @@ const PROVIDER_KEYS = new Set([
   'sync.provider', 'sync.repository', 'sync.token', 'sync.branch',
   'vault.provider', 'vault.url', 'vault.token', 'vault.auth_method',
   'vault.role_id', 'vault.secret_id', 'vault.namespace', 'vault.mount', 'vault.verify_ssl',
-  'vault.aws_access_key_id', 'vault.aws_secret_access_key', 'vault.aws_region', 'vault.aws_profile',
+  'vault.aws_auth_method', 'vault.aws_access_key_id', 'vault.aws_secret_access_key', 'vault.aws_region', 'vault.aws_profile',
 ])
 
 /** Internal keys that the renderer must not overwrite */

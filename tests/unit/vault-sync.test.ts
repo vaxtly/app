@@ -62,14 +62,22 @@ describe('isConfigured', () => {
     expect(isConfigured()).toBe(false)
   })
 
-  it('returns true for AWS when region is set', () => {
+  it('returns true for AWS when region and auth method are set', () => {
     settingsRepo.setSetting('vault.provider', 'aws')
     settingsRepo.setSetting('vault.aws_region', 'us-east-1')
+    settingsRepo.setSetting('vault.aws_auth_method', 'keys')
     expect(isConfigured()).toBe(true)
+  })
+
+  it('returns false for AWS without auth method', () => {
+    settingsRepo.setSetting('vault.provider', 'aws')
+    settingsRepo.setSetting('vault.aws_region', 'us-east-1')
+    expect(isConfigured()).toBe(false)
   })
 
   it('returns false for AWS without region', () => {
     settingsRepo.setSetting('vault.provider', 'aws')
+    settingsRepo.setSetting('vault.aws_auth_method', 'default')
     expect(isConfigured()).toBe(false)
   })
 

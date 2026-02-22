@@ -16,8 +16,11 @@ import {
 import type { SecretsProvider } from './secrets-provider.interface'
 import { logVault } from '../services/session-log'
 
+export type AwsAuthMethod = 'keys' | 'profile' | 'default'
+
 export interface AwsSecretsManagerOptions {
   region: string
+  authMethod: AwsAuthMethod
   accessKeyId?: string
   secretAccessKey?: string
   profile?: string
@@ -29,14 +32,20 @@ export class AwsSecretsManagerProvider implements SecretsProvider {
   static async create(opts: AwsSecretsManagerOptions): Promise<AwsSecretsManagerProvider> {
     let credentials: { accessKeyId: string; secretAccessKey: string } | undefined
 
-    if (opts.accessKeyId && opts.secretAccessKey) {
+    if (opts.authMethod === 'keys') {
+      if (!opts.accessKeyId || !opts.secretAccessKey) {
+        throw new Error('Access Key ID and Secret Access Key are required for "Access Keys" auth')
+      }
       credentials = { accessKeyId: opts.accessKeyId, secretAccessKey: opts.secretAccessKey }
-    } else if (opts.profile) {
+    } else if (opts.authMethod === 'profile') {
+      if (!opts.profile) {
+        throw new Error('Profile name is required for "Profile" auth')
+      }
       const { fromIni } = await import('@aws-sdk/credential-providers')
       const resolved = await fromIni({ profile: opts.profile })()
       credentials = { accessKeyId: resolved.accessKeyId, secretAccessKey: resolved.secretAccessKey }
     }
-    // else: SDK default credential chain
+    // else authMethod === 'default': SDK default credential chain
 
     const client = new SecretsManagerClient({
       region: opts.region,

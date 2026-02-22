@@ -92,6 +92,7 @@ function configureAwsVault(workspaceId?: string): void {
     }
   }
   set('vault.provider', 'aws')
+  set('vault.aws_auth_method', 'keys')
   set('vault.aws_region', 'us-east-1')
   set('vault.aws_access_key_id', 'AKIATEST')
   set('vault.aws_secret_access_key', 'testsecret')

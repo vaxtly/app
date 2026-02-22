@@ -40,7 +40,7 @@ describe('testConnection', () => {
   it('returns true on success', async () => {
     mockSend.mockResolvedValueOnce({ SecretList: [] })
 
-    const provider = await AwsSecretsManagerProvider.create({ region: 'us-east-1' })
+    const provider = await AwsSecretsManagerProvider.create({ region: 'us-east-1', authMethod: 'default' })
     const result = await provider.testConnection()
     expect(result).toBe(true)
   })
@@ -48,7 +48,7 @@ describe('testConnection', () => {
   it('returns false on error', async () => {
     mockSend.mockRejectedValueOnce(new Error('Access Denied'))
 
-    const provider = await AwsSecretsManagerProvider.create({ region: 'us-east-1' })
+    const provider = await AwsSecretsManagerProvider.create({ region: 'us-east-1', authMethod: 'default' })
     const result = await provider.testConnection()
     expect(result).toBe(false)
   })
@@ -60,7 +60,7 @@ describe('getSecrets', () => {
       SecretString: JSON.stringify({ DB_HOST: 'localhost', DB_PORT: '5432' }),
     })
 
-    const provider = await AwsSecretsManagerProvider.create({ region: 'us-east-1' })
+    const provider = await AwsSecretsManagerProvider.create({ region: 'us-east-1', authMethod: 'default' })
     const result = await provider.getSecrets('myapp/dev')
     expect(result).toEqual({ DB_HOST: 'localhost', DB_PORT: '5432' })
   })
@@ -68,7 +68,7 @@ describe('getSecrets', () => {
   it('returns null on ResourceNotFoundException', async () => {
     mockSend.mockRejectedValueOnce(new MockResourceNotFoundException('Not found'))
 
-    const provider = await AwsSecretsManagerProvider.create({ region: 'us-east-1' })
+    const provider = await AwsSecretsManagerProvider.create({ region: 'us-east-1', authMethod: 'default' })
     const result = await provider.getSecrets('nonexistent')
     expect(result).toBeNull()
   })
@@ -76,7 +76,7 @@ describe('getSecrets', () => {
   it('returns null when SecretString is empty', async () => {
     mockSend.mockResolvedValueOnce({ SecretString: undefined })
 
-    const provider = await AwsSecretsManagerProvider.create({ region: 'us-east-1' })
+    const provider = await AwsSecretsManagerProvider.create({ region: 'us-east-1', authMethod: 'default' })
     const result = await provider.getSecrets('binary-secret')
     expect(result).toBeNull()
   })
@@ -86,7 +86,7 @@ describe('putSecrets', () => {
   it('uses PutSecretValue for existing secret', async () => {
     mockSend.mockResolvedValueOnce({})
 
-    const provider = await AwsSecretsManagerProvider.create({ region: 'us-east-1' })
+    const provider = await AwsSecretsManagerProvider.create({ region: 'us-east-1', authMethod: 'default' })
     await provider.putSecrets('myapp/dev', { KEY: 'value' })
 
     expect(mockSend).toHaveBeenCalledTimes(1)
@@ -98,7 +98,7 @@ describe('putSecrets', () => {
       .mockRejectedValueOnce(new MockResourceNotFoundException('Not found'))
       .mockResolvedValueOnce({})
 
-    const provider = await AwsSecretsManagerProvider.create({ region: 'us-east-1' })
+    const provider = await AwsSecretsManagerProvider.create({ region: 'us-east-1', authMethod: 'default' })
     await provider.putSecrets('new-secret', { KEY: 'value' })
 
     expect(mockSend).toHaveBeenCalledTimes(2)
@@ -111,7 +111,7 @@ describe('deleteSecrets', () => {
   it('deletes with ForceDeleteWithoutRecovery', async () => {
     mockSend.mockResolvedValueOnce({})
 
-    const provider = await AwsSecretsManagerProvider.create({ region: 'us-east-1' })
+    const provider = await AwsSecretsManagerProvider.create({ region: 'us-east-1', authMethod: 'default' })
     await provider.deleteSecrets('myapp/dev')
 
     expect(mockSend).toHaveBeenCalledTimes(1)
@@ -121,7 +121,7 @@ describe('deleteSecrets', () => {
   it('ignores ResourceNotFoundException', async () => {
     mockSend.mockRejectedValueOnce(new MockResourceNotFoundException('Not found'))
 
-    const provider = await AwsSecretsManagerProvider.create({ region: 'us-east-1' })
+    const provider = await AwsSecretsManagerProvider.create({ region: 'us-east-1', authMethod: 'default' })
     // Should not throw
     await provider.deleteSecrets('nonexistent')
   })
@@ -134,7 +134,7 @@ describe('listSecrets', () => {
       NextToken: undefined,
     })
 
-    const provider = await AwsSecretsManagerProvider.create({ region: 'us-east-1' })
+    const provider = await AwsSecretsManagerProvider.create({ region: 'us-east-1', authMethod: 'default' })
     const result = await provider.listSecrets()
     expect(result).toEqual(['secret-1', 'secret-2'])
   })
@@ -150,7 +150,7 @@ describe('listSecrets', () => {
         NextToken: undefined,
       })
 
-    const provider = await AwsSecretsManagerProvider.create({ region: 'us-east-1' })
+    const provider = await AwsSecretsManagerProvider.create({ region: 'us-east-1', authMethod: 'default' })
     const result = await provider.listSecrets()
     expect(result).toEqual(['page-1', 'page-2'])
     expect(mockSend).toHaveBeenCalledTimes(2)
@@ -162,7 +162,7 @@ describe('listSecrets', () => {
       NextToken: undefined,
     })
 
-    const provider = await AwsSecretsManagerProvider.create({ region: 'us-east-1' })
+    const provider = await AwsSecretsManagerProvider.create({ region: 'us-east-1', authMethod: 'default' })
     await provider.listSecrets('prod')
 
     // Verify filter was passed
@@ -172,9 +172,10 @@ describe('listSecrets', () => {
 })
 
 describe('create() credential variants', () => {
-  it('uses explicit credentials when provided', async () => {
+  it('uses explicit credentials with authMethod=keys', async () => {
     const provider = await AwsSecretsManagerProvider.create({
       region: 'us-east-1',
+      authMethod: 'keys',
       accessKeyId: 'AKIATEST',
       secretAccessKey: 'secret123',
     })
@@ -182,22 +183,36 @@ describe('create() credential variants', () => {
     expect(mockFromIni).not.toHaveBeenCalled()
   })
 
-  it('uses fromIni when profile is provided', async () => {
+  it('throws when authMethod=keys but credentials missing', async () => {
+    await expect(
+      AwsSecretsManagerProvider.create({ region: 'us-east-1', authMethod: 'keys' }),
+    ).rejects.toThrow('Access Key ID and Secret Access Key are required')
+  })
+
+  it('uses fromIni with authMethod=profile', async () => {
     mockFromIni.mockReturnValue(() =>
       Promise.resolve({ accessKeyId: 'PROFILE_KEY', secretAccessKey: 'PROFILE_SECRET' }),
     )
 
     const provider = await AwsSecretsManagerProvider.create({
       region: 'us-west-2',
+      authMethod: 'profile',
       profile: 'my-profile',
     })
     expect(provider).toBeInstanceOf(AwsSecretsManagerProvider)
     expect(mockFromIni).toHaveBeenCalledWith({ profile: 'my-profile' })
   })
 
-  it('uses default credential chain when nothing provided', async () => {
+  it('throws when authMethod=profile but profile name missing', async () => {
+    await expect(
+      AwsSecretsManagerProvider.create({ region: 'us-east-1', authMethod: 'profile' }),
+    ).rejects.toThrow('Profile name is required')
+  })
+
+  it('uses default credential chain with authMethod=default', async () => {
     const provider = await AwsSecretsManagerProvider.create({
       region: 'eu-west-1',
+      authMethod: 'default',
     })
     expect(provider).toBeInstanceOf(AwsSecretsManagerProvider)
     expect(mockFromIni).not.toHaveBeenCalled()

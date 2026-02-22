@@ -488,22 +488,20 @@
             </p>
             <ul class="list">
               <li><strong>Region</strong> — The AWS region where your secrets are stored (e.g. <code>us-east-1</code>, <code>eu-west-1</code>, <code>ap-southeast-1</code>). You can find this in the AWS Console URL bar or in your AWS CLI config. If you are unsure, check your AWS Console: open Secrets Manager and look at the region name in the top-right corner of the page.</li>
-              <li><strong>Profile</strong> — <em>Optional.</em> The name of an AWS CLI named profile from your <code>~/.aws/credentials</code> file. Use this if you have multiple AWS accounts configured on your machine. Leave empty to use the default credential chain (environment variables, default profile, or EC2/ECS instance role).</li>
-              <li><strong>Access Key ID</strong> — <em>Optional.</em> An IAM access key ID (starts with <code>AKIA</code>). Only needed if you want to authenticate with static credentials instead of a profile or the default credential chain.</li>
-              <li><strong>Secret Access Key</strong> — <em>Optional.</em> The secret access key that pairs with the Access Key ID above.</li>
+              <li><strong>Authentication</strong> — Choose one of three methods:
+                <ul class="list" style="margin-top: 4px;">
+                  <li><strong>Access Keys</strong> — Paste an IAM Access Key ID (starts with <code>AKIA</code>) and its Secret Access Key. Best for quick setup or CI/headless environments.</li>
+                  <li><strong>Profile</strong> — Enter the name of an AWS CLI named profile from your <code>~/.aws/credentials</code> file (e.g. <code>default</code>, <code>production</code>). Best if you already have the AWS CLI configured.</li>
+                  <li><strong>Default Chain</strong> — Uses the AWS SDK default credential chain: environment variables (<code>AWS_ACCESS_KEY_ID</code>, <code>AWS_SECRET_ACCESS_KEY</code>), the default profile in <code>~/.aws/credentials</code>, or EC2/ECS instance roles. Best for server deployments or when credentials are managed externally.</li>
+                </ul>
+              </li>
               <li><strong>Auto Sync</strong> — When enabled, automatically pulls secrets from AWS on application startup.</li>
             </ul>
 
             <div class="note">
-              <strong>How authentication works:</strong> Vaxtly tries credentials in this order:
-              (1) If you provide an <strong>Access Key ID</strong> and <strong>Secret Access Key</strong>,
-              those are used directly.
-              (2) If you provide a <strong>Profile</strong> name, Vaxtly reads that profile from your
-              <code>~/.aws/credentials</code> file.
-              (3) If you leave all three empty, Vaxtly uses the AWS SDK default credential chain, which
-              checks environment variables (<code>AWS_ACCESS_KEY_ID</code>, <code>AWS_SECRET_ACCESS_KEY</code>),
-              the default profile in <code>~/.aws/credentials</code>, and EC2/ECS instance roles.
-              You only need to fill in one of these three methods.
+              <strong>Important:</strong> You must explicitly select an authentication method and fill in
+              its required fields before Vaxtly will attempt to connect to AWS. Simply browsing this settings
+              page does not trigger any AWS calls.
             </div>
 
             <h4 class="subsection-title">Step-by-Step: Creating an AWS IAM User for Vaxtly</h4>
@@ -523,7 +521,8 @@
             <ul class="list">
               <li><strong>5.</strong> Name the policy (e.g. <code>VaxtlySecretsManagerAccess</code>), create it, then go back and attach it to your new user.</li>
               <li><strong>6.</strong> On the user summary page, go to <strong>Security credentials &rarr; Create access key</strong>. Choose <strong>Application running outside AWS</strong>.</li>
-              <li><strong>7.</strong> Copy the <strong>Access Key ID</strong> and <strong>Secret Access Key</strong> and paste them into Vaxtly's settings.</li>
+              <li><strong>7.</strong> Copy the <strong>Access Key ID</strong> and <strong>Secret Access Key</strong>.</li>
+              <li><strong>8.</strong> In Vaxtly &rarr; Settings &rarr; Vault, select <strong>AWS Secrets Manager</strong>, choose <strong>Access Keys</strong> as the authentication method, and paste your credentials.</li>
             </ul>
             <div class="tip">
               <strong>Tip:</strong> To restrict access to specific secrets instead of all secrets,
@@ -541,16 +540,15 @@
               <li><strong>1.</strong> Open a terminal and run <code>aws configure list-profiles</code> to see your available profiles.</li>
               <li><strong>2.</strong> Pick the profile that has access to Secrets Manager (or use <code>default</code>).</li>
               <li><strong>3.</strong> In Vaxtly &rarr; Settings &rarr; Vault, select <strong>AWS Secrets Manager</strong> as the provider.</li>
-              <li><strong>4.</strong> Enter the <strong>Region</strong> (e.g. <code>us-east-1</code>) and type the profile name in the <strong>Profile</strong> field.</li>
-              <li><strong>5.</strong> Leave <strong>Access Key ID</strong> and <strong>Secret Access Key</strong> empty.</li>
+              <li><strong>4.</strong> Enter the <strong>Region</strong> (e.g. <code>us-east-1</code>).</li>
+              <li><strong>5.</strong> Choose <strong>Profile</strong> as the authentication method and type the profile name.</li>
               <li><strong>6.</strong> Click <strong>Test Connection</strong>. If it succeeds, click <strong>Save</strong>.</li>
             </ul>
             <div class="note">
-              <strong>Note:</strong> If you leave the <strong>Profile</strong> field empty and don't
-              provide access keys, Vaxtly will use the AWS SDK default credential chain. This works
-              automatically if you have a <code>default</code> profile in <code>~/.aws/credentials</code>
-              or if you set the <code>AWS_ACCESS_KEY_ID</code> and <code>AWS_SECRET_ACCESS_KEY</code>
-              environment variables before launching Vaxtly.
+              <strong>Note:</strong> If your credentials come from environment variables or a
+              <code>default</code> profile, choose <strong>Default Chain</strong> as the authentication
+              method instead. Vaxtly will not attempt to connect to AWS unless you explicitly choose
+              an authentication method.
             </div>
 
             <h4 class="subsection-title">Step-by-Step: Creating Your First Secret in AWS</h4>

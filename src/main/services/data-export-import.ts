@@ -323,6 +323,7 @@ function importConfig(config: Record<string, Record<string, unknown>>, workspace
       if (vault.mount !== undefined) set('vault.mount', String(vault.mount))
       if (vault.verify_ssl !== undefined) set('vault.verify_ssl', vault.verify_ssl ? '1' : '0')
       if (vault.auto_sync !== undefined) set('vault.auto_sync', vault.auto_sync ? '1' : '0')
+      if (vault.aws_auth_method) set('vault.aws_auth_method', String(vault.aws_auth_method))
       if (vault.aws_region) set('vault.aws_region', String(vault.aws_region))
       if (vault.aws_profile) set('vault.aws_profile', String(vault.aws_profile))
     }
@@ -431,6 +432,7 @@ function buildConfigData(workspaceId?: string): { remote: Record<string, unknown
       mount: get('vault.mount') ?? 'secret',
       verify_ssl: get('vault.verify_ssl') !== '0',
       auto_sync: get('vault.auto_sync') !== '0',
+      aws_auth_method: get('vault.aws_auth_method') ?? '',
       aws_region: get('vault.aws_region') ?? '',
       aws_profile: get('vault.aws_profile') ?? '',
     },

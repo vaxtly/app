@@ -16,6 +16,7 @@
   let verifySsl = $state(true)
 
   // AWS fields
+  let awsAuthMethod = $state<'keys' | 'profile' | 'default'>('keys')
   let awsRegion = $state('us-east-1')
   let awsProfile = $state('')
   let awsAccessKeyId = $state('')
@@ -65,7 +66,7 @@
       hasWorkspaceConfig = false
     }
 
-    const [p, u, am, t, ri, si, ns, ep, vs, as_, ar, ap, aak, asak] = await Promise.all([
+    const [p, u, am, t, ri, si, ns, ep, vs, as_, aam, ar, ap, aak, asak] = await Promise.all([
       getSetting('vault.provider'),
       getSetting('vault.url'),
       getSetting('vault.auth_method'),
@@ -76,6 +77,7 @@
       getSetting('vault.mount'),
       getSetting('vault.verify_ssl'),
       getSetting('vault.auto_sync'),
+      getSetting('vault.aws_auth_method'),
       getSetting('vault.aws_region'),
       getSetting('vault.aws_profile'),
       getSetting('vault.aws_access_key_id'),
@@ -92,6 +94,8 @@
     enginePath = ep ?? 'secret'
     verifySsl = vs !== 'false' && vs !== '0'
     autoSync = as_ === 'true' || as_ === '1'
+    if (aam === 'keys' || aam === 'profile' || aam === 'default') awsAuthMethod = aam
+    else awsAuthMethod = 'keys'
     awsRegion = ar || 'us-east-1'
     awsProfile = ap ?? ''
     awsAccessKeyId = aak ?? ''
@@ -120,11 +124,17 @@
         )
       } else {
         promises.push(
+          setSetting('vault.aws_auth_method', awsAuthMethod),
           setSetting('vault.aws_region', awsRegion),
-          setSetting('vault.aws_profile', awsProfile),
-          setSetting('vault.aws_access_key_id', awsAccessKeyId),
-          setSetting('vault.aws_secret_access_key', awsSecretAccessKey),
         )
+        if (awsAuthMethod === 'keys') {
+          promises.push(
+            setSetting('vault.aws_access_key_id', awsAccessKeyId),
+            setSetting('vault.aws_secret_access_key', awsSecretAccessKey),
+          )
+        } else if (awsAuthMethod === 'profile') {
+          promises.push(setSetting('vault.aws_profile', awsProfile))
+        }
       }
 
       await Promise.all(promises)
@@ -364,54 +374,84 @@
         <Toggle checked={verifySsl} onchange={toggleSsl} />
       </div>
     {:else}
-      <!-- AWS: Region + Profile -->
-      <div class="field-row">
-        <div class="field-group">
-          <span class="field-label">Region</span>
-          <input
-            type="text"
-            value={awsRegion}
-            oninput={(e) => { awsRegion = (e.target as HTMLInputElement).value }}
-            placeholder="us-east-1"
-            class="text-input"
-          />
+      <!-- AWS: Region -->
+      <div class="field-group">
+        <span class="field-label">Region</span>
+        <input
+          type="text"
+          value={awsRegion}
+          oninput={(e) => { awsRegion = (e.target as HTMLInputElement).value }}
+          placeholder="us-east-1"
+          class="text-input"
+        />
+      </div>
+
+      <!-- AWS: Auth Method -->
+      <div class="setting-row">
+        <div class="setting-info">
+          <span class="setting-label">Authentication</span>
         </div>
+        <div class="auth-picker">
+          <button
+            class="auth-option"
+            class:is-active={awsAuthMethod === 'keys'}
+            onclick={() => { awsAuthMethod = 'keys' }}
+          >Access Keys</button>
+          <button
+            class="auth-option"
+            class:is-active={awsAuthMethod === 'profile'}
+            onclick={() => { awsAuthMethod = 'profile' }}
+          >Profile</button>
+          <button
+            class="auth-option"
+            class:is-active={awsAuthMethod === 'default'}
+            onclick={() => { awsAuthMethod = 'default' }}
+          >Default Chain</button>
+        </div>
+      </div>
+
+      <!-- Conditional auth fields -->
+      {#if awsAuthMethod === 'keys'}
+        <div class="field-row">
+          <div class="field-group">
+            <span class="field-label">Access Key ID</span>
+            <input
+              type="password"
+              value={awsAccessKeyId}
+              oninput={(e) => { awsAccessKeyId = (e.target as HTMLInputElement).value }}
+              placeholder="AKIA..."
+              class="text-input"
+            />
+          </div>
+          <div class="field-group">
+            <span class="field-label">Secret Access Key</span>
+            <input
+              type="password"
+              value={awsSecretAccessKey}
+              oninput={(e) => { awsSecretAccessKey = (e.target as HTMLInputElement).value }}
+              placeholder="wJalrXUtnFEMI..."
+              class="text-input"
+            />
+          </div>
+        </div>
+      {:else if awsAuthMethod === 'profile'}
         <div class="field-group">
           <span class="field-label">Profile</span>
           <input
             type="text"
             value={awsProfile}
             oninput={(e) => { awsProfile = (e.target as HTMLInputElement).value }}
-            placeholder="Optional — uses default chain if empty"
+            placeholder="default"
             class="text-input"
           />
-          <span class="field-hint">Named profile from ~/.aws/credentials. Leave empty for default credential chain.</span>
+          <span class="field-hint">Named profile from ~/.aws/credentials (e.g. "default", "production").</span>
         </div>
-      </div>
-
-      <!-- AWS: Access Key ID + Secret Access Key -->
-      <div class="field-row">
-        <div class="field-group">
-          <span class="field-label">Access Key ID</span>
-          <input
-            type="password"
-            value={awsAccessKeyId}
-            oninput={(e) => { awsAccessKeyId = (e.target as HTMLInputElement).value }}
-            placeholder="AKIA..."
-            class="text-input"
-          />
+      {:else}
+        <div class="field-hint" style="padding: 4px 0;">
+          Uses environment variables (<code>AWS_ACCESS_KEY_ID</code>, <code>AWS_SECRET_ACCESS_KEY</code>),
+          the default profile in <code>~/.aws/credentials</code>, or EC2/ECS instance roles.
         </div>
-        <div class="field-group">
-          <span class="field-label">Secret Access Key</span>
-          <input
-            type="password"
-            value={awsSecretAccessKey}
-            oninput={(e) => { awsSecretAccessKey = (e.target as HTMLInputElement).value }}
-            placeholder="Optional — uses profile or default chain if empty"
-            class="text-input"
-          />
-        </div>
-      </div>
+      {/if}
     {/if}
 
     <div class="setting-row last">
