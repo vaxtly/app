@@ -167,6 +167,18 @@
     if (state.body_type === 'form-data') {
       formDataEntries = formData.filter((e) => e.key.trim())
       bodyContent = undefined
+    } else if (state.body_type === 'urlencoded' && bodyContent) {
+      // Body is stored as JSON entries; serialize enabled ones to URLSearchParams
+      try {
+        const entries: KeyValueEntry[] = JSON.parse(bodyContent)
+        const params = new URLSearchParams()
+        for (const e of entries) {
+          if (e.enabled && e.key.trim()) params.append(e.key, e.value)
+        }
+        bodyContent = params.toString()
+      } catch {
+        // Legacy URLSearchParams format — pass through as-is
+      }
     } else if (state.body_type === 'graphql') {
       // Wrap query + variables as JSON
       bodyContent = JSON.stringify({ query: state.body ?? '', variables: {} })

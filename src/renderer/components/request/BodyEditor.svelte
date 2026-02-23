@@ -113,9 +113,16 @@
     }
   }
 
-  // Convert form data to URL-encoded key-value entries for the KeyValueEditor
+  // Convert body to URL-encoded key-value entries for the KeyValueEditor.
+  // Body is stored as a JSON array of KeyValueEntry (same as form-data).
   let urlencodedEntries = $derived.by(() => {
     if (bodyType !== 'urlencoded') return []
+    if (!body) return [{ key: '', value: '', enabled: true }]
+    // Try JSON array first (supports enabled/disabled state)
+    try {
+      const parsed = JSON.parse(body)
+      if (Array.isArray(parsed)) return parsed as KeyValueEntry[]
+    } catch { /* not JSON — try legacy URLSearchParams format */ }
     try {
       const params = new URLSearchParams(body)
       const entries: KeyValueEntry[] = []
@@ -130,13 +137,7 @@
   })
 
   function handleUrlencodedChange(entries: KeyValueEntry[]): void {
-    const params = new URLSearchParams()
-    for (const e of entries) {
-      if (e.enabled) {
-        params.append(e.key, e.value)
-      }
-    }
-    onbodychange(params.toString())
+    onbodychange(JSON.stringify(entries))
   }
 </script>
 

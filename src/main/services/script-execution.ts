@@ -160,13 +160,23 @@ async function executeHttpRequest(
   let body: string | undefined
   if (request.body && request.body_type !== 'none') {
     if (request.body_type === 'urlencoded') {
-      // Parse URL-encoded params, substitute variables in decoded key/values, re-encode
-      const params = new URLSearchParams(request.body)
-      const resolved = new URLSearchParams()
-      for (const [k, v] of params) {
-        resolved.append(sub(k), sub(v))
+      // Body is stored as JSON entries array; serialize enabled ones to URLSearchParams
+      try {
+        const entries: { key: string; value: string; enabled: boolean }[] = JSON.parse(request.body)
+        const params = new URLSearchParams()
+        for (const e of entries) {
+          if (e.enabled && e.key.trim()) params.append(sub(e.key), sub(e.value))
+        }
+        body = params.toString()
+      } catch {
+        // Fallback: legacy URLSearchParams format
+        const params = new URLSearchParams(request.body)
+        const resolved = new URLSearchParams()
+        for (const [k, v] of params) {
+          resolved.append(sub(k), sub(v))
+        }
+        body = resolved.toString()
       }
-      body = resolved.toString()
     } else if (request.body_type === 'graphql') {
       body = JSON.stringify({ query: sub(request.body) })
     } else {

@@ -18,23 +18,16 @@
   }
 
   function rebuildUrl(entries: KeyValueEntry[]): void {
-    try {
-      const urlObj = new URL(url || 'http://placeholder')
-      urlObj.search = ''
-      for (const entry of entries) {
-        if (entry.enabled && entry.key.trim()) {
-          urlObj.searchParams.append(entry.key, entry.value)
-        }
+    if (!url) return
+    const base = url.split('?')[0]
+    const search = new URLSearchParams()
+    for (const entry of entries) {
+      if (entry.enabled && entry.key.trim()) {
+        search.append(entry.key, entry.value)
       }
-      // Only update if URL was valid
-      if (url) {
-        const base = url.split('?')[0]
-        const qs = urlObj.search
-        onurlchange(base + qs)
-      }
-    } catch {
-      // URL might be partial/invalid — don't try to reconstruct
     }
+    const qs = search.toString()
+    onurlchange(qs ? `${base}?${qs}` : base)
   }
 </script>
 
