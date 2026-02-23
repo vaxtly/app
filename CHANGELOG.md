@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ### Fixed
 - URL-encoded body rows deleted instead of disabled when unchecking — now stores entries as JSON to preserve enabled/disabled state
 - Query params not syncing to the URL bar or being sent in requests when the URL contains template variables or non-standard formats
+- "Check for Updates" menu action giving no feedback — now shows toast notifications for checking, up-to-date, and error states
+- Snap installs not detected as package-managed — prevented auto-download and shows `sudo snap refresh vaxtly` in the update banner
 
 ## [0.3.1] - 2026-02-22
 

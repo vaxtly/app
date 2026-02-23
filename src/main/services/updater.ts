@@ -13,9 +13,17 @@ function isScoopInstall(): boolean {
   return app.getPath('exe').toLowerCase().includes('scoop\\apps')
 }
 
-export function getInstallSource(): 'brew' | 'scoop' | 'standalone' {
+function isSnapInstall(): boolean {
+  if (process.platform !== 'linux') return false
+  return app.getPath('exe').startsWith('/snap/')
+}
+
+export type InstallSource = 'brew' | 'scoop' | 'snap' | 'standalone'
+
+export function getInstallSource(): InstallSource {
   if (process.platform === 'darwin') return 'brew'
   if (isScoopInstall()) return 'scoop'
+  if (isSnapInstall()) return 'snap'
   return 'standalone'
 }
 
@@ -31,6 +39,10 @@ export function initUpdater(): void {
       version: info.version,
       releaseName: info.releaseName ?? `v${info.version}`,
     })
+  })
+
+  autoUpdater.on('update-not-available', () => {
+    pushToAllWindows(IPC.UPDATE_NOT_AVAILABLE)
   })
 
   autoUpdater.on('download-progress', (progress) => {

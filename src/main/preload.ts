@@ -172,7 +172,7 @@ const api = {
       ipcRenderer.invoke(IPC.UPDATE_CHECK),
     install: (): Promise<void> =>
       ipcRenderer.invoke(IPC.UPDATE_INSTALL),
-    installSource: (): Promise<'brew' | 'scoop' | 'standalone'> =>
+    installSource: (): Promise<'brew' | 'scoop' | 'snap' | 'standalone'> =>
       ipcRenderer.invoke(IPC.UPDATE_INSTALL_SOURCE),
   },
 
@@ -236,6 +236,11 @@ const api = {
       }
       ipcRenderer.on(IPC.UPDATE_AVAILABLE, handler)
       return () => ipcRenderer.removeListener(IPC.UPDATE_AVAILABLE, handler)
+    },
+    updateNotAvailable: (callback: () => void): (() => void) => {
+      const handler = (): void => callback()
+      ipcRenderer.on(IPC.UPDATE_NOT_AVAILABLE, handler)
+      return () => ipcRenderer.removeListener(IPC.UPDATE_NOT_AVAILABLE, handler)
     },
     updateProgress: (callback: (data: { percent: number }) => void): (() => void) => {
       const handler = (_event: Electron.IpcRendererEvent, data: { percent: number }): void => {

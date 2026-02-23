@@ -25,7 +25,8 @@
   let updateDownloaded = $state(false)
   let updateProgress: number | null = $state(null)
   let updateDismissed = $state(false)
-  let installSource: 'brew' | 'scoop' | 'standalone' = $state('standalone')
+  let installSource: 'brew' | 'scoop' | 'snap' | 'standalone' = $state('standalone')
+  let menuUpdateCheck = $state(false)
 
   function dismissUpdate(): void {
     updateDismissed = true
@@ -34,7 +35,8 @@
   let copyLabel = $state('Copy command')
 
   async function copyUpdateCommand(): Promise<void> {
-    const cmd = installSource === 'brew' ? 'brew upgrade vaxtly' : 'scoop update vaxtly'
+    const cmds: Record<string, string> = { brew: 'brew upgrade vaxtly', scoop: 'scoop update vaxtly', snap: 'sudo snap refresh vaxtly' }
+    const cmd = cmds[installSource] ?? 'brew upgrade vaxtly'
     try {
       await navigator.clipboard.writeText(cmd)
       copyLabel = 'Copied!'
@@ -270,10 +272,21 @@
       window.api.on.menuNewRequest(handleNewRequest),
       window.api.on.menuSaveRequest(handleSave),
       window.api.on.menuOpenSettings(() => appStore.openSettings()),
-      window.api.on.menuCheckUpdates(() => window.api.updater.check()),
+      window.api.on.menuCheckUpdates(() => {
+        menuUpdateCheck = true
+        toastsStore.addToast('update', 'Checking for updates…')
+        window.api.updater.check()
+      }),
       window.api.on.updateAvailable((data) => {
+        if (menuUpdateCheck) menuUpdateCheck = false
         updateAvailable = data
         updateDismissed = false
+      }),
+      window.api.on.updateNotAvailable(() => {
+        if (menuUpdateCheck) {
+          toastsStore.addToast('update', 'You\'re on the latest version')
+          menuUpdateCheck = false
+        }
       }),
       window.api.on.updateProgress((data) => {
         updateProgress = data.percent
@@ -282,8 +295,11 @@
         updateDownloaded = true
         updateProgress = null
       }),
-      window.api.on.updateError(() => {
-        // Silently ignore update errors — don't disrupt the user
+      window.api.on.updateError((message) => {
+        if (menuUpdateCheck) {
+          toastsStore.addToast('update', `Update check failed: ${message}`)
+          menuUpdateCheck = false
+        }
       }),
       // Surface vault/git failures as toast notifications
       window.api.on.logPush((entry) => {
@@ -357,17 +373,11 @@
   {#if updateAvailable && !updateDismissed}
     {@const isMac = window.navigator.userAgent.includes('Macintosh')}
     <div class="update-banner" style={isMac ? 'padding-left: 78px' : ''}>
-      {#if installSource === 'brew'}
+      {#if installSource === 'brew' || installSource === 'scoop' || installSource === 'snap'}
+        {@const cmd = installSource === 'brew' ? 'brew upgrade vaxtly' : installSource === 'scoop' ? 'scoop update vaxtly' : 'sudo snap refresh vaxtly'}
         <span class="update-text">
           Vaxtly v{updateAvailable.version} is available — run
-          <code class="update-code">brew upgrade vaxtly</code>
-          to update
-        </span>
-        <button class="update-btn" onclick={copyUpdateCommand}>{copyLabel}</button>
-      {:else if installSource === 'scoop'}
-        <span class="update-text">
-          Vaxtly v{updateAvailable.version} is available — run
-          <code class="update-code">scoop update vaxtly</code>
+          <code class="update-code">{cmd}</code>
           to update
         </span>
         <button class="update-btn" onclick={copyUpdateCommand}>{copyLabel}</button>

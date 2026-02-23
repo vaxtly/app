@@ -5,7 +5,7 @@
 
 export interface Toast {
   id: string
-  category: 'sync' | 'vault'
+  category: 'sync' | 'vault' | 'update'
   message: string
   timestamp: number
 }

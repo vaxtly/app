@@ -20,6 +20,10 @@
         availableVersion = data.version
         dispose()
       }),
+      window.api.on.updateNotAvailable(() => {
+        updateStatus = 'up-to-date'
+        dispose()
+      }),
       window.api.on.updateError(() => {
         updateStatus = 'error'
         dispose()
@@ -29,7 +33,7 @@
       cleanups.forEach((fn) => fn())
     }
 
-    // Timeout: if no event within 15s, assume up-to-date
+    // Safety timeout in case no event fires at all
     const timer = setTimeout(() => {
       if (updateStatus === 'checking') {
         updateStatus = 'up-to-date'
