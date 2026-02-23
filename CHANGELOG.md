@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.3.2] - 2026-02-23
+
 ### Fixed
 - URL-encoded body rows deleted instead of disabled when unchecking — now stores entries as JSON to preserve enabled/disabled state
 - Query params not syncing to the URL bar or being sent in requests when the URL contains template variables or non-standard formats
