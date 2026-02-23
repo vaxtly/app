@@ -11,14 +11,25 @@
 import type { FileContent } from '../../shared/types/sync'
 import type { GitProvider, DirectoryItem } from './git-provider.interface'
 
-const GITHUB_API = 'https://api.github.com'
+const GITHUB_API_DEFAULT = 'https://api.github.com'
 
 export class GitHubProvider implements GitProvider {
+  private apiBase: string
+
   constructor(
     private repository: string,
     private token: string,
     private branch: string = 'main',
-  ) {}
+    baseUrl?: string,
+  ) {
+    // Normalize: treat github.com as default, GitHub Enterprise uses {baseUrl}/api/v3
+    const normalized = baseUrl?.replace(/\/+$/, '')
+    if (!normalized || /^https?:\/\/(www\.)?github\.com$/i.test(normalized)) {
+      this.apiBase = GITHUB_API_DEFAULT
+    } else {
+      this.apiBase = `${normalized}/api/v3`
+    }
+  }
 
   async listFiles(path: string): Promise<FileContent[]> {
     const response = await this.request(`/repos/${this.repository}/contents/${path}?ref=${this.branch}`)
@@ -234,7 +245,7 @@ export class GitHubProvider implements GitProvider {
   }
 
   private async request(path: string, options: RequestInit = {}): Promise<Response> {
-    const url = path.startsWith('http') ? path : `${GITHUB_API}${path}`
+    const url = path.startsWith('http') ? path : `${this.apiBase}${path}`
 
     const controller = new AbortController()
     const timeout = setTimeout(() => controller.abort(), 30000)

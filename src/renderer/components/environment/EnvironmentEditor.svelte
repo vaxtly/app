@@ -7,9 +7,10 @@
   interface Props {
     tabId: string
     environmentId: string
+    isActive?: boolean
   }
 
-  let { tabId, environmentId }: Props = $props()
+  let { tabId, environmentId, isActive = false }: Props = $props()
 
   let environment = $derived(environmentsStore.getById(environmentId))
   let name = $state('')
@@ -110,7 +111,7 @@
 
   async function toggleActive(): Promise<void> {
     if (!environment) return
-    if (environment.is_active) {
+    if (isActive) {
       await environmentsStore.deactivate(environmentId)
     } else {
       await environmentsStore.activate(environmentId, appStore.activeWorkspaceId ?? undefined)
@@ -193,11 +194,11 @@
       <div class="env-bar-inner flex min-w-0 flex-1 items-center overflow-hidden rounded-xl transition-colors duration-150" style="border: 1px solid var(--glass-border); background: var(--tint-muted)">
         <!-- Active/Inactive toggle -->
         <button
-          class="env-toggle-btn flex h-[38px] shrink-0 cursor-pointer items-center gap-2 border-0 border-r border-solid px-3.5 outline-none transition-all duration-150 {environment.is_active ? 'text-success' : 'text-surface-400'}"
+          class="env-toggle-btn flex h-[38px] shrink-0 cursor-pointer items-center gap-2 border-0 border-r border-solid px-3.5 outline-none transition-all duration-150 {isActive ? 'text-success' : 'text-surface-400'}"
           onclick={toggleActive}
         >
-          <span class="h-1.5 w-1.5 shrink-0 rounded-full transition-all duration-200 {environment.is_active ? 'env-status-led--active bg-success' : 'bg-surface-600'}"></span>
-          <span class="text-xs font-bold font-mono tracking-wide whitespace-nowrap" style="font-feature-settings: var(--font-feature-mono)">{environment.is_active ? 'Active' : 'Inactive'}</span>
+          <span class="h-1.5 w-1.5 shrink-0 rounded-full transition-all duration-200 {isActive ? 'env-status-led--active bg-success' : 'bg-surface-600'}"></span>
+          <span class="text-xs font-bold font-mono tracking-wide whitespace-nowrap" style="font-feature-settings: var(--font-feature-mono)">{isActive ? 'Active' : 'Inactive'}</span>
         </button>
 
         <!-- Name input -->

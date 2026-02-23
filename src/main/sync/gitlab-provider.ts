@@ -9,17 +9,26 @@
 import type { FileContent } from '../../shared/types/sync'
 import type { GitProvider, DirectoryItem } from './git-provider.interface'
 
-const GITLAB_API = 'https://gitlab.com/api/v4'
+const GITLAB_API_DEFAULT = 'https://gitlab.com/api/v4'
 
 export class GitLabProvider implements GitProvider {
   private projectId: string
+  private apiBase: string
 
   constructor(
     private repository: string,
     private token: string,
     private branch: string = 'main',
+    baseUrl?: string,
   ) {
     this.projectId = encodeURIComponent(this.repository)
+    // Normalize: treat gitlab.com as default, self-hosted uses {baseUrl}/api/v4
+    const normalized = baseUrl?.replace(/\/+$/, '')
+    if (!normalized || /^https?:\/\/(www\.)?gitlab\.com$/i.test(normalized)) {
+      this.apiBase = GITLAB_API_DEFAULT
+    } else {
+      this.apiBase = `${normalized}/api/v4`
+    }
   }
 
   async listFiles(path: string): Promise<FileContent[]> {
@@ -229,7 +238,7 @@ export class GitLabProvider implements GitProvider {
   }
 
   private async request(path: string, options: RequestInit = {}): Promise<Response> {
-    const url = `${GITLAB_API}${path}`
+    const url = `${this.apiBase}${path}`
 
     const controller = new AbortController()
     const timeout = setTimeout(() => controller.abort(), 30000)

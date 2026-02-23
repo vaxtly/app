@@ -41,14 +41,15 @@ export function getProvider(workspaceId?: string): GitProvider | null {
   const repository = getSetting('sync.repository', workspaceId)
   const token = getSetting('sync.token', workspaceId)
   const branch = getSetting('sync.branch', workspaceId) ?? 'main'
+  const baseUrl = getSetting('sync.base_url', workspaceId) || undefined
 
   if (!providerType || !repository || !token) return null
 
   switch (providerType) {
     case 'github':
-      return new GitHubProvider(repository, token, branch)
+      return new GitHubProvider(repository, token, branch, baseUrl)
     case 'gitlab':
-      return new GitLabProvider(repository, token, branch)
+      return new GitLabProvider(repository, token, branch, baseUrl)
     default:
       return null
   }

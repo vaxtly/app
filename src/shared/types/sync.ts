@@ -8,6 +8,7 @@ export interface SyncConfig {
   repository: string // 'owner/repo'
   branch: string
   auto_sync: boolean
+  base_url?: string // Self-hosted instance URL (e.g., https://github.company.com)
 }
 
 export interface FileContent {

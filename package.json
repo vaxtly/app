@@ -1,6 +1,6 @@
 {
   "name": "vaxtly",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Vaxtly API Client",
   "author": {
     "name": "Vaxtly",
@@ -17,6 +17,8 @@
     "dist:win": "electron-vite build && electron-builder --win",
     "dist:mac": "electron-vite build && electron-builder --mac",
     "dist:linux": "electron-vite build && electron-builder --linux",
+    "rebuild:electron": "electron-rebuild -f -w better-sqlite3",
+    "rebuild:node": "npm rebuild better-sqlite3",
     "test:e2e": "npm run build && npx playwright test",
     "test:e2e:headed": "npm run build && npx playwright test --headed"
   },

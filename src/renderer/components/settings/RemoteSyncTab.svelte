@@ -7,6 +7,7 @@
   import SensitiveDataModal from '../modals/SensitiveDataModal.svelte'
 
   let provider = $state<'github' | 'gitlab'>('github')
+  let baseUrl = $state('')
   let repository = $state('')
   let token = $state('')
   let branch = $state('main')
@@ -59,8 +60,9 @@
       hasWorkspaceConfig = false
     }
 
-    const [p, r, t, b, a] = await Promise.all([
+    const [p, bu, r, t, b, a] = await Promise.all([
       getSetting('sync.provider'),
+      getSetting('sync.base_url'),
       getSetting('sync.repository'),
       getSetting('sync.token'),
       getSetting('sync.branch'),
@@ -68,6 +70,7 @@
     ])
     if (p === 'github' || p === 'gitlab') provider = p
     else provider = 'github'
+    baseUrl = bu ?? ''
     repository = r ?? ''
     token = t ?? ''
     branch = b ?? 'main'
@@ -80,6 +83,7 @@
     try {
       await Promise.all([
         setSetting('sync.provider', provider),
+        setSetting('sync.base_url', baseUrl),
         setSetting('sync.repository', repository),
         setSetting('sync.token', token),
         setSetting('sync.branch', branch),
@@ -308,6 +312,19 @@
           GitLab
         </button>
       </div>
+    </div>
+
+    <!-- Instance URL -->
+    <div class="field-group">
+      <span class="field-label">Instance URL</span>
+      <input
+        type="text"
+        value={baseUrl}
+        oninput={(e) => { baseUrl = (e.target as HTMLInputElement).value }}
+        placeholder={provider === 'github' ? 'https://github.company.com' : 'https://gitlab.company.com'}
+        class="text-input"
+      />
+      <span class="field-hint">Leave empty for {provider === 'github' ? 'github.com' : 'gitlab.com'}. For self-hosted, enter the root URL (no /api path).</span>
     </div>
 
     <!-- Repository -->

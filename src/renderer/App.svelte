@@ -58,6 +58,13 @@
     window.api.updater.install()
   }
 
+  // Active state for current environment tab (computed here so store
+  // tracking works outside the {#key} block)
+  let envTabActive = $derived(
+    appStore.activeTab?.type === 'environment' &&
+    environmentsStore.activeEnvironmentId === appStore.activeTab?.entityId
+  )
+
   // --- Session persistence ---
 
   interface PersistedSession {
@@ -447,6 +454,7 @@
               <EnvironmentEditor
                 tabId={appStore.activeTab.id}
                 environmentId={appStore.activeTab.entityId}
+                isActive={envTabActive}
               />
             {/if}
           {/key}
