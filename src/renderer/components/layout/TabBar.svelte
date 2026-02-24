@@ -10,6 +10,88 @@
   let contextMenu = $state<{ x: number; y: number; tabId: string } | null>(null)
   let scrollEl = $state<HTMLElement | null>(null)
 
+  // Drag-and-drop reorder state (pointer events)
+  let dragIndex = $state<number | null>(null)
+  let dropIndex = $state<number | null>(null)
+  let isDragging = $state(false)
+  let dragStartX = 0
+  let dragCurrentX = $state(0)
+  let dragTabWidth = 0
+  let tabRects: DOMRect[] = []
+  let dragJustEnded = false
+
+  const DRAG_THRESHOLD = 4
+
+  function handlePointerDown(e: PointerEvent, index: number): void {
+    if (e.button !== 0) return
+    dragIndex = index
+    dragStartX = e.clientX
+    dragCurrentX = e.clientX
+
+    if (scrollEl) {
+      const tabs = scrollEl.querySelectorAll<HTMLElement>('[role="tab"]')
+      tabRects = Array.from(tabs).map((t) => t.getBoundingClientRect())
+      dragTabWidth = tabRects[index]?.width ?? 0
+    }
+
+    window.addEventListener('pointermove', handlePointerMove)
+    window.addEventListener('pointerup', handlePointerUp)
+  }
+
+  function handlePointerMove(e: PointerEvent): void {
+    if (dragIndex === null) return
+    dragCurrentX = e.clientX
+
+    if (!isDragging && Math.abs(dragCurrentX - dragStartX) > DRAG_THRESHOLD) {
+      isDragging = true
+    }
+    if (!isDragging) return
+
+    // Calculate drop index from pointer position vs cached tab midpoints
+    let newDrop = tabRects.length
+    for (let i = 0; i < tabRects.length; i++) {
+      if (e.clientX < tabRects[i].left + tabRects[i].width / 2) {
+        newDrop = i
+        break
+      }
+    }
+    dropIndex = newDrop
+  }
+
+  function handlePointerUp(): void {
+    if (isDragging && dragIndex !== null && dropIndex !== null) {
+      appStore.reorderTabs(dragIndex, dropIndex)
+      dragJustEnded = true
+      requestAnimationFrame(() => { dragJustEnded = false })
+    }
+
+    dragIndex = null
+    dropIndex = null
+    isDragging = false
+    dragTabWidth = 0
+    tabRects = []
+
+    window.removeEventListener('pointermove', handlePointerMove)
+    window.removeEventListener('pointerup', handlePointerUp)
+  }
+
+  function getTabTransform(i: number): string {
+    if (!isDragging || dragIndex === null || dropIndex === null) return 'none'
+
+    // The dragged tab follows the cursor
+    if (i === dragIndex) return `translateX(${dragCurrentX - dragStartX}px)`
+
+    // Other tabs shift to open a gap at dropIndex
+    if (dropIndex > dragIndex + 1) {
+      // Dragging right: tabs between source+1 and dest-1 shift left
+      if (i > dragIndex && i < dropIndex) return `translateX(${-dragTabWidth}px)`
+    } else if (dropIndex < dragIndex) {
+      // Dragging left: tabs between dest and source-1 shift right
+      if (i >= dropIndex && i < dragIndex) return `translateX(${dragTabWidth}px)`
+    }
+    return 'none'
+  }
+
   function handleWheel(e: WheelEvent): void {
     if (!scrollEl) return
     if (e.deltaY !== 0) {
@@ -19,6 +101,7 @@
   }
 
   function handleTabClick(tabId: string): void {
+    if (dragJustEnded) return
     appStore.setActiveTab(tabId)
   }
 
@@ -53,15 +136,21 @@
 
 <div class="flex shrink-0 px-1 {isMac ? 'drag-region h-11 items-center' : 'h-9 items-end'}" style="border-bottom: 1px solid var(--glass-border); background: var(--glass-bg); backdrop-filter: blur(var(--glass-blur)); -webkit-backdrop-filter: blur(var(--glass-blur))">
   <!-- svelte-ignore a11y_no_static_element_interactions -->
-  <div class="tab-scroll no-drag flex flex-1 min-w-0 overflow-x-auto {isMac ? 'items-center' : 'items-end'}" bind:this={scrollEl} onwheel={handleWheel}>
-  {#each appStore.openTabs as tab (tab.id)}
+  <div class="tab-scroll no-drag flex flex-1 min-w-0 overflow-x-auto {isMac ? 'items-center' : 'items-end'}" style:user-select={isDragging ? 'none' : 'auto'} bind:this={scrollEl} onwheel={handleWheel}>
+  {#each appStore.openTabs as tab, i (tab.id)}
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div
-      class="group relative flex h-7 shrink-0 cursor-pointer items-center gap-1.5 rounded-lg px-3 text-xs transition-all duration-150
+      class="group relative flex h-7 shrink-0 items-center gap-1.5 rounded-lg px-3 text-xs
         {isMac ? '' : 'mb-0.5'}
         {appStore.activeTabId === tab.id
           ? 'bg-[var(--tint-strong)] text-surface-100 shadow-[inset_0_1px_0_var(--glass-highlight)]'
-          : 'text-surface-400 hover:bg-[var(--tint-hover)] hover:text-surface-200'}"
+          : 'text-surface-400 hover:bg-[var(--tint-hover)] hover:text-surface-200'}
+        {isDragging && dragIndex === i ? 'tab-dragging' : ''}
+        {isDragging && dragIndex !== i ? 'tab-shifting' : ''}"
+      style:transform={getTabTransform(i)}
+      style:opacity={isDragging && dragIndex === i ? 0.5 : 1}
+      style:z-index={isDragging && dragIndex === i ? 10 : 'auto'}
+      style:cursor={isDragging ? 'grabbing' : 'pointer'}
       role="tab"
       tabindex="0"
       aria-selected={appStore.activeTabId === tab.id}
@@ -69,6 +158,8 @@
       onauxclick={(e) => handleTabMiddleClick(e, tab.id)}
       oncontextmenu={(e) => handleTabContextMenu(e, tab.id)}
       onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleTabClick(tab.id) }}
+      onpointerdown={(e) => handlePointerDown(e, i)}
+      ondragstart={(e) => e.preventDefault()}
     >
       {#if tab.pinned}
         <svg class="h-2.5 w-2.5 text-brand-400" fill="currentColor" viewBox="0 0 20 20">
@@ -119,6 +210,14 @@
   .tab-scroll::-webkit-scrollbar { height: 3px; }
   .tab-scroll::-webkit-scrollbar-track { background: transparent; }
   .tab-scroll::-webkit-scrollbar-thumb { background: var(--color-surface-600); border-radius: 1.5px; }
+
+  .tab-dragging {
+    position: relative;
+    pointer-events: none;
+  }
+  .tab-shifting {
+    transition: transform 200ms ease;
+  }
 </style>
 
 {#if contextMenu}

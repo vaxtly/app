@@ -178,6 +178,17 @@ function closeAllTabs(): void {
   }
 }
 
+function reorderTabs(fromIndex: number, toIndex: number): void {
+  if (fromIndex === toIndex) return
+  if (fromIndex < 0 || fromIndex >= openTabs.length) return
+  if (toIndex < 0 || toIndex > openTabs.length) return
+  const updated = [...openTabs]
+  const [moved] = updated.splice(fromIndex, 1)
+  const insertAt = toIndex > fromIndex ? toIndex - 1 : toIndex
+  updated.splice(insertAt, 0, moved)
+  openTabs = updated
+}
+
 function togglePinTab(tabId: string): void {
   openTabs = openTabs.map((t) => (t.id === tabId ? { ...t, pinned: !t.pinned } : t))
 }
@@ -275,6 +286,10 @@ function openEnvironmentTab(env: { id: string; name: string }): void {
 
 function updateTabLabel(tabId: string, label: string, method?: string): void {
   openTabs = openTabs.map((t) => (t.id === tabId ? { ...t, label, method: method ?? t.method } : t))
+  const state = tabStates[tabId]
+  if (state) {
+    tabStates[tabId] = { ...state, name: label }
+  }
 }
 
 function getEnvTabState(tabId: string): TabEnvironmentState | undefined {
@@ -319,6 +334,7 @@ export const appStore = {
   closeTab,
   closeOtherTabs,
   closeAllTabs,
+  reorderTabs,
   togglePinTab,
   setActiveTab,
   nextTab,
