@@ -97,6 +97,7 @@ export interface KeyValueEntry {
   value: string
   enabled: boolean
   description?: string
+  generated?: boolean
 }
 
 export interface AuthConfig {

@@ -7,7 +7,7 @@
   import ScriptsEditor from './ScriptsEditor.svelte'
   import ResponseViewer from '../response/ResponseViewer.svelte'
   import CodeSnippetModal from '../modals/CodeSnippetModal.svelte'
-  import { setContext } from 'svelte'
+  import { setContext, untrack } from 'svelte'
   import { appStore, type TabRequestState } from '../../lib/stores/app.svelte'
   import { collectionsStore } from '../../lib/stores/collections.svelte'
   import { environmentsStore } from '../../lib/stores/environments.svelte'
@@ -128,27 +128,74 @@
     } catch { return defaultFormData }
   })
 
-  // Compute implicit headers from body type and auth
-  let implicitHeaders = $derived.by(() => {
-    const result: { key: string; value: string }[] = []
-    if (state?.body_type === 'json') result.push({ key: 'Content-Type', value: 'application/json' })
-    else if (state?.body_type === 'xml') result.push({ key: 'Content-Type', value: 'application/xml' })
-    else if (state?.body_type === 'urlencoded') result.push({ key: 'Content-Type', value: 'application/x-www-form-urlencoded' })
-    else if (state?.body_type === 'graphql') result.push({ key: 'Content-Type', value: 'application/json' })
+  // Sync generated headers into the headers array when body_type or auth changes
+  $effect(() => {
+    if (!state) return
 
-    if (auth.type === 'bearer' && auth.bearer_token) {
-      result.push({ key: 'Authorization', value: `Bearer ${auth.bearer_token}` })
-    } else if (auth.type === 'basic' && auth.basic_username) {
-      result.push({ key: 'Authorization', value: `Basic ${btoa(`${auth.basic_username}:${auth.basic_password ?? ''}`)}` })
-    } else if (auth.type === 'api-key' && auth.api_key_header) {
-      result.push({ key: auth.api_key_header, value: auth.api_key_value ?? '' })
+    // Reactive dependencies — effect re-runs when these change
+    const bodyType = state.body_type
+    const authType = auth.type
+    const bearerToken = auth.bearer_token
+    const basicUser = auth.basic_username
+    const basicPass = auth.basic_password
+    const apiKeyHeader = auth.api_key_header
+    const apiKeyValue = auth.api_key_value
+
+    // Compute wanted generated headers
+    const wanted: Array<{ key: string; value: string }> = []
+    if (bodyType === 'json') wanted.push({ key: 'Content-Type', value: 'application/json' })
+    else if (bodyType === 'xml') wanted.push({ key: 'Content-Type', value: 'application/xml' })
+    else if (bodyType === 'urlencoded') wanted.push({ key: 'Content-Type', value: 'application/x-www-form-urlencoded' })
+    else if (bodyType === 'graphql') wanted.push({ key: 'Content-Type', value: 'application/json' })
+
+    if (authType === 'bearer' && bearerToken) {
+      wanted.push({ key: 'Authorization', value: `Bearer ${bearerToken}` })
+    } else if (authType === 'basic' && basicUser) {
+      wanted.push({ key: 'Authorization', value: `Basic ${btoa(`${basicUser}:${basicPass ?? ''}`)}` })
+    } else if (authType === 'api-key' && apiKeyHeader) {
+      wanted.push({ key: apiKeyHeader, value: apiKeyValue ?? '' })
     }
-    return result
+
+    // Read current headers without tracking (avoids re-running on every keystroke)
+    const current: KeyValueEntry[] = untrack(() => headers)
+
+    // Sync: keep user entries, update/add/remove generated
+    const wantedByKey = new Map(wanted.map(w => [w.key.toLowerCase(), w]))
+    const handled = new Set<string>()
+    const result: KeyValueEntry[] = []
+
+    for (const entry of current) {
+      if (entry.generated) {
+        const match = wantedByKey.get(entry.key.toLowerCase())
+        if (match) {
+          result.push({ ...entry, key: match.key, value: match.value })
+          handled.add(match.key.toLowerCase())
+        }
+        // else: stale generated entry → drop
+      } else {
+        result.push(entry)
+      }
+    }
+
+    // Prepend new generated entries
+    const newGen: KeyValueEntry[] = []
+    for (const w of wanted) {
+      if (!handled.has(w.key.toLowerCase())) {
+        newGen.push({ key: w.key, value: w.value, enabled: true, generated: true })
+      }
+    }
+
+    const final = [...newGen, ...result]
+    const finalJson = JSON.stringify(final)
+    const currentJson = untrack(() => state!.headers ?? '[]')
+    if (finalJson !== currentJson) {
+      update({ headers: finalJson })
+    }
   })
 
   // Count badges
   let paramCount = $derived(queryParams.filter((p) => p.key.trim()).length)
-  let headerCount = $derived(headers.filter((h) => h.key.trim()).length)
+  let headerCount = $derived(headers.filter((h) => h.key.trim() && !h.generated).length)
 
   // "Has content" indicators for tabs without count badges
   let bodyHasContent = $derived.by(() => {
@@ -186,16 +233,10 @@
 
     update({ loading: true, response: null })
 
-    // Build headers map
+    // Build headers map (generated + user headers are already merged)
     const headerMap: Record<string, string> = {}
     for (const h of headers) {
       if (h.enabled && h.key.trim()) headerMap[h.key.trim()] = h.value
-    }
-    // Add implicit headers (auth, content-type will be handled by proxy)
-    for (const ih of implicitHeaders) {
-      if (!headerMap[ih.key] && !headerMap[ih.key.toLowerCase()]) {
-        headerMap[ih.key] = ih.value
-      }
     }
 
     let bodyContent = state.body ?? undefined
@@ -268,11 +309,14 @@
       ? JSON.stringify(formData)
       : state.body
 
+    // Strip generated headers — they're recomputed from body_type/auth on load
+    const cleanHeaders = JSON.stringify(headers.filter(h => !h.generated))
+
     await window.api.requests.update(requestId, {
       name: state.name,
       method: state.method,
       url: state.url,
-      headers: state.headers,
+      headers: cleanHeaders,
       query_params: state.query_params,
       body: bodyToSave,
       body_type: state.body_type,
@@ -448,7 +492,6 @@
           {:else if activeRequestTab === 'headers'}
             <HeadersEditor
               {headers}
-              {implicitHeaders}
               onchange={(h) => update({ headers: JSON.stringify(h) })}
             />
           {:else if activeRequestTab === 'body'}
