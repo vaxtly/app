@@ -73,6 +73,7 @@ export const IPC = {
   VAULT_PUSH: 'vault:push',
   VAULT_PULL_ALL: 'vault:pull-all',
   VAULT_FETCH_VARIABLES: 'vault:fetch-variables',
+  VAULT_GET_CACHED_VARIABLES: 'vault:get-cached-variables',
   VAULT_PUSH_VARIABLES: 'vault:push-variables',
   VAULT_DELETE_SECRETS: 'vault:delete-secrets',
   VAULT_MIGRATE: 'vault:migrate',

@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+- Environment tab not refreshing after post-response scripts update variables — now explicitly syncs the open env tab after request send, including vault-synced environments
+
 ## [0.3.2] - 2026-02-23
 
 ### Fixed

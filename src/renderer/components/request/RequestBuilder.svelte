@@ -78,6 +78,31 @@
     return resolvedVars
   }
 
+  /** Refresh the open environment tab after post-scripts may have changed variables. */
+  async function refreshOpenEnvTab(): Promise<void> {
+    const activeEnv = environmentsStore.activeEnvironment
+    if (!activeEnv) return
+
+    const envTabId = `tab-env-${activeEnv.id}`
+    const envTabState = appStore.getEnvTabState(envTabId)
+    if (!envTabState?.initialized || envTabState.isDirty) return
+
+    if (activeEnv.vault_synced === 1) {
+      // Vault-synced: read from main process in-memory cache (post-script already updated it)
+      const vars = await window.api.vault.getCachedVariables(activeEnv.id)
+      if (vars.length > 0) {
+        appStore.updateEnvTabState(envTabId, { variables: vars })
+      }
+    } else {
+      // Non-vault: re-parse from the store (loadAll already refreshed it)
+      try {
+        const parsed = JSON.parse(activeEnv.variables)
+        const vars = parsed.length > 0 ? parsed : [{ key: '', value: '', enabled: true }]
+        appStore.updateEnvTabState(envTabId, { name: activeEnv.name, variables: vars })
+      } catch { /* ignore */ }
+    }
+  }
+
   function refreshResolvedVars(): void {
     window.api.variables.resolveWithSource(
       appStore.activeWorkspaceId ?? undefined,
@@ -211,7 +236,9 @@
 
       // Refresh resolved variables and environment store — post-response scripts may have set new values
       refreshResolvedVars()
-      environmentsStore.loadAll(appStore.activeWorkspaceId ?? undefined)
+      environmentsStore.loadAll(appStore.activeWorkspaceId ?? undefined).then(() => {
+        refreshOpenEnvTab()
+      })
     } catch (error) {
       update({
         loading: false,

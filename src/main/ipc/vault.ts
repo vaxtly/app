@@ -67,6 +67,10 @@ export function registerVaultHandlers(): void {
     }
   })
 
+  ipcMain.handle(IPC.VAULT_GET_CACHED_VARIABLES, (_event, environmentId: string) => {
+    return vaultService.getCachedVariables(environmentId) ?? []
+  })
+
   ipcMain.handle(IPC.VAULT_FETCH_VARIABLES, async (_event, environmentId: string, workspaceId?: string) => {
     const env = environmentsRepo.findById(environmentId)
     const label = env?.name ?? environmentId

@@ -135,6 +135,8 @@ const api = {
       ipcRenderer.invoke(IPC.VAULT_PULL_ALL, workspaceId),
     fetchVariables: (environmentId: string, workspaceId?: string): Promise<EnvironmentVariable[]> =>
       ipcRenderer.invoke(IPC.VAULT_FETCH_VARIABLES, environmentId, workspaceId),
+    getCachedVariables: (environmentId: string): Promise<EnvironmentVariable[]> =>
+      ipcRenderer.invoke(IPC.VAULT_GET_CACHED_VARIABLES, environmentId),
     pushVariables: (environmentId: string, variables: EnvironmentVariable[], workspaceId?: string): Promise<{ success: boolean; message?: string }> =>
       ipcRenderer.invoke(IPC.VAULT_PUSH_VARIABLES, environmentId, variables, workspaceId),
     deleteSecrets: (environmentId: string, workspaceId?: string): Promise<{ success: boolean; message?: string }> =>

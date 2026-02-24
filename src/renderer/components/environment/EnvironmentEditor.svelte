@@ -46,6 +46,32 @@
     }
   })
 
+  // Re-sync from store when external changes happen (e.g. post-response scripts)
+  // Only when cache is initialized and the editor has no unsaved changes
+  $effect(() => {
+    if (!environment || !envState?.initialized || envState.isDirty) return
+    if (environment.vault_synced === 1) return // vault-synced vars aren't in DB
+
+    let parsed: EnvironmentVariable[] = []
+    try {
+      parsed = JSON.parse(environment.variables)
+    } catch {
+      parsed = []
+    }
+
+    // Apply the same empty→default-row transform before comparing,
+    // otherwise empty store ([]) vs default cache ([{key:'',value:'',enabled:true}]) loops forever
+    const storeVars = parsed.length > 0 ? parsed : [{ key: '', value: '', enabled: true }]
+    const storeJson = JSON.stringify(storeVars)
+    const cacheJson = JSON.stringify(envState.variables)
+    if (storeJson !== cacheJson) {
+      appStore.updateEnvTabState(tabId, {
+        name: environment.name,
+        variables: storeVars,
+      })
+    }
+  })
+
   async function fetchVaultVariablesOnLoad(): Promise<void> {
     vaultPulling = true
     try {
