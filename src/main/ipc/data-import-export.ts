@@ -3,6 +3,7 @@ import { readFileSync } from 'fs'
 import { IPC } from '../../shared/types/ipc'
 import * as dataService from '../services/data-export-import'
 import { importPostman } from '../services/postman-import'
+import { importInsomnia } from '../services/insomnia-import'
 
 const MAX_IMPORT_SIZE = 50 * 1024 * 1024 // 50 MB
 
@@ -53,5 +54,12 @@ export function registerDataImportExportHandlers(): void {
       throw new Error(`Import data too large (max ${MAX_IMPORT_SIZE / 1024 / 1024}MB)`)
     }
     return importPostman(json, workspaceId)
+  })
+
+  ipcMain.handle(IPC.INSOMNIA_IMPORT, async (_event, json: string, workspaceId?: string) => {
+    if (typeof json !== 'string' || json.length > MAX_IMPORT_SIZE) {
+      throw new Error(`Import data too large (max ${MAX_IMPORT_SIZE / 1024 / 1024}MB)`)
+    }
+    return importInsomnia(json, workspaceId)
   })
 }

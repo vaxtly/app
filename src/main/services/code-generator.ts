@@ -21,7 +21,7 @@ export interface CodeGenRequest {
   apiKeyValue: string
 }
 
-export type CodeLanguage = 'curl' | 'python' | 'php' | 'javascript' | 'node'
+export type CodeLanguage = 'curl' | 'python' | 'php' | 'javascript' | 'node' | 'go' | 'ruby' | 'csharp' | 'java'
 
 export function generateCode(
   language: CodeLanguage,
@@ -41,6 +41,10 @@ export function generateCode(
     case 'php': return generatePhp(data.method, resolvedUrl, resolvedHeaders, resolvedBody, data.bodyType)
     case 'javascript': return generateJavascript(data.method, resolvedUrl, resolvedHeaders, resolvedBody, data.bodyType)
     case 'node': return generateNode(data.method, resolvedUrl, resolvedHeaders, resolvedBody, data.bodyType)
+    case 'go': return generateGo(data.method, resolvedUrl, resolvedHeaders, resolvedBody, data.bodyType)
+    case 'ruby': return generateRuby(data.method, resolvedUrl, resolvedHeaders, resolvedBody, data.bodyType)
+    case 'csharp': return generateCsharp(data.method, resolvedUrl, resolvedHeaders, resolvedBody, data.bodyType)
+    case 'java': return generateJava(data.method, resolvedUrl, resolvedHeaders, resolvedBody, data.bodyType)
     default: return generateCurl(data.method, resolvedUrl, resolvedHeaders, resolvedBody, data.bodyType)
   }
 }
@@ -62,6 +66,8 @@ function buildHeaders(data: CodeGenRequest, sub: (s: string) => string): Record<
     headers['Authorization'] = `Basic ${encoded}`
   } else if (data.authType === 'api-key' && data.apiKeyName && data.apiKeyValue) {
     headers[sub(data.apiKeyName)] = sub(data.apiKeyValue)
+  } else if (data.authType === 'oauth2' && data.authToken) {
+    headers['Authorization'] = `Bearer ${sub(data.authToken)}`
   }
 
   return headers
@@ -271,6 +277,183 @@ function generateNode(method: string, url: string, headers: Record<string, strin
   lines.push('console.log(response.status, response.data);')
 
   return lines.join('\n')
+}
+
+function generateGo(method: string, url: string, headers: Record<string, string>, body: string | null, bodyType: string): string {
+  const m = method.toUpperCase()
+  const lines: string[] = ['package main', '', 'import (', '    "fmt"', '    "net/http"']
+  const hasBody = body !== null && ['POST', 'PUT', 'PATCH'].includes(m)
+
+  if (hasBody) {
+    lines.push('    "strings"')
+  }
+
+  lines.push(')', '')
+  lines.push('func main() {')
+
+  if (hasBody) {
+    lines.push(`    body := strings.NewReader(\`${body}\`)`)
+    lines.push(`    req, _ := http.NewRequest("${m}", "${esc(url)}", body)`)
+  } else {
+    lines.push(`    req, _ := http.NewRequest("${m}", "${esc(url)}", nil)`)
+  }
+
+  if (hasBody && bodyType === 'json') {
+    setGoHeader(headers, 'Content-Type', 'application/json')
+  } else if (hasBody && bodyType === 'xml') {
+    setGoHeader(headers, 'Content-Type', 'application/xml')
+  }
+
+  for (const [k, v] of Object.entries(headers)) {
+    lines.push(`    req.Header.Set("${esc(k)}", "${esc(v)}")`)
+  }
+
+  lines.push('')
+  lines.push('    resp, _ := http.DefaultClient.Do(req)')
+  lines.push('    fmt.Println(resp.StatusCode)')
+  lines.push('}')
+
+  return lines.join('\n')
+}
+
+function setGoHeader(headers: Record<string, string>, name: string, value: string): void {
+  const lower = name.toLowerCase()
+  if (!Object.keys(headers).some((k) => k.toLowerCase() === lower)) {
+    headers[name] = value
+  }
+}
+
+function generateRuby(method: string, url: string, headers: Record<string, string>, body: string | null, bodyType: string): string {
+  const m = method.toUpperCase()
+  const hasBody = body !== null && ['POST', 'PUT', 'PATCH'].includes(m)
+  const lines: string[] = ["require 'net/http'", "require 'json'", '']
+
+  lines.push(`uri = URI('${esc(url)}')`)
+  lines.push('http = Net::HTTP.new(uri.host, uri.port)')
+  lines.push("http.use_ssl = uri.scheme == 'https'")
+
+  const rubyMethod = m.charAt(0) + m.slice(1).toLowerCase()
+  lines.push(`request = Net::HTTP::${rubyMethod}.new(uri)`)
+
+  if (hasBody && bodyType === 'json') {
+    setRubyHeader(headers, 'Content-Type', 'application/json')
+  } else if (hasBody && bodyType === 'xml') {
+    setRubyHeader(headers, 'Content-Type', 'application/xml')
+  }
+
+  for (const [k, v] of Object.entries(headers)) {
+    lines.push(`request['${esc(k)}'] = '${esc(v)}'`)
+  }
+
+  if (hasBody) {
+    lines.push(`request.body = '${esc(body!)}'`)
+  }
+
+  lines.push('')
+  lines.push('response = http.request(request)')
+  lines.push('puts response.code, response.body')
+
+  return lines.join('\n')
+}
+
+function setRubyHeader(headers: Record<string, string>, name: string, value: string): void {
+  const lower = name.toLowerCase()
+  if (!Object.keys(headers).some((k) => k.toLowerCase() === lower)) {
+    headers[name] = value
+  }
+}
+
+function generateCsharp(method: string, url: string, headers: Record<string, string>, body: string | null, bodyType: string): string {
+  const m = method.toUpperCase()
+  const hasBody = body !== null && ['POST', 'PUT', 'PATCH'].includes(m)
+  const lines: string[] = ['using System.Net.Http;', '']
+
+  lines.push('var client = new HttpClient();')
+
+  // Add headers (skip Content-Type since it goes on content)
+  for (const [k, v] of Object.entries(headers)) {
+    if (k.toLowerCase() === 'content-type') continue
+    lines.push(`client.DefaultRequestHeaders.Add("${esc(k)}", "${esc(v)}");`)
+  }
+
+  if (hasBody) {
+    let mediaType = 'text/plain'
+    if (bodyType === 'json') mediaType = 'application/json'
+    else if (bodyType === 'xml') mediaType = 'application/xml'
+    else {
+      const ct = Object.entries(headers).find(([k]) => k.toLowerCase() === 'content-type')
+      if (ct) mediaType = ct[1]
+    }
+    lines.push(`var content = new StringContent("${escCsharp(body!)}", System.Text.Encoding.UTF8, "${mediaType}");`)
+
+    const methodName = m.charAt(0) + m.slice(1).toLowerCase() + 'Async'
+    lines.push(`var response = await client.${methodName}("${esc(url)}", content);`)
+  } else {
+    const methodName = m.charAt(0) + m.slice(1).toLowerCase() + 'Async'
+    if (m === 'GET') {
+      lines.push(`var response = await client.GetAsync("${esc(url)}");`)
+    } else if (m === 'DELETE') {
+      lines.push(`var response = await client.DeleteAsync("${esc(url)}");`)
+    } else {
+      lines.push(`var response = await client.${methodName}("${esc(url)}", null);`)
+    }
+  }
+
+  lines.push('Console.WriteLine(await response.Content.ReadAsStringAsync());')
+
+  return lines.join('\n')
+}
+
+function escCsharp(s: string): string {
+  return s.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, '\\n').replace(/\r/g, '\\r')
+}
+
+function generateJava(method: string, url: string, headers: Record<string, string>, body: string | null, bodyType: string): string {
+  const m = method.toUpperCase()
+  const hasBody = body !== null && ['POST', 'PUT', 'PATCH'].includes(m)
+  const lines: string[] = [
+    'import java.net.http.HttpClient;',
+    'import java.net.http.HttpRequest;',
+    'import java.net.http.HttpResponse;',
+    'import java.net.URI;',
+    '',
+    'HttpClient client = HttpClient.newHttpClient();',
+    'HttpRequest request = HttpRequest.newBuilder()',
+    `    .uri(URI.create("${esc(url)}"))`,
+  ]
+
+  if (hasBody && bodyType === 'json') {
+    setJavaHeader(headers, 'Content-Type', 'application/json')
+  } else if (hasBody && bodyType === 'xml') {
+    setJavaHeader(headers, 'Content-Type', 'application/xml')
+  }
+
+  for (const [k, v] of Object.entries(headers)) {
+    lines.push(`    .header("${esc(k)}", "${esc(v)}")`)
+  }
+
+  if (hasBody) {
+    lines.push(`    .${m}(HttpRequest.BodyPublishers.ofString("${escCsharp(body!)}"))`)
+  } else if (m === 'GET') {
+    lines.push('    .GET()')
+  } else if (m === 'DELETE') {
+    lines.push('    .DELETE()')
+  } else {
+    lines.push(`    .method("${m}", HttpRequest.BodyPublishers.noBody())`)
+  }
+
+  lines.push('    .build();')
+  lines.push('HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());')
+  lines.push('System.out.println(response.statusCode());')
+
+  return lines.join('\n')
+}
+
+function setJavaHeader(headers: Record<string, string>, name: string, value: string): void {
+  const lower = name.toLowerCase()
+  if (!Object.keys(headers).some((k) => k.toLowerCase() === lower)) {
+    headers[name] = value
+  }
 }
 
 function tryParse(json: string): Record<string, string> | null {

@@ -27,6 +27,7 @@
   }
 
   function detectFormatLabel(parsed: Record<string, unknown>): string {
+    if (isInsomniaFormat(parsed)) return 'Insomnia Export'
     if (parsed.version && Array.isArray(parsed.collections)) return 'Postman Dump'
     const info = parsed.info
     if (info && typeof info === 'object') {
@@ -36,6 +37,10 @@
     if (Array.isArray(parsed.values) && typeof parsed.name === 'string') return 'Postman Environment'
     if (parsed.vaxtly_export) return 'Vaxtly Export'
     return 'Vaxtly Export'
+  }
+
+  function isInsomniaFormat(parsed: Record<string, unknown>): boolean {
+    return parsed._type === 'export' && typeof parsed.__export_format === 'number'
   }
 
   function isPostmanFormat(parsed: Record<string, unknown>): boolean {
@@ -92,7 +97,19 @@
     importStage = 'importing'
 
     try {
-      if (isPostmanFormat(parsed)) {
+      if (isInsomniaFormat(parsed)) {
+        const result = await window.api.data.importInsomnia(json, appStore.activeWorkspaceId ?? undefined)
+        const parts: string[] = []
+        if (result.collections > 0) parts.push(`${result.collections} collection${result.collections > 1 ? 's' : ''}`)
+        if (result.requests > 0) parts.push(`${result.requests} request${result.requests > 1 ? 's' : ''}`)
+        if (result.folders > 0) parts.push(`${result.folders} folder${result.folders > 1 ? 's' : ''}`)
+        if (result.environments > 0) parts.push(`${result.environments} environment${result.environments > 1 ? 's' : ''}`)
+        const summary = parts.length > 0 ? parts.join(', ') : 'nothing'
+        status = {
+          type: result.errors.length > 0 ? 'error' : 'success',
+          message: `Imported ${summary}${result.errors.length > 0 ? `. Errors: ${result.errors.join(', ')}` : ''}`,
+        }
+      } else if (isPostmanFormat(parsed)) {
         const result = await window.api.data.importPostman(json, appStore.activeWorkspaceId ?? undefined)
         const parts: string[] = []
         if (result.collections > 0) parts.push(`${result.collections} collection${result.collections > 1 ? 's' : ''}`)
@@ -259,7 +276,7 @@
       </div>
       <div>
         <div class="section-title">Import</div>
-        <div class="section-subtitle">Vaxtly exports, Postman collections, dumps, and environments</div>
+        <div class="section-subtitle">Vaxtly exports, Postman collections, Insomnia exports, and environments</div>
       </div>
     </div>
 
@@ -340,7 +357,7 @@
         <path d="M7 6.5V9.5" stroke="currentColor" stroke-width="1" stroke-linecap="round"/>
         <circle cx="7" cy="4.8" r="0.6" fill="currentColor"/>
       </svg>
-      <span>Format is auto-detected. Postman v2.1 collections, workspace dumps, and environment files are all supported.</span>
+      <span>Format is auto-detected. Postman v2.1 collections, workspace dumps, environment files, and Insomnia v4 exports are all supported.</span>
     </div>
   </section>
 </div>

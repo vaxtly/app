@@ -13,26 +13,17 @@
   let { tabId, environmentId, isActive = false }: Props = $props()
 
   let environment = $derived(environmentsStore.getById(environmentId))
-  let name = $state('')
-  let variables = $state<EnvironmentVariable[]>([])
-  let isDirty = $state(false)
+
+  // Read from the tab state cache (survives tab switches)
+  let envState = $derived(appStore.getEnvTabState(tabId))
+  let name = $derived(envState?.name ?? '')
+  let variables = $derived<EnvironmentVariable[]>(envState?.variables ?? [])
+  let isDirty = $derived(envState?.isDirty ?? false)
   let saving = $state(false)
-  let initialized = $state(false)
-  let lastEnvironmentId = $state('')
 
-  // Reset when switching to a different environment
+  // Initialize from DB on first mount (when cache not yet populated)
   $effect(() => {
-    if (environmentId !== lastEnvironmentId) {
-      lastEnvironmentId = environmentId
-      initialized = false
-      isDirty = false
-    }
-  })
-
-  // Initialize from DB when environment changes, auto-fetch from Vault if synced and empty
-  $effect(() => {
-    if (environment && !initialized) {
-      name = environment.name
+    if (environment && envState && !envState.initialized) {
       let parsed: EnvironmentVariable[] = []
       try {
         parsed = JSON.parse(environment.variables)
@@ -42,11 +33,15 @@
 
       if (parsed.length === 0 && environment.vault_synced === 1) {
         // Vault-synced but no local variables — fetch from Vault
-        initialized = true
+        appStore.updateEnvTabState(tabId, { initialized: true })
         fetchVaultVariablesOnLoad()
       } else {
-        variables = parsed.length > 0 ? parsed : [{ key: '', value: '', enabled: true }]
-        initialized = true
+        appStore.updateEnvTabState(tabId, {
+          name: environment.name,
+          variables: parsed.length > 0 ? parsed : [{ key: '', value: '', enabled: true }],
+          isDirty: false,
+          initialized: true,
+        })
       }
     }
   })
@@ -56,44 +51,51 @@
     try {
       const wsId = appStore.activeWorkspaceId ?? undefined
       const vars = await window.api.vault.fetchVariables(environmentId, wsId)
-      variables = vars.length > 0 ? vars : [{ key: '', value: '', enabled: true }]
+      appStore.updateEnvTabState(tabId, {
+        variables: vars.length > 0 ? vars : [{ key: '', value: '', enabled: true }],
+      })
     } catch {
-      variables = [{ key: '', value: '', enabled: true }]
+      appStore.updateEnvTabState(tabId, {
+        variables: [{ key: '', value: '', enabled: true }],
+      })
     } finally {
       vaultPulling = false
     }
   }
 
   async function handleNameChange(newName: string): Promise<void> {
-    name = newName
+    appStore.updateEnvTabState(tabId, { name: newName })
     appStore.updateTabLabel(tabId, newName)
     await environmentsStore.update(environmentId, { name: newName })
   }
 
   function handleVariablesChange(entries: { key: string; value: string; enabled: boolean }[]): void {
-    variables = entries.map((e) => ({
-      key: e.key,
-      value: e.value,
-      enabled: e.enabled,
-    }))
-    isDirty = true
+    appStore.updateEnvTabState(tabId, {
+      variables: entries.map((e) => ({
+        key: e.key,
+        value: e.value,
+        enabled: e.enabled,
+      })),
+      isDirty: true,
+    })
   }
 
   async function save(): Promise<void> {
     saving = true
     vaultStatus = null
     try {
+      const snapshot = $state.snapshot(variables)
       if (vaultSynced) {
         // Vault-synced: push to Vault only, no local DB write for variables
         const wsId = appStore.activeWorkspaceId ?? undefined
-        const result = await window.api.vault.pushVariables(environmentId, $state.snapshot(variables), wsId)
-        isDirty = false
+        const result = await window.api.vault.pushVariables(environmentId, snapshot, wsId)
+        appStore.updateEnvTabState(tabId, { isDirty: false })
         vaultStatus = result.success
           ? { type: 'success', message: 'Pushed to Vault' }
           : { type: 'error', message: result.message ?? 'Vault push failed' }
       } else {
-        await environmentsStore.update(environmentId, { variables: JSON.stringify($state.snapshot(variables)) })
-        isDirty = false
+        await environmentsStore.update(environmentId, { variables: JSON.stringify(snapshot) })
+        appStore.updateEnvTabState(tabId, { isDirty: false })
       }
     } catch (err) {
       vaultStatus = { type: 'error', message: err instanceof Error ? err.message : 'Save failed' }
@@ -164,8 +166,10 @@
       variables: '[]',
     })
     // Reset the editor to an empty row
-    variables = [{ key: '', value: '', enabled: true }]
-    isDirty = false
+    appStore.updateEnvTabState(tabId, {
+      variables: [{ key: '', value: '', enabled: true }],
+      isDirty: false,
+    })
   }
 
   async function pullFromVault(): Promise<void> {
@@ -174,8 +178,10 @@
     try {
       const wsId = appStore.activeWorkspaceId ?? undefined
       const vars = await window.api.vault.fetchVariables(environmentId, wsId)
-      variables = vars.length > 0 ? vars : [{ key: '', value: '', enabled: true }]
-      isDirty = false
+      appStore.updateEnvTabState(tabId, {
+        variables: vars.length > 0 ? vars : [{ key: '', value: '', enabled: true }],
+        isDirty: false,
+      })
       vaultStatus = { type: 'success', message: `Pulled ${vars.length} variables from Vault` }
     } catch (err) {
       vaultStatus = { type: 'error', message: err instanceof Error ? err.message : 'Pull failed' }

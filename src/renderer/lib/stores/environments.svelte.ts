@@ -19,13 +19,14 @@ const activeEnvironment = $derived(environments.find((e) => e.id === activeEnvir
 async function loadAll(workspaceId?: string): Promise<void> {
   environments = await window.api.environments.list(workspaceId)
   const active = environments.find((e) => e.is_active === 1)
+  const wasAlreadyActive = activeEnvironmentId === active?.id
   activeEnvironmentId = active?.id ?? null
 
-  // Pre-fetch vault secrets for active vault-synced environment on startup
-  if (active?.vault_synced === 1) {
+  // Pre-fetch vault secrets on startup only — skip if already active (e.g. post-send refresh)
+  if (active?.vault_synced === 1 && !wasAlreadyActive) {
     const result = await window.api.environments.activate(active.id, workspaceId)
     vaultHealthy = result ? !result.vaultFailed : null
-  } else {
+  } else if (!active?.vault_synced) {
     vaultHealthy = null
   }
 }

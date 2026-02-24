@@ -12,6 +12,7 @@ import * as environmentsRepo from '../database/repositories/environments'
 import * as settingsRepo from '../database/repositories/settings'
 import { getCachedVariables, setCachedVariables, pushVariables as vaultPush } from '../vault/vault-sync-service'
 import { substitute } from './variable-substitution'
+import { isTokenExpired, refreshAccessToken } from './oauth2'
 import { DEFAULTS } from '../../shared/constants'
 import { logHttp, logScript } from './session-log'
 import type { ScriptsConfig, PreRequestScript, PostResponseScript, EnvironmentVariable } from '../../shared/types/models'
@@ -187,7 +188,17 @@ async function executeHttpRequest(
   // Apply auth config (same logic as renderer's implicitHeaders)
   if (request.auth) {
     try {
-      const auth = JSON.parse(request.auth) as import('../../shared/types/models').AuthConfig
+      let auth = JSON.parse(request.auth) as import('../../shared/types/models').AuthConfig
+
+      // Auto-refresh OAuth2 token if expired
+      if (auth.type === 'oauth2' && auth.oauth2_access_token && isTokenExpired(auth)) {
+        try {
+          const refreshed = await refreshAccessToken(auth)
+          auth = { ...auth, ...refreshed }
+          requestsRepo.update(requestId, { auth: JSON.stringify(auth) })
+        } catch { /* ignore refresh failure */ }
+      }
+
       const hasAuth = Object.keys(headers).some((k) => k.toLowerCase() === 'authorization')
       if (!hasAuth) {
         if (auth.type === 'bearer' && auth.bearer_token) {
@@ -196,6 +207,9 @@ async function executeHttpRequest(
           headers['Authorization'] = `Basic ${Buffer.from(`${sub(auth.basic_username)}:${sub(auth.basic_password ?? '')}`).toString('base64')}`
         } else if (auth.type === 'api-key' && auth.api_key_header) {
           headers[sub(auth.api_key_header)] = sub(auth.api_key_value ?? '')
+        } else if (auth.type === 'oauth2' && auth.oauth2_access_token) {
+          const tokenType = auth.oauth2_token_type ?? 'Bearer'
+          headers['Authorization'] = `${tokenType} ${auth.oauth2_access_token}`
         }
       }
     } catch { /* ignore */ }

@@ -8,9 +8,12 @@ import { substitute } from '../services/variable-substitution'
 import { executePreRequestScripts, executePostResponseScripts } from '../services/script-execution'
 import { logHttp } from '../services/session-log'
 import { formatFetchError } from '../services/fetch-error'
+import * as requestsRepo from '../database/repositories/requests'
 import * as environmentsRepo from '../database/repositories/environments'
 import * as settingsRepo from '../database/repositories/settings'
 import * as vaultSyncService from '../vault/vault-sync-service'
+import { isTokenExpired, refreshAccessToken } from '../services/oauth2'
+import type { AuthConfig } from '../../shared/types/models'
 
 const activeRequests = new Map<string, AbortController>()
 const approvedFilePaths = new Set<string>()
@@ -45,6 +48,22 @@ export function registerProxyHandlers(): void {
         await vaultSyncService.ensureLoaded(activeEnv.id, config.workspaceId)
       } catch (e) {
         logHttp('vault', config.url, `Failed to load vault secrets: ${e instanceof Error ? e.message : String(e)}`, false)
+      }
+    }
+
+    // Auto-refresh OAuth2 token if expired
+    const currentRequest = requestsRepo.findById(requestId)
+    if (currentRequest?.auth) {
+      try {
+        const auth = JSON.parse(currentRequest.auth) as AuthConfig
+        if (auth.type === 'oauth2' && auth.oauth2_access_token && isTokenExpired(auth)) {
+          const refreshed = await refreshAccessToken(auth)
+          const updatedAuth: AuthConfig = { ...auth, ...refreshed }
+          requestsRepo.update(requestId, { auth: JSON.stringify(updatedAuth) })
+          logHttp('oauth2', config.url, 'Token auto-refreshed before request')
+        }
+      } catch (e) {
+        logHttp('oauth2', config.url, `Token refresh failed: ${e instanceof Error ? e.message : String(e)}`, false)
       }
     }
 

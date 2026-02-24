@@ -13,7 +13,7 @@ export const BODY_TYPES = [
 export type BodyType = (typeof BODY_TYPES)[number]
 
 export const AUTH_TYPES = [
-  'none', 'bearer', 'basic', 'api-key'
+  'none', 'bearer', 'basic', 'api-key', 'oauth2'
 ] as const
 
 export type AuthType = (typeof AUTH_TYPES)[number]

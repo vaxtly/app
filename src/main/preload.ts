@@ -7,6 +7,7 @@ import type { SensitiveFinding } from './services/sensitive-data-scanner'
 import type { CodeLanguage, CodeGenRequest } from './services/code-generator'
 import type { EnvironmentVariable } from '../shared/types/models'
 import type { PostmanImportResult } from './services/postman-import'
+import type { InsomniaImportResult } from './services/insomnia-import'
 
 const api = {
   workspaces: {
@@ -153,6 +154,17 @@ const api = {
       ipcRenderer.invoke(IPC.DATA_IMPORT, json, workspaceId),
     importPostman: (json: string, workspaceId?: string): Promise<PostmanImportResult> =>
       ipcRenderer.invoke(IPC.POSTMAN_IMPORT, json, workspaceId),
+    importInsomnia: (json: string, workspaceId?: string): Promise<InsomniaImportResult> =>
+      ipcRenderer.invoke(IPC.INSOMNIA_IMPORT, json, workspaceId),
+  },
+
+  oauth2: {
+    getToken: (requestId: string): Promise<import('../shared/types/models').AuthConfig> =>
+      ipcRenderer.invoke(IPC.OAUTH2_GET_TOKEN, requestId),
+    refreshToken: (requestId: string): Promise<import('../shared/types/models').AuthConfig> =>
+      ipcRenderer.invoke(IPC.OAUTH2_REFRESH_TOKEN, requestId),
+    clearToken: (requestId: string): Promise<import('../shared/types/models').AuthConfig> =>
+      ipcRenderer.invoke(IPC.OAUTH2_CLEAR_TOKEN, requestId),
   },
 
   codeGenerator: {

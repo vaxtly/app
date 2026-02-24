@@ -10,6 +10,10 @@ const AUTH_SENSITIVE_FIELDS: (keyof AuthConfig)[] = [
   'basic_username',
   'basic_password',
   'api_key_value',
+  'oauth2_client_secret',
+  'oauth2_password',
+  'oauth2_access_token',
+  'oauth2_refresh_token',
 ]
 
 function encryptAuth(json: string | null): string | null {

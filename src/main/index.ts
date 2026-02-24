@@ -18,6 +18,7 @@ import { registerVariableHandlers } from './ipc/variables'
 import { registerSessionLogHandlers } from './ipc/session-log'
 import { registerCodeGeneratorHandlers } from './ipc/code-generator'
 import { registerDataImportExportHandlers } from './ipc/data-import-export'
+import { registerOAuth2Handlers } from './ipc/oauth2'
 import { registerUpdaterHandlers } from './ipc/updater'
 import { initUpdater, checkForUpdates } from './services/updater'
 import * as workspacesRepo from './database/repositories/workspaces'
@@ -159,6 +160,7 @@ function registerAllIpcHandlers(): void {
   registerSessionLogHandlers()
   registerCodeGeneratorHandlers()
   registerDataImportExportHandlers()
+  registerOAuth2Handlers()
   registerUpdaterHandlers()
 }
 
@@ -255,7 +257,7 @@ function migrateToEncryptedStorage(): void {
   }
 
   // Re-write request auth credentials
-  const AUTH_FIELDS = ['bearer_token', 'basic_username', 'basic_password', 'api_key_value']
+  const AUTH_FIELDS = ['bearer_token', 'basic_username', 'basic_password', 'api_key_value', 'oauth2_client_secret', 'oauth2_password', 'oauth2_access_token', 'oauth2_refresh_token']
   const reqRows = db.prepare('SELECT id, auth FROM requests WHERE auth IS NOT NULL').all() as { id: string; auth: string }[]
   for (const row of reqRows) {
     try {

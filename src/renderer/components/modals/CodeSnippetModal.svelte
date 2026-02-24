@@ -18,14 +18,18 @@
 
   let { open, method, url, headers, queryParams, body, bodyType, formData, auth, workspaceId, collectionId, onclose }: Props = $props()
 
-  type Language = 'curl' | 'python' | 'php' | 'javascript' | 'node'
+  type Language = 'curl' | 'python' | 'php' | 'javascript' | 'node' | 'go' | 'ruby' | 'csharp' | 'java'
 
   const languages: { key: Language; label: string }[] = [
     { key: 'curl', label: 'cURL' },
     { key: 'python', label: 'Python' },
-    { key: 'php', label: 'PHP' },
     { key: 'javascript', label: 'JavaScript' },
     { key: 'node', label: 'Node.js' },
+    { key: 'go', label: 'Go' },
+    { key: 'ruby', label: 'Ruby' },
+    { key: 'php', label: 'PHP' },
+    { key: 'csharp', label: 'C#' },
+    { key: 'java', label: 'Java' },
   ]
 
   let activeLanguage = $state<Language>('curl')
@@ -51,7 +55,7 @@
       bodyType,
       formData,
       authType,
-      authToken: auth.bearer_token ?? '',
+      authToken: auth.type === 'oauth2' ? (auth.oauth2_access_token ?? '') : (auth.bearer_token ?? ''),
       authUsername: auth.basic_username ?? '',
       authPassword: auth.basic_password ?? '',
       apiKeyName: auth.api_key_header ?? '',

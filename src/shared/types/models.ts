@@ -100,12 +100,29 @@ export interface KeyValueEntry {
 }
 
 export interface AuthConfig {
-  type: 'none' | 'bearer' | 'basic' | 'api-key'
+  type: 'none' | 'bearer' | 'basic' | 'api-key' | 'oauth2'
   bearer_token?: string
   basic_username?: string
   basic_password?: string
   api_key_header?: string
   api_key_value?: string
+
+  // OAuth 2.0
+  oauth2_grant_type?: 'authorization_code' | 'client_credentials' | 'password'
+  oauth2_access_token_url?: string
+  oauth2_authorization_url?: string
+  oauth2_client_id?: string
+  oauth2_client_secret?: string
+  oauth2_scope?: string
+  oauth2_username?: string
+  oauth2_password?: string
+  oauth2_redirect_url?: string
+  oauth2_pkce?: boolean
+  oauth2_audience?: string
+  oauth2_access_token?: string
+  oauth2_refresh_token?: string
+  oauth2_token_type?: string
+  oauth2_expires_at?: number
 }
 
 export interface ScriptsConfig {

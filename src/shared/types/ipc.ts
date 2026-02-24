@@ -83,6 +83,7 @@ export const IPC = {
   DATA_IMPORT: 'data:import',
   DATA_PICK_AND_READ: 'data:pick-and-read',
   POSTMAN_IMPORT: 'postman:import',
+  INSOMNIA_IMPORT: 'insomnia:import',
 
   // Settings
   SETTINGS_GET: 'settings:get',
@@ -97,6 +98,11 @@ export const IPC = {
   // Window
   WINDOW_GET_STATE: 'window:get-state',
   WINDOW_SAVE_STATE: 'window:save-state',
+
+  // OAuth 2.0
+  OAUTH2_GET_TOKEN: 'oauth2:get-token',
+  OAUTH2_REFRESH_TOKEN: 'oauth2:refresh-token',
+  OAUTH2_CLEAR_TOKEN: 'oauth2:clear-token',
 
   // Code Generator
   CODE_GENERATE: 'code:generate',

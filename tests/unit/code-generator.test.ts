@@ -119,6 +119,120 @@ describe('generateCode', () => {
     })
   })
 
+  describe('go', () => {
+    it('generates net/http GET', () => {
+      const code = generateCode('go', makeRequest())
+      expect(code).toContain('package main')
+      expect(code).toContain('net/http')
+      expect(code).toContain('http.NewRequest("GET"')
+      expect(code).toContain('http.DefaultClient.Do(req)')
+    })
+
+    it('generates POST with JSON body', () => {
+      const code = generateCode('go', makeRequest({
+        method: 'POST',
+        body: '{"name":"test"}',
+        bodyType: 'json',
+      }))
+      expect(code).toContain('"strings"')
+      expect(code).toContain('strings.NewReader')
+      expect(code).toContain('http.NewRequest("POST"')
+      expect(code).toContain('Content-Type')
+      expect(code).toContain('application/json')
+    })
+
+    it('includes custom headers', () => {
+      const code = generateCode('go', makeRequest({
+        headers: [{ key: 'X-Custom', value: 'hello', enabled: true }],
+      }))
+      expect(code).toContain('req.Header.Set("X-Custom", "hello")')
+    })
+  })
+
+  describe('ruby', () => {
+    it('generates Net::HTTP GET', () => {
+      const code = generateCode('ruby', makeRequest())
+      expect(code).toContain("require 'net/http'")
+      expect(code).toContain("URI('https://api.example.com/users')")
+      expect(code).toContain('Net::HTTP::Get.new(uri)')
+      expect(code).toContain('http.request(request)')
+    })
+
+    it('generates POST with JSON body', () => {
+      const code = generateCode('ruby', makeRequest({
+        method: 'POST',
+        body: '{"name":"test"}',
+        bodyType: 'json',
+      }))
+      expect(code).toContain('Net::HTTP::Post.new(uri)')
+      expect(code).toContain('request.body')
+      expect(code).toContain('application/json')
+    })
+
+    it('includes custom headers', () => {
+      const code = generateCode('ruby', makeRequest({
+        headers: [{ key: 'Accept', value: 'text/html', enabled: true }],
+      }))
+      expect(code).toContain("request['Accept'] = 'text/html'")
+    })
+  })
+
+  describe('csharp', () => {
+    it('generates HttpClient GET', () => {
+      const code = generateCode('csharp', makeRequest())
+      expect(code).toContain('using System.Net.Http')
+      expect(code).toContain('new HttpClient()')
+      expect(code).toContain('GetAsync("https://api.example.com/users")')
+      expect(code).toContain('ReadAsStringAsync()')
+    })
+
+    it('generates POST with JSON body', () => {
+      const code = generateCode('csharp', makeRequest({
+        method: 'POST',
+        body: '{"name":"test"}',
+        bodyType: 'json',
+      }))
+      expect(code).toContain('new StringContent(')
+      expect(code).toContain('application/json')
+      expect(code).toContain('PostAsync(')
+    })
+
+    it('includes custom headers', () => {
+      const code = generateCode('csharp', makeRequest({
+        headers: [{ key: 'X-Custom', value: 'hello', enabled: true }],
+      }))
+      expect(code).toContain('DefaultRequestHeaders.Add("X-Custom", "hello")')
+    })
+  })
+
+  describe('java', () => {
+    it('generates HttpClient GET', () => {
+      const code = generateCode('java', makeRequest())
+      expect(code).toContain('import java.net.http.HttpClient')
+      expect(code).toContain('HttpClient.newHttpClient()')
+      expect(code).toContain('URI.create("https://api.example.com/users")')
+      expect(code).toContain('.GET()')
+      expect(code).toContain('client.send(request')
+    })
+
+    it('generates POST with JSON body', () => {
+      const code = generateCode('java', makeRequest({
+        method: 'POST',
+        body: '{"name":"test"}',
+        bodyType: 'json',
+      }))
+      expect(code).toContain('.POST(HttpRequest.BodyPublishers.ofString(')
+      expect(code).toContain('application/json')
+    })
+
+    it('includes custom headers', () => {
+      const code = generateCode('java', makeRequest({
+        headers: [{ key: 'Accept', value: 'application/json', enabled: true }],
+      }))
+      expect(code).toContain('.header("Accept", "application/json")')
+    })
+  })
+
   it('skips disabled headers and params', () => {
     const code = generateCode('curl', makeRequest({
       headers: [

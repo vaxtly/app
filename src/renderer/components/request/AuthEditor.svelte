@@ -5,20 +5,80 @@
 
   interface Props {
     auth: AuthConfig
+    requestId: string
     onchange: (auth: AuthConfig) => void
   }
 
-  let { auth, onchange }: Props = $props()
+  let { auth, requestId, onchange }: Props = $props()
 
   const typeLabels: Record<string, string> = {
     none: 'No Auth',
     bearer: 'Bearer Token',
     basic: 'Basic Auth',
     'api-key': 'API Key',
+    oauth2: 'OAuth 2.0',
   }
 
-  function updateField(field: keyof AuthConfig, value: string): void {
+  const grantTypeLabels: Record<string, string> = {
+    authorization_code: 'Authorization Code',
+    client_credentials: 'Client Credentials',
+    password: 'Password',
+  }
+
+  let tokenLoading = $state(false)
+  let tokenError = $state<string | null>(null)
+
+  function updateField(field: keyof AuthConfig, value: string | boolean): void {
     onchange({ ...auth, [field]: value })
+  }
+
+  function formatExpiry(expiresAt: number | undefined): string {
+    if (!expiresAt) return 'Unknown'
+    const date = new Date(expiresAt)
+    const now = Date.now()
+    if (now >= expiresAt) return 'Expired'
+    const diff = expiresAt - now
+    const mins = Math.floor(diff / 60000)
+    if (mins < 1) return 'Expires in <1 min'
+    if (mins < 60) return `Expires in ${mins} min`
+    const hrs = Math.floor(mins / 60)
+    return `Expires in ${hrs}h ${mins % 60}m`
+  }
+
+  async function handleGetToken(): Promise<void> {
+    tokenLoading = true
+    tokenError = null
+    try {
+      const updated = await window.api.oauth2.getToken(requestId)
+      onchange(updated)
+    } catch (e) {
+      tokenError = e instanceof Error ? e.message : String(e)
+    } finally {
+      tokenLoading = false
+    }
+  }
+
+  async function handleRefreshToken(): Promise<void> {
+    tokenLoading = true
+    tokenError = null
+    try {
+      const updated = await window.api.oauth2.refreshToken(requestId)
+      onchange(updated)
+    } catch (e) {
+      tokenError = e instanceof Error ? e.message : String(e)
+    } finally {
+      tokenLoading = false
+    }
+  }
+
+  async function handleClearToken(): Promise<void> {
+    tokenError = null
+    try {
+      const updated = await window.api.oauth2.clearToken(requestId)
+      onchange(updated)
+    } catch (e) {
+      tokenError = e instanceof Error ? e.message : String(e)
+    }
   }
 </script>
 
@@ -98,6 +158,183 @@
             placeholder="API key value"
             class="ae-input"
           />
+        </div>
+      </div>
+    {:else if auth.type === 'oauth2'}
+      <div class="ae-fields">
+        <!-- Grant type selector -->
+        <div class="ae-field">
+          <span class="ae-label">Grant Type</span>
+          <select
+            class="ae-select"
+            value={auth.oauth2_grant_type ?? 'authorization_code'}
+            onchange={(e) => updateField('oauth2_grant_type', e.currentTarget.value)}
+          >
+            {#each Object.entries(grantTypeLabels) as [value, label]}
+              <option {value}>{label}</option>
+            {/each}
+          </select>
+        </div>
+
+        <!-- Common fields -->
+        <div class="ae-field">
+          <span class="ae-label">Token URL</span>
+          <VarInput
+            id="auth-oauth2-token-url"
+            value={auth.oauth2_access_token_url ?? ''}
+            oninput={(value) => updateField('oauth2_access_token_url', value)}
+            placeholder="https://auth.example.com/oauth/token"
+            class="ae-input"
+          />
+        </div>
+
+        {#if (auth.oauth2_grant_type ?? 'authorization_code') === 'authorization_code'}
+          <div class="ae-field">
+            <span class="ae-label">Authorization URL</span>
+            <VarInput
+              id="auth-oauth2-auth-url"
+              value={auth.oauth2_authorization_url ?? ''}
+              oninput={(value) => updateField('oauth2_authorization_url', value)}
+              placeholder="https://auth.example.com/oauth/authorize"
+              class="ae-input"
+            />
+          </div>
+        {/if}
+
+        <div class="ae-field">
+          <span class="ae-label">Client ID</span>
+          <VarInput
+            id="auth-oauth2-client-id"
+            value={auth.oauth2_client_id ?? ''}
+            oninput={(value) => updateField('oauth2_client_id', value)}
+            placeholder="Client ID"
+            class="ae-input"
+          />
+        </div>
+
+        <div class="ae-field">
+          <span class="ae-label">Client Secret</span>
+          <VarInput
+            id="auth-oauth2-client-secret"
+            type="password"
+            value={auth.oauth2_client_secret ?? ''}
+            oninput={(value) => updateField('oauth2_client_secret', value)}
+            placeholder="Client secret (optional)"
+            class="ae-input"
+          />
+        </div>
+
+        <div class="ae-field">
+          <span class="ae-label">Scope</span>
+          <VarInput
+            id="auth-oauth2-scope"
+            value={auth.oauth2_scope ?? ''}
+            oninput={(value) => updateField('oauth2_scope', value)}
+            placeholder="openid profile email"
+            class="ae-input"
+          />
+        </div>
+
+        <div class="ae-field">
+          <span class="ae-label">Audience</span>
+          <VarInput
+            id="auth-oauth2-audience"
+            value={auth.oauth2_audience ?? ''}
+            oninput={(value) => updateField('oauth2_audience', value)}
+            placeholder="Optional"
+            class="ae-input"
+          />
+        </div>
+
+        {#if (auth.oauth2_grant_type ?? 'authorization_code') === 'authorization_code'}
+          <div class="ae-row">
+            <label class="ae-toggle">
+              <input
+                type="checkbox"
+                checked={auth.oauth2_pkce !== false}
+                onchange={(e) => updateField('oauth2_pkce', e.currentTarget.checked)}
+              />
+              <span class="ae-toggle-label">PKCE</span>
+            </label>
+          </div>
+        {/if}
+
+        {#if (auth.oauth2_grant_type ?? 'authorization_code') === 'password'}
+          <div class="ae-field">
+            <span class="ae-label">Username</span>
+            <VarInput
+              id="auth-oauth2-username"
+              value={auth.oauth2_username ?? ''}
+              oninput={(value) => updateField('oauth2_username', value)}
+              placeholder="Username"
+              class="ae-input"
+            />
+          </div>
+          <div class="ae-field">
+            <span class="ae-label">Password</span>
+            <VarInput
+              id="auth-oauth2-password"
+              type="password"
+              value={auth.oauth2_password ?? ''}
+              oninput={(value) => updateField('oauth2_password', value)}
+              placeholder="Password"
+              class="ae-input"
+            />
+          </div>
+        {/if}
+
+        <!-- Token status -->
+        <div class="ae-divider"></div>
+
+        <div class="ae-token-section">
+          <span class="ae-label">Token</span>
+
+          {#if auth.oauth2_access_token}
+            <div class="ae-token-status">
+              <div class="ae-token-info">
+                <span class="ae-token-badge ae-token-badge--active">Active</span>
+                <span class="ae-token-expiry">{formatExpiry(auth.oauth2_expires_at)}</span>
+              </div>
+              <code class="ae-token-preview">{auth.oauth2_access_token.slice(0, 40)}...</code>
+            </div>
+          {:else}
+            <p class="ae-hint">No token. Click "Get Token" to authenticate.</p>
+          {/if}
+
+          {#if tokenError}
+            <div class="ae-token-error">{tokenError}</div>
+          {/if}
+
+          <div class="ae-token-actions">
+            <button
+              class="ae-btn ae-btn--primary"
+              onclick={handleGetToken}
+              disabled={tokenLoading}
+            >
+              {#if tokenLoading}
+                <span class="ae-spinner"></span>
+              {/if}
+              Get Token
+            </button>
+            {#if auth.oauth2_refresh_token}
+              <button
+                class="ae-btn ae-btn--secondary"
+                onclick={handleRefreshToken}
+                disabled={tokenLoading}
+              >
+                Refresh
+              </button>
+            {/if}
+            {#if auth.oauth2_access_token}
+              <button
+                class="ae-btn ae-btn--danger"
+                onclick={handleClearToken}
+                disabled={tokenLoading}
+              >
+                Clear
+              </button>
+            {/if}
+          </div>
         </div>
       </div>
     {/if}
@@ -204,6 +441,181 @@
   :global(.ae-input:focus) {
     border-color: var(--color-brand-500);
     box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-brand-500) 15%, transparent);
+  }
+
+  /* --- OAuth2-specific --- */
+  .ae-select {
+    height: 32px;
+    width: 100%;
+    padding: 0 10px;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    background: var(--color-surface-800);
+    color: var(--color-surface-100);
+    font-size: 12px;
+    font-family: inherit;
+    outline: none;
+    cursor: pointer;
+    transition: border-color 0.12s;
+  }
+
+  .ae-select:hover {
+    border-color: var(--color-surface-600);
+  }
+
+  .ae-select:focus {
+    border-color: var(--color-brand-500);
+  }
+
+  .ae-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .ae-toggle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--color-surface-300);
+    cursor: pointer;
+  }
+
+  .ae-toggle input[type="checkbox"] {
+    accent-color: var(--color-brand-500);
+  }
+
+  .ae-toggle-label {
+    font-size: 11px;
+    font-weight: 500;
+  }
+
+  .ae-divider {
+    height: 1px;
+    background: var(--border-default);
+    margin: 4px 0;
+  }
+
+  .ae-token-section {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .ae-token-status {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .ae-token-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .ae-token-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 500;
+  }
+
+  .ae-token-badge--active {
+    background: color-mix(in srgb, var(--color-success) 15%, transparent);
+    color: var(--color-success);
+  }
+
+  .ae-token-expiry {
+    font-size: 10px;
+    color: var(--color-surface-500);
+  }
+
+  .ae-token-preview {
+    font-size: 10px;
+    color: var(--color-surface-400);
+    background: var(--color-surface-800);
+    padding: 4px 6px;
+    border-radius: 4px;
+    word-break: break-all;
+  }
+
+  .ae-token-error {
+    font-size: 11px;
+    color: var(--color-danger-light);
+    padding: 6px 8px;
+    background: color-mix(in srgb, var(--color-danger-light) 8%, transparent);
+    border-radius: 4px;
+    border: 1px solid color-mix(in srgb, var(--color-danger-light) 20%, transparent);
+  }
+
+  .ae-token-actions {
+    display: flex;
+    gap: 6px;
+  }
+
+  .ae-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    border: none;
+    border-radius: 5px;
+    font-size: 11px;
+    font-weight: 500;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background 0.12s, opacity 0.12s;
+  }
+
+  .ae-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .ae-btn--primary {
+    background: var(--color-brand-600);
+    color: white;
+  }
+
+  .ae-btn--primary:not(:disabled):hover {
+    background: var(--color-brand-500);
+  }
+
+  .ae-btn--secondary {
+    background: var(--color-surface-700);
+    color: var(--color-surface-200);
+  }
+
+  .ae-btn--secondary:not(:disabled):hover {
+    background: var(--color-surface-600);
+  }
+
+  .ae-btn--danger {
+    background: transparent;
+    color: var(--color-danger-light);
+    border: 1px solid color-mix(in srgb, var(--color-danger-light) 30%, transparent);
+  }
+
+  .ae-btn--danger:not(:disabled):hover {
+    background: color-mix(in srgb, var(--color-danger-light) 10%, transparent);
+  }
+
+  .ae-spinner {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border: 1.5px solid color-mix(in srgb, currentColor 25%, transparent);
+    border-top-color: currentColor;
+    border-radius: 50%;
+    animation: ae-spin 0.6s linear infinite;
+  }
+
+  @keyframes ae-spin {
+    to { transform: rotate(360deg); }
   }
 
 </style>

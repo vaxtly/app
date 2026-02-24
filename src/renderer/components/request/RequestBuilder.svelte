@@ -24,7 +24,7 @@
 
   // Request tab sub-tabs
   type RequestTab = 'params' | 'headers' | 'body' | 'auth' | 'scripts'
-  let activeRequestTab = $state<RequestTab>('params')
+  let activeRequestTab = $derived<RequestTab>((state?.activeSubTab as RequestTab) ?? 'params')
 
   // Code snippet modal
   let showCodeSnippet = $state(false)
@@ -124,6 +124,18 @@
   // Count badges
   let paramCount = $derived(queryParams.filter((p) => p.key.trim()).length)
   let headerCount = $derived(headers.filter((h) => h.key.trim()).length)
+
+  // "Has content" indicators for tabs without count badges
+  let bodyHasContent = $derived.by(() => {
+    if (!state) return false
+    if (state.body_type === 'none' || !state.body_type) return false
+    if (state.body_type === 'form-data') {
+      return formData.some((e) => e.key.trim())
+    }
+    return !!(state.body?.trim())
+  })
+  let authHasContent = $derived(auth.type !== 'none')
+  let scriptsHasContent = $derived(!!(scripts.pre_request || scripts.post_response?.length))
 
   // --- Actions ---
 
@@ -370,14 +382,17 @@
         <div class="flex items-stretch shrink-0 h-9 px-1 gap-px" style="border-bottom: 1px solid var(--glass-border)">
           {#each requestTabs as tab (tab.key)}
             {@const count = tab.key === 'params' ? paramCount : tab.key === 'headers' ? headerCount : 0}
+            {@const hasDot = tab.key === 'body' ? bodyHasContent : tab.key === 'auth' ? authHasContent : tab.key === 'scripts' ? scriptsHasContent : false}
             {@const isActive = activeRequestTab === tab.key}
             <button
-              onclick={() => activeRequestTab = tab.key}
+              onclick={() => update({ activeSubTab: tab.key })}
               class="rb-tab flex items-center gap-[5px] px-2.5 my-1 border-none bg-transparent text-xs font-inherit cursor-pointer relative whitespace-nowrap rounded-lg transition-all duration-150 {isActive ? 'rb-tab--active text-brand-400 bg-[var(--tint-active)] shadow-[inset_0_1px_0_var(--glass-highlight)] hover:text-brand-400' : 'text-surface-400 hover:text-surface-200 hover:bg-[var(--tint-subtle)]'}"
             >
               <span class="font-medium">{tab.label}</span>
               {#if count}
                 <span class="text-[10px] leading-none py-0.5 px-[5px] rounded-full font-medium {isActive ? 'bg-brand-500/15 text-brand-400' : 'bg-surface-600/60 text-surface-300'}">{count}</span>
+              {:else if hasDot}
+                <span class="size-1.5 rounded-full {isActive ? 'bg-brand-400' : 'bg-surface-400'}"></span>
               {/if}
             </button>
           {/each}
@@ -421,6 +436,7 @@
           {:else if activeRequestTab === 'auth'}
             <AuthEditor
               {auth}
+              {requestId}
               onchange={(a) => update({ auth: JSON.stringify(a) })}
             />
           {:else if activeRequestTab === 'scripts'}

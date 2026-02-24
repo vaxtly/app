@@ -33,6 +33,14 @@ export interface TabRequestState {
   scripts: string | null
   response: ResponseData | null
   loading: boolean
+  activeSubTab?: string
+}
+
+export interface TabEnvironmentState {
+  name: string
+  variables: Array<{ key: string; value: string; enabled: boolean }>
+  isDirty: boolean
+  initialized: boolean
 }
 
 type SidebarMode = 'collections' | 'environments'
@@ -51,6 +59,9 @@ let showSettings = $state(false)
 
 // Per-tab request state cache (reactive object so $derived tracks changes)
 let tabStates = $state<Record<string, TabRequestState>>({})
+
+// Per-tab environment state cache (parallel to tabStates for env tabs)
+let envTabStates = $state<Record<string, TabEnvironmentState>>({})
 
 // --- Derived ---
 
@@ -127,6 +138,7 @@ function closeTab(tabId: string): void {
   const index = openTabs.indexOf(tab)
   openTabs = openTabs.filter((t) => t.id !== tabId)
   delete tabStates[tabId]
+  delete envTabStates[tabId]
 
   if (activeTabId === tabId) {
     // Activate the nearest tab
@@ -144,6 +156,7 @@ function closeOtherTabs(keepTabId: string): void {
   const removing = openTabs.filter((t) => t.id !== keepTabId && !t.pinned)
   for (const t of removing) {
     delete tabStates[t.id]
+    delete envTabStates[t.id]
   }
   openTabs = keep
   if (!openTabs.find((t) => t.id === activeTabId)) {
@@ -155,6 +168,7 @@ function closeAllTabs(): void {
   const unpinned = openTabs.filter((t) => !t.pinned)
   for (const t of unpinned) {
     delete tabStates[t.id]
+    delete envTabStates[t.id]
   }
   openTabs = openTabs.filter((t) => t.pinned)
   if (openTabs.length > 0) {
@@ -249,10 +263,35 @@ function openEnvironmentTab(env: { id: string; name: string }): void {
 
   openTabs = [...openTabs, tab]
   activeTabId = tab.id
+
+  // Initialize env tab state (component will fill in data on first mount)
+  envTabStates[tab.id] = {
+    name: env.name,
+    variables: [],
+    isDirty: false,
+    initialized: false,
+  }
 }
 
 function updateTabLabel(tabId: string, label: string, method?: string): void {
   openTabs = openTabs.map((t) => (t.id === tabId ? { ...t, label, method: method ?? t.method } : t))
+}
+
+function getEnvTabState(tabId: string): TabEnvironmentState | undefined {
+  return envTabStates[tabId]
+}
+
+function updateEnvTabState(tabId: string, partial: Partial<TabEnvironmentState>): void {
+  const current = envTabStates[tabId]
+  if (!current) return
+  envTabStates[tabId] = { ...current, ...partial }
+
+  // Sync isUnsaved on tab when dirty flag changes
+  if ('isDirty' in partial) {
+    openTabs = openTabs.map((t) =>
+      t.id === tabId ? { ...t, isUnsaved: partial.isDirty ?? t.isUnsaved } : t
+    )
+  }
 }
 
 // --- Export reactive getters + actions ---
@@ -294,4 +333,6 @@ export const appStore = {
   updateTabState,
   markTabSaved,
   updateTabLabel,
+  getEnvTabState,
+  updateEnvTabState,
 }
