@@ -7,14 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-02-24
+
 ### Added
+- OAuth 2.0 authentication — Authorization Code + PKCE, Client Credentials, and Password grant types with auto-refresh, encrypted token storage, and full UI panel
+- Insomnia import — parse v4 JSON exports (workspaces, folders, requests, environments) with auto-detection alongside existing Postman support
+- Code generation for Go, Ruby, C#, and Java (9 languages total)
 - Bulk edit mode for all key-value editors (headers, params, environments, URL-encoded, form-data) — toggle to a plain-text textarea with `key:value` format for fast multi-entry input and copy/paste between editors
 - HTTP request/response detail in session log — click any HTTP log entry to expand and inspect full request (URL, query params, headers, body) and response (status, timing, size, headers, body, cookies) with Request/Response tabs
+- Content dot indicators on Body, Auth, and Scripts tabs to show when they have content
 
 ### Fixed
+- Environment editor losing unsaved changes on tab switch — state now cached in app store
+- Request sub-tab resetting to Params on tab switch — active sub-tab now persisted in tab state
 - Environment tab not refreshing after post-response scripts update variables — now explicitly syncs the open env tab after request send, including vault-synced environments
 - Format button (JSON/XML) not updating the CodeMirror editor — `$effect` dependency tracking was broken by short-circuit evaluation when `view` was uninitialized; now uses `$state` for the editor view reference
-- Pre-request script logs showing raw template URLs (e.g. <code v-pre>{{domain}}</code>) instead of resolved values — now logs the substituted URL
+- Pre-request script logs showing raw template URLs (e.g. `{{domain}}`) instead of resolved values — now logs the substituted URL
 
 ## [0.3.2] - 2026-02-23
 
