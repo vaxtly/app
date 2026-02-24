@@ -5,6 +5,8 @@
   let logs = $state<SessionLogEntry[]>([])
   let expanded = $state(false)
   let panelHeight = $state(200)
+  let expandedId = $state<string | null>(null)
+  let detailTab = $state<'request' | 'response'>('request')
 
   onMount(async () => {
     // Load existing logs
@@ -21,6 +23,13 @@
   async function clearLogs(): Promise<void> {
     await window.api.log.clear()
     logs = []
+    expandedId = null
+  }
+
+  function toggleDetail(entry: SessionLogEntry): void {
+    if (!entry.detail) return
+    expandedId = expandedId === entry.id ? null : entry.id
+    detailTab = 'request'
   }
 
   let dragging = $state(false)
@@ -87,6 +96,21 @@
     }
     return segments.length > 0 ? segments : [{ text: message, type: 'text' }]
   }
+
+  function formatDetailBody(body: string | undefined, headers: Record<string, string>): string {
+    if (!body) return ''
+    const ct = Object.entries(headers).find(([k]) => k.toLowerCase() === 'content-type')?.[1] ?? ''
+    if (ct.includes('json') || ct.includes('javascript')) {
+      try { return JSON.stringify(JSON.parse(body), null, 2) } catch { /* not valid JSON */ }
+    }
+    return body
+  }
+
+  function formatDetailSize(bytes: number): string {
+    if (bytes < 1024) return `${bytes} B`
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+  }
 </script>
 
 <!-- Collapsible bottom panel -->
@@ -141,11 +165,24 @@
       {#if logs.length === 0}
         <div class="flex h-full items-center justify-center text-surface-600">No log entries</div>
       {:else}
-        {#each logs as entry (entry.timestamp + entry.message)}
+        {#each logs as entry (entry.id)}
+          <!-- svelte-ignore a11y_no_static_element_interactions a11y_click_events_have_key_events -->
           <div
-            class="sl-log-row flex items-center gap-2 h-7 px-3 whitespace-nowrap transition-colors duration-100 hover:bg-[var(--tint-faint)]"
+            class="sl-log-row flex items-center gap-2 h-7 px-3 whitespace-nowrap transition-colors duration-100 hover:bg-[var(--tint-faint)] {entry.detail ? 'cursor-pointer' : ''}"
             style="border-bottom: 1px solid var(--border-muted)"
+            onclick={() => toggleDetail(entry)}
           >
+            {#if entry.detail}
+              <svg
+                class="sl-row-chevron shrink-0 w-3 h-3 text-surface-500"
+                class:sl-row-chevron--open={expandedId === entry.id}
+                fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"
+              >
+                <path d="M9 5l7 7-7 7" />
+              </svg>
+            {:else}
+              <span class="shrink-0 w-3"></span>
+            {/if}
             <span class="shrink-0 w-18 text-surface-600" style="font-variant-numeric: tabular-nums">{formatTime(entry.timestamp)}</span>
             <span class="sl-badge" style="--cat-color: {getCategoryColor(entry.category)}">{getCategoryLabel(entry.category)}</span>
             <span class="shrink-0 w-16 text-surface-500">{entry.type}</span>
@@ -164,6 +201,124 @@
               {/each}
             </span>
           </div>
+
+          <!-- Expanded detail panel -->
+          {#if entry.detail && expandedId === entry.id}
+            {@const detail = entry.detail}
+            <div class="sl-detail" style="border-bottom: 1px solid var(--border-muted)">
+              <!-- Tab bar -->
+              <div class="flex gap-0 px-3 pt-2 pb-1">
+                <button
+                  class="sl-detail-tab"
+                  class:sl-detail-tab--active={detailTab === 'request'}
+                  onclick={() => { detailTab = 'request' }}
+                >Request</button>
+                <button
+                  class="sl-detail-tab"
+                  class:sl-detail-tab--active={detailTab === 'response'}
+                  onclick={() => { detailTab = 'response' }}
+                >Response</button>
+              </div>
+
+              <div class="sl-detail-body px-3 pb-2">
+                {#if detailTab === 'request'}
+                  <!-- URL -->
+                  <div class="sl-detail-section">
+                    <span class="sl-detail-label">URL</span>
+                    <span class="text-surface-200 break-all whitespace-normal">{detail.request.url}</span>
+                  </div>
+
+                  <!-- Query Params -->
+                  {#if detail.request.queryParams && Object.keys(detail.request.queryParams).length > 0}
+                    <div class="sl-detail-section">
+                      <span class="sl-detail-label">Query Params</span>
+                      <div class="sl-kv-list">
+                        {#each Object.entries(detail.request.queryParams) as [key, value] (key)}
+                          <div class="sl-kv-row">
+                            <span class="sl-kv-key">{key}</span>
+                            <span class="sl-kv-value">{value}</span>
+                          </div>
+                        {/each}
+                      </div>
+                    </div>
+                  {/if}
+
+                  <!-- Headers -->
+                  {#if Object.keys(detail.request.headers).length > 0}
+                    <div class="sl-detail-section">
+                      <span class="sl-detail-label">Headers</span>
+                      <div class="sl-kv-list">
+                        {#each Object.entries(detail.request.headers) as [key, value] (key)}
+                          <div class="sl-kv-row">
+                            <span class="sl-kv-key">{key}</span>
+                            <span class="sl-kv-value">{value}</span>
+                          </div>
+                        {/each}
+                      </div>
+                    </div>
+                  {/if}
+
+                  <!-- Body -->
+                  {#if detail.request.body}
+                    <div class="sl-detail-section">
+                      <span class="sl-detail-label">Body{detail.request.bodyType ? ` (${detail.request.bodyType})` : ''}</span>
+                      <pre class="sl-detail-pre">{formatDetailBody(detail.request.body, detail.request.headers)}</pre>
+                    </div>
+                  {/if}
+
+                {:else}
+                  <!-- Status + timing -->
+                  <div class="sl-detail-section">
+                    <span class="sl-detail-label">Status</span>
+                    <span class="{detail.response.status >= 200 && detail.response.status < 400 ? 'text-success' : detail.response.status === 0 ? 'text-danger' : 'text-warning'}">
+                      {detail.response.status} {detail.response.statusText}
+                    </span>
+                    <span class="text-surface-500 ml-2">
+                      TTFB {detail.response.timing.ttfb}ms &middot; Total {detail.response.timing.total}ms &middot; {formatDetailSize(detail.response.size)}
+                    </span>
+                  </div>
+
+                  <!-- Headers -->
+                  {#if Object.keys(detail.response.headers).length > 0}
+                    <div class="sl-detail-section">
+                      <span class="sl-detail-label">Headers</span>
+                      <div class="sl-kv-list">
+                        {#each Object.entries(detail.response.headers) as [key, value] (key)}
+                          <div class="sl-kv-row">
+                            <span class="sl-kv-key">{key}</span>
+                            <span class="sl-kv-value">{value}</span>
+                          </div>
+                        {/each}
+                      </div>
+                    </div>
+                  {/if}
+
+                  <!-- Body -->
+                  {#if detail.response.body}
+                    <div class="sl-detail-section">
+                      <span class="sl-detail-label">Body</span>
+                      <pre class="sl-detail-pre">{formatDetailBody(detail.response.body, detail.response.headers)}</pre>
+                    </div>
+                  {/if}
+
+                  <!-- Cookies -->
+                  {#if detail.response.cookies && detail.response.cookies.length > 0}
+                    <div class="sl-detail-section">
+                      <span class="sl-detail-label">Cookies</span>
+                      <div class="sl-kv-list">
+                        {#each detail.response.cookies as cookie (cookie.name)}
+                          <div class="sl-kv-row">
+                            <span class="sl-kv-key">{cookie.name}</span>
+                            <span class="sl-kv-value">{cookie.value}</span>
+                          </div>
+                        {/each}
+                      </div>
+                    </div>
+                  {/if}
+                {/if}
+              </div>
+            </div>
+          {/if}
         {/each}
       {/if}
     </div>
@@ -219,6 +374,15 @@
     transform: rotate(180deg);
   }
 
+  /* Row chevron */
+  .sl-row-chevron {
+    transition: transform 0.15s;
+  }
+
+  .sl-row-chevron--open {
+    transform: rotate(90deg);
+  }
+
   /* Log content — thin scrollbar for both axes */
   .sl-log-content {
     scrollbar-width: thin;
@@ -260,5 +424,124 @@
     font-weight: 500;
     color: var(--cat-color);
     background: color-mix(in srgb, var(--cat-color) 12%, transparent);
+  }
+
+  /* Detail panel */
+  .sl-detail {
+    background: color-mix(in srgb, var(--color-surface-900) 60%, transparent);
+    max-height: 300px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in srgb, var(--color-surface-500) 30%, transparent) transparent;
+  }
+
+  .sl-detail::-webkit-scrollbar {
+    width: 4px;
+  }
+
+  .sl-detail::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .sl-detail::-webkit-scrollbar-thumb {
+    background: color-mix(in srgb, var(--color-surface-500) 30%, transparent);
+    border-radius: 4px;
+  }
+
+  /* Detail tabs */
+  .sl-detail-tab {
+    padding: 3px 10px;
+    border: none;
+    background: transparent;
+    font-family: inherit;
+    font-size: 10px;
+    font-weight: 500;
+    color: var(--color-surface-500);
+    cursor: pointer;
+    border-radius: var(--radius-sm);
+    transition: color 0.1s, background 0.1s;
+  }
+
+  .sl-detail-tab:hover {
+    color: var(--color-surface-300);
+  }
+
+  .sl-detail-tab--active {
+    color: var(--color-brand-400);
+    background: color-mix(in srgb, var(--color-brand-500) 10%, transparent);
+  }
+
+  /* Detail body area */
+  .sl-detail-body {
+    font-size: 11px;
+  }
+
+  .sl-detail-section {
+    margin-bottom: 8px;
+  }
+
+  .sl-detail-label {
+    display: block;
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--color-surface-500);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 2px;
+  }
+
+  /* Key-value list */
+  .sl-kv-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+  }
+
+  .sl-kv-row {
+    display: flex;
+    gap: 8px;
+    padding: 1px 0;
+  }
+
+  .sl-kv-key {
+    flex-shrink: 0;
+    color: var(--color-surface-300);
+    font-weight: 500;
+  }
+
+  .sl-kv-value {
+    color: var(--color-surface-400);
+    word-break: break-all;
+    white-space: normal;
+  }
+
+  /* Pre block for bodies */
+  .sl-detail-pre {
+    margin: 2px 0 0;
+    padding: 6px 8px;
+    background: color-mix(in srgb, var(--color-surface-900) 80%, transparent);
+    border-radius: var(--radius-sm);
+    font-size: 10px;
+    line-height: 1.5;
+    color: var(--color-surface-300);
+    white-space: pre-wrap;
+    word-break: break-all;
+    max-height: 12rem;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in srgb, var(--color-surface-500) 30%, transparent) transparent;
+  }
+
+  .sl-detail-pre::-webkit-scrollbar {
+    width: 4px;
+  }
+
+  .sl-detail-pre::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .sl-detail-pre::-webkit-scrollbar-thumb {
+    background: color-mix(in srgb, var(--color-surface-500) 30%, transparent);
+    border-radius: 4px;
   }
 </style>

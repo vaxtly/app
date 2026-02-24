@@ -6,7 +6,7 @@
 import { v4 as uuid } from 'uuid'
 import { BrowserWindow } from 'electron'
 import { IPC } from '../../shared/types/ipc'
-import type { SessionLogEntry } from '../../shared/types/sync'
+import type { SessionLogEntry, HttpLogDetail } from '../../shared/types/sync'
 import { DEFAULTS } from '../../shared/constants'
 
 const logs: SessionLogEntry[] = []
@@ -17,6 +17,7 @@ export function addLog(
   target: string,
   message: string,
   success = true,
+  detail?: HttpLogDetail,
 ): void {
   const entry: SessionLogEntry = {
     id: uuid(),
@@ -26,6 +27,7 @@ export function addLog(
     message,
     success,
     timestamp: new Date().toISOString(),
+    ...(detail && { detail }),
   }
 
   logs.unshift(entry)
@@ -57,8 +59,8 @@ export function logVault(type: string, target: string, message: string, success 
   addLog('vault', type, target, message, success)
 }
 
-export function logHttp(type: string, target: string, message: string, success = true): void {
-  addLog('http', type, target, message, success)
+export function logHttp(type: string, target: string, message: string, success = true, detail?: HttpLogDetail): void {
+  addLog('http', type, target, message, success, detail)
 }
 
 export function logScript(type: string, target: string, message: string, success = true): void {

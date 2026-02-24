@@ -8,12 +8,31 @@ import { substitute } from '../services/variable-substitution'
 import { executePreRequestScripts, executePostResponseScripts } from '../services/script-execution'
 import { logHttp } from '../services/session-log'
 import { formatFetchError } from '../services/fetch-error'
+import { DEFAULTS } from '../../shared/constants'
+import type { HttpLogDetail } from '../../shared/types/sync'
 import * as requestsRepo from '../database/repositories/requests'
 import * as environmentsRepo from '../database/repositories/environments'
 import * as settingsRepo from '../database/repositories/settings'
 import * as vaultSyncService from '../vault/vault-sync-service'
 import { isTokenExpired, refreshAccessToken } from '../services/oauth2'
 import type { AuthConfig } from '../../shared/types/models'
+
+function truncateBody(body: string | undefined): string | undefined {
+  if (!body) return undefined
+  if (body.length <= DEFAULTS.SESSION_LOG_BODY_MAX_SIZE) return body
+  return body.slice(0, DEFAULTS.SESSION_LOG_BODY_MAX_SIZE) + '\n--- Truncated ---'
+}
+
+function parseQueryParams(url: string): Record<string, string> | undefined {
+  try {
+    const params: Record<string, string> = {}
+    const searchParams = new URL(url).searchParams
+    searchParams.forEach((value, key) => { params[key] = value })
+    return Object.keys(params).length > 0 ? params : undefined
+  } catch {
+    return undefined
+  }
+}
 
 const activeRequests = new Map<string, AbortController>()
 const approvedFilePaths = new Set<string>()
@@ -213,14 +232,53 @@ export function registerProxyHandlers(): void {
         }
       }
 
-      logHttp('request', resolvedUrl, `${method} ${response.status} ${response.statusText} (${Math.round(total)}ms)`)
+      const detail: HttpLogDetail = {
+        request: {
+          method,
+          url: resolvedUrl,
+          headers: fetchHeaders,
+          ...(typeof fetchBody === 'string' && { body: truncateBody(fetchBody) }),
+          ...(config.bodyType && config.bodyType !== 'none' && { bodyType: config.bodyType }),
+          ...({ queryParams: parseQueryParams(resolvedUrl) }),
+        },
+        response: {
+          status: response.status,
+          statusText: response.statusText,
+          headers,
+          body: truncateBody(body),
+          size: bodyBuffer.byteLength,
+          timing: { ttfb: Math.round(ttfb), total: Math.round(total) },
+          ...(cookies.length > 0 && { cookies: cookies.map(c => ({ name: c.name, value: c.value })) }),
+        },
+      }
+
+      logHttp('request', resolvedUrl, `${method} ${response.status} ${response.statusText} (${Math.round(total)}ms)`, true, detail)
 
       return result
     } catch (error) {
       clearTimeout(timeoutId)
       const total = performance.now() - startTime
       const errorMessage = formatFetchError(error, resolvedUrl)
-      logHttp('request', resolvedUrl, `${method} failed: ${errorMessage}`, false)
+
+      const failDetail: HttpLogDetail = {
+        request: {
+          method,
+          url: resolvedUrl,
+          headers: resolvedHeaders,
+          ...(typeof resolvedBody === 'string' && { body: truncateBody(resolvedBody) }),
+          ...(config.bodyType && config.bodyType !== 'none' && { bodyType: config.bodyType }),
+          ...({ queryParams: parseQueryParams(resolvedUrl) }),
+        },
+        response: {
+          status: 0,
+          statusText: errorMessage,
+          headers: {},
+          size: 0,
+          timing: { ttfb: Math.round(ttfb || total), total: Math.round(total) },
+        },
+      }
+
+      logHttp('request', resolvedUrl, `${method} failed: ${errorMessage}`, false, failDetail)
       return {
         status: 0,
         statusText: errorMessage,

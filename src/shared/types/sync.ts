@@ -56,4 +56,25 @@ export interface SessionLogEntry {
   message: string
   success: boolean
   timestamp: string
+  detail?: HttpLogDetail
+}
+
+export interface HttpLogDetail {
+  request: {
+    method: string
+    url: string
+    headers: Record<string, string>
+    body?: string
+    bodyType?: string
+    queryParams?: Record<string, string>
+  }
+  response: {
+    status: number
+    statusText: string
+    headers: Record<string, string>
+    body?: string
+    size: number
+    timing: { ttfb: number; total: number }
+    cookies?: Array<{ name: string; value: string }>
+  }
 }
