@@ -57,17 +57,20 @@ vaxtly/
 │   │   │   ├── proxy.ts               # HTTP proxy + var substitution + pre/post scripts
 │   │   │   ├── variables.ts           # Variable resolution IPC (resolve, resolveWithSource) — async, ensures vault cache
 │   │   │   ├── session-log.ts         # Session log list + clear
+│   │   │   ├── oauth2.ts              # OAuth 2.0: get-token, refresh-token, clear-token
 │   │   │   ├── code-generator.ts      # Code snippet generation
 │   │   │   ├── sync.ts                # Git sync: test, pull, push, resolve, scan
 │   │   │   ├── vault.ts               # Vault: test, pull, push, fetch/push vars, delete, migrate
-│   │   │   ├── data-import-export.ts  # Data export/import + Postman import
+│   │   │   ├── data-import-export.ts  # Data export/import + Postman/Insomnia import
 │   │   │   ├── updater.ts            # Auto-update: check, install, install-source
 │   │   │   └── settings.ts
 │   │   ├── services/
 │   │   │   ├── encryption.ts           # safeStorage master key + AES-256-GCM (CBC backward compat)
 │   │   │   ├── variable-substitution.ts # {{var}} resolution, nested refs, env+collection merge
 │   │   │   ├── script-execution.ts     # Pre/post-request scripts, dependent request chains
-│   │   │   ├── code-generator.ts       # Code snippet generation (5 languages)
+│   │   │   ├── oauth2.ts               # OAuth 2.0: PKCE, token exchange, callback server, refresh
+│   │   │   ├── code-generator.ts       # Code snippet generation (9 languages)
+│   │   │   ├── insomnia-import.ts      # Import Insomnia v4 collections/environments
 │   │   │   ├── session-log.ts          # In-memory ring buffer, push to renderer
 │   │   │   ├── yaml-serializer.ts      # Collection ↔ YAML directory serialization/import
 │   │   │   ├── fetch-error.ts            # Shared formatFetchError (SSL, DNS, timeout, etc.)
@@ -124,7 +127,7 @@ vaxtly/
 │           │   ├── ParamsEditor.svelte   # Query params ↔ URL sync
 │           │   ├── HeadersEditor.svelte  # Implicit headers + custom headers
 │           │   ├── BodyEditor.svelte     # 7 body types: none/json/xml/form-data/urlencoded/raw/graphql
-│           │   ├── AuthEditor.svelte     # 4 auth types: none/bearer/basic/api-key
+│           │   ├── AuthEditor.svelte     # 5 auth types: none/bearer/basic/api-key/oauth2
 │           │   └── ScriptsEditor.svelte  # Pre-request + post-response script config
 │           ├── environment/
 │           │   └── EnvironmentEditor.svelte # Name, active toggle, variables, Save button, vault sync (toggle clears variables in both directions)
@@ -137,7 +140,7 @@ vaxtly/
 │           ├── settings/
 │           │   ├── SettingsModal.svelte   # 4-tab bespoke modal (General/Data/Remote/Vault)
 │           │   ├── GeneralTab.svelte      # Layout, timeout, SSL, redirects, about
-│           │   ├── DataTab.svelte         # Export (type pills) + Import (Vaxtly/Postman)
+│           │   ├── DataTab.svelte         # Export (type pills) + Import (Vaxtly/Postman/Insomnia)
 │           │   ├── RemoteSyncTab.svelte   # Git provider config, test/pull/push + conflict modal
 │           │   └── VaultTab.svelte        # Vault URL, auth, namespace, actions
 │           ├── modals/
@@ -160,7 +163,9 @@ vaxtly/
 │   │   ├── repositories.test.ts        # 32 tests: all repos + encryption + workspace settings
 │   │   ├── variable-substitution.test.ts # 20 tests: variable resolution + vault-synced cache reads
 │   │   ├── script-execution.test.ts    # 40 tests: extractValue + extractJsonPath + executePostResponseScripts + vault mirror
-│   │   ├── code-generator.test.ts      # 17 tests: 5 languages + all auth/body types
+│   │   ├── code-generator.test.ts      # 29 tests: 9 languages + all auth/body types
+│   │   ├── oauth2.test.ts             # 17 tests: PKCE, token expiry, mocked token exchange
+│   │   ├── insomnia-import.test.ts    # 14 tests: workspace/folder/request/env import
 │   │   ├── sensitive-data-scanner.test.ts # 24 tests: scan + sanitize + api-key + urlencoded
 │   │   ├── yaml-serializer.test.ts     # 14 tests: serialize + import + auth/scripts + sanitize + auth decryption regression
 │   │   ├── remote-sync.test.ts         # 18 tests: file state + isConfigured + getProvider
@@ -376,6 +381,10 @@ Pattern: `ipcMain.handle('domain:action', handler)` in main, `ipcRenderer.invoke
 | `data:pick-and-read` | ipc/data-import-export.ts | `dialog.showOpenDialog()` + `readFileSync()` | `api.data.pickAndRead()` |
 | `data:import` | ipc/data-import-export.ts | `dataService.importData(json, wsId?)` | `api.data.import(json, wsId?)` |
 | `postman:import` | ipc/data-import-export.ts | `importPostman(json, wsId?)` | `api.data.importPostman(json, wsId?)` |
+| `insomnia:import` | ipc/data-import-export.ts | `importInsomnia(json, wsId?)` | `api.data.importInsomnia(json, wsId?)` |
+| `oauth2:get-token` | ipc/oauth2.ts | `startAuthorizationFlow()` / `exchangeClientCredentials()` / `exchangePassword()` | `api.oauth2.getToken(reqId)` |
+| `oauth2:refresh-token` | ipc/oauth2.ts | `refreshAccessToken(auth)` | `api.oauth2.refreshToken(reqId)` |
+| `oauth2:clear-token` | ipc/oauth2.ts | clears token fields | `api.oauth2.clearToken(reqId)` |
 | `settings:get` | ipc/settings.ts | `getSetting(key)` | `api.settings.get(key)` |
 | `settings:set` | ipc/settings.ts | `setSetting(key, val)` | `api.settings.set(key, val)` |
 | `settings:get-all` | ipc/settings.ts | `getAllSettings()` | `api.settings.getAll()` |
@@ -416,8 +425,12 @@ interface Environment { id, workspace_id?, name, variables (JSON string), is_act
 interface AppSetting { key, value }
 interface WindowState { id?, x?, y?, width, height, is_maximized }
 interface KeyValueEntry { key, value, description?, enabled }
-interface AuthConfig { type: 'none'|'bearer'|'basic'|'api-key', bearer_token?, basic_username?,
-    basic_password?, api_key_header?, api_key_value? }
+interface AuthConfig { type: 'none'|'bearer'|'basic'|'api-key'|'oauth2', bearer_token?,
+    basic_username?, basic_password?, api_key_header?, api_key_value?,
+    oauth2_grant_type?, oauth2_access_token_url?, oauth2_authorization_url?,
+    oauth2_client_id?, oauth2_client_secret?, oauth2_scope?, oauth2_username?,
+    oauth2_password?, oauth2_redirect_url?, oauth2_pkce?, oauth2_audience?,
+    oauth2_access_token?, oauth2_refresh_token?, oauth2_token_type?, oauth2_expires_at? }
 interface ScriptsConfig { pre_request?: ScriptAction[], post_response?: ScriptAction[] }
 interface ScriptAction { action, request_id?, source?, target?, value? }
 interface EnvironmentVariable { key, value, enabled }
@@ -440,7 +453,7 @@ interface ResponseCookie { name, value, domain?, path?, expires?, httpOnly?, sec
 ```typescript
 HTTP_METHODS = ['GET','POST','PUT','PATCH','DELETE','HEAD','OPTIONS'] as const
 BODY_TYPES = ['none','json','xml','form-data','urlencoded','raw','graphql'] as const
-AUTH_TYPES = ['none','bearer','basic','api-key'] as const
+AUTH_TYPES = ['none','bearer','basic','api-key','oauth2'] as const
 SENSITIVE_HEADERS = ['authorization','x-api-key','cookie','set-cookie', ...]
 SENSITIVE_PARAM_KEYS = ['api_key','apikey','token','secret','password', ...]
 DEFAULTS = { REQUEST_TIMEOUT_MS: 30000, FOLLOW_REDIRECTS: true,
@@ -455,13 +468,14 @@ All stores use this pattern: module-level `$state` + `$derived` + exported objec
 
 ### `appStore` — `lib/stores/app.svelte.ts`
 
-**State**: `activeWorkspaceId`, `openTabs: Tab[]`, `activeTabId`, `sidebarCollapsed`, `sidebarMode`, `sidebarSearch`, `tabStates: Record<string, TabRequestState>`
+**State**: `activeWorkspaceId`, `openTabs: Tab[]`, `activeTabId`, `sidebarCollapsed`, `sidebarMode`, `sidebarSearch`, `tabStates: Record<string, TabRequestState>`, `envTabStates: Record<string, TabEnvironmentState>`
 
 **Key types**:
 - `Tab { id, type: 'request'|'environment', entityId, label, method?, pinned, isUnsaved }`
-- `TabRequestState { name, method, url, headers, query_params, body, body_type, auth, scripts, response, loading }`
+- `TabRequestState { name, method, url, headers, query_params, body, body_type, auth, scripts, response, loading, activeSubTab? }`
+- `TabEnvironmentState { name, variables, isDirty, initialized }`
 
-**Actions**: `openRequestTab`, `openEnvironmentTab`, `closeTab`, `closeOtherTabs`, `closeAllTabs`, `togglePinTab`, `setActiveTab`, `nextTab`, `prevTab`, `toggleSidebar`, `getTabState`, `updateTabState`, `markTabSaved`, `updateTabLabel`
+**Actions**: `openRequestTab`, `openEnvironmentTab`, `closeTab`, `closeOtherTabs`, `closeAllTabs`, `togglePinTab`, `setActiveTab`, `nextTab`, `prevTab`, `toggleSidebar`, `getTabState`, `updateTabState`, `markTabSaved`, `updateTabLabel`, `getEnvTabState`, `updateEnvTabState`
 
 **Session persistence**: Open tabs + active tab serialized to `app_settings` key `session.tabs.{workspaceId}` (debounced 500ms, scoped per workspace). Restored on mount after collections/environments load. Deleted entities silently skipped.
 
@@ -514,7 +528,7 @@ Pause/resume supports hover-to-hold: `pauseToast` clears the JS timeout and reco
 - **Repository-layer integration**: encryption is transparent at the repository layer — callers (IPC, services, UI) are unaware
   - **Settings**: `SENSITIVE_KEYS` set (`vault.token`, `vault.role_id`, `vault.secret_id`, `vault.aws_access_key_id`, `vault.aws_secret_access_key`, `sync.token`) — encrypted on write, decrypted on read with try/catch fallback for pre-migration plaintext
   - **Environments**: variable values encrypted with `enc:` prefix — `encryptVariables()`/`decryptVariables()` in all CRUD paths
-  - **Requests**: auth credentials (`bearer_token`, `basic_username`, `basic_password`, `api_key_value`) encrypted with `enc:` prefix — `encryptAuth()`/`decryptAuth()` in all CRUD paths; double-encryption guard checks `enc:` prefix before encrypting
+  - **Requests**: auth credentials (`bearer_token`, `basic_username`, `basic_password`, `api_key_value`, `oauth2_client_secret`, `oauth2_password`, `oauth2_access_token`, `oauth2_refresh_token`) encrypted with `enc:` prefix — `encryptAuth()`/`decryptAuth()` in all CRUD paths; double-encryption guard checks `enc:` prefix before encrypting
   - **Workspace settings**: sensitive fields in `workspaces.settings` JSON column encrypted/decrypted using the same key set as `app_settings`
   - **One-time migration**: `migrateToEncryptedStorage()` runs at startup, encrypts existing plaintext data, tracked by `encryption.migrated` setting
 
@@ -563,11 +577,28 @@ Pause/resume supports hover-to-hold: `pauseToast` clears the JS timeout and reco
 - `extractJsonPath(data, path)` — dot-notation with `[n]` array index support
 - Mirrors extracted values to active environment if key exists there — for vault-synced environments, updates in-memory cache and pushes to Vault (fire-and-forget) instead of writing to DB
 
+### OAuth 2.0 (`services/oauth2.ts`)
+- **PKCE**: `generateCodeVerifier()` (32 random bytes → base64url), `generateCodeChallenge(verifier)` (SHA-256 → base64url)
+- **Token exchange**: `exchangeAuthorizationCode()`, `exchangeClientCredentials()`, `exchangePassword()`, `refreshAccessToken()` — all POST to token URL with `application/x-www-form-urlencoded` body; response fallback handles form-encoded providers (e.g. GitHub)
+- **Token expiry**: `isTokenExpired(auth)` — returns true within 30-second safety margin
+- **Callback server**: `startCallbackServer(port?)` — ephemeral HTTP server on `127.0.0.1`, returns auth code from redirect, auto-closes after 5-minute timeout
+- **Authorization flow**: `startAuthorizationFlow(auth)` — builds auth URL with PKCE, opens system browser via `shell.openExternal()`, waits for callback
+- **Auto-refresh**: proxy and script-execution check `isTokenExpired()` before sending; if expired, `refreshAccessToken()` runs automatically and persists new tokens
+- Encrypted fields: `oauth2_client_secret`, `oauth2_password`, `oauth2_access_token`, `oauth2_refresh_token`
+
 ### Code Generator (`services/code-generator.ts`)
 - `generateCode(language, data, wsId?, colId?)` — generates code snippet from request data
-- Languages: curl, Python (requests), PHP (Laravel HTTP), JavaScript (fetch), Node.js (axios)
+- Languages: curl, Python (requests), PHP (Laravel HTTP), JavaScript (fetch), Node.js (axios), Go (net/http), Ruby (Net::HTTP), C# (HttpClient), Java (HttpClient)
 - Applies variable substitution before generating
-- Handles all body types + auth types
+- Handles all body types + auth types (including OAuth2 bearer header)
+
+### Insomnia Import (`services/insomnia-import.ts`)
+- `importInsomnia(json, wsId?)` → `InsomniaImportResult`
+- Detects Insomnia v4 format: `_type === 'export'` + `typeof __export_format === 'number'`
+- Maps resources: `workspace` → collection, `request_group` → folder, `request` → request, `environment` → environment
+- Body types: `application/json` → json, `application/xml` → xml, `multipart/form-data` → form-data, `application/x-www-form-urlencoded` → urlencoded, `application/graphql` → graphql
+- Auth mapping: bearer, basic, api-key, oauth2
+- Multi-pass folder nesting resolution; skips base environments, cookie jars, API specs
 
 ### Session Log (`services/session-log.ts`)
 - In-memory ring buffer, max `DEFAULTS.SESSION_LOG_MAX_ENTRIES` (100) entries
@@ -782,7 +813,7 @@ All method colors are theme-aware via `--color-method-*` CSS variables. Componen
 2. openDatabase(dbPath)          — Open SQLite + run pending migrations
 3. migrateToEncryptedStorage()   — One-time: encrypt existing plaintext sensitive data
 4. ensureDefaultWorkspace()      — Create "Default Workspace" if table is empty
-5. registerAllIpcHandlers()      — Register all domain handlers (incl. workspace-settings, session-log, code-generator, updater)
+5. registerAllIpcHandlers()      — Register all domain handlers (incl. workspace-settings, session-log, code-generator, oauth2, updater)
 6. dropLegacyTables()            — DROP TABLE IF EXISTS request_histories (feature removed)
 7. scrubVaultSecrets()           — UPDATE environments SET variables='[]' WHERE vault_synced=1 AND variables!='[]' (safety net for orphaned secrets)
 8. buildMenu()                   — Set native application menu (using IPC.MENU_* constants)
