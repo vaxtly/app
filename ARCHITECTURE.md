@@ -126,7 +126,7 @@ vaxtly/
 │           │   ├── RequestBuilder.svelte # Container: URL + sub-tabs + response split
 │           │   ├── UrlBar.svelte        # Method select + URL input + Send/Cancel
 │           │   ├── ParamsEditor.svelte   # Query params ↔ URL sync
-│           │   ├── HeadersEditor.svelte  # Implicit headers + custom headers
+│           │   ├── HeadersEditor.svelte  # Headers editor (generated + user headers via KeyValueEditor)
 │           │   ├── BodyEditor.svelte     # 7 body types: none/json/xml/form-data/urlencoded/raw/graphql
 │           │   ├── AuthEditor.svelte     # 5 auth types: none/bearer/basic/api-key/oauth2
 │           │   └── ScriptsEditor.svelte  # Pre-request + post-response script config
@@ -153,7 +153,7 @@ vaxtly/
 │           ├── help/
 │           │   └── UserManual.svelte     # Comprehensive in-app user manual (F1 shortcut)
 │           └── shared/
-│               ├── KeyValueEditor.svelte  # Reusable checkbox + key + value + delete rows + bulk edit mode
+│               ├── KeyValueEditor.svelte  # Reusable checkbox + key + value + delete rows + bulk edit mode + "auto" badge for generated entries
 │               ├── ContextMenu.svelte     # Right-click menu with position correction
 │               ├── Modal.svelte           # Generic modal with backdrop + Escape
 │               ├── Toggle.svelte          # Pill-shaped sliding switch (settings)
@@ -427,7 +427,7 @@ interface Environment { id, workspace_id?, name, variables (JSON string), is_act
     order, vault_synced, vault_path?, created_at, updated_at }
 interface AppSetting { key, value }
 interface WindowState { id?, x?, y?, width, height, is_maximized }
-interface KeyValueEntry { key, value, description?, enabled }
+interface KeyValueEntry { key, value, description?, enabled, generated? }
 interface AuthConfig { type: 'none'|'bearer'|'basic'|'api-key'|'oauth2', bearer_token?,
     basic_username?, basic_password?, api_key_header?, api_key_value?,
     oauth2_grant_type?, oauth2_access_token_url?, oauth2_authorization_url?,
