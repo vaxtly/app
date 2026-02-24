@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- Drag-and-drop tab reordering — drag tabs left or right to rearrange them, with animated gap preview showing the drop position
+
 ## [0.4.1] - 2026-02-24
 
 ### Added
