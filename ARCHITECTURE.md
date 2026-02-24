@@ -374,6 +374,7 @@ Pattern: `ipcMain.handle('domain:action', handler)` in main, `ipcRenderer.invoke
 | `vault:push` | ipc/vault.ts | `vaultService.pushVariables()` | `api.vault.push(envId)` |
 | `vault:pull-all` | ipc/vault.ts | `vaultService.pullAll(wsId?)` | `api.vault.pullAll(wsId?)` |
 | `vault:fetch-variables` | ipc/vault.ts | `clearCache()` + `vaultService.fetchVariables(envId)` | `api.vault.fetchVariables(envId)` |
+| `vault:get-cached-variables` | ipc/vault.ts | `vaultService.getCachedVariables(envId)` | `api.vault.getCachedVariables(envId)` |
 | `vault:push-variables` | ipc/vault.ts | `vaultService.pushVariables(envId, vars)` | `api.vault.pushVariables(envId, vars)` |
 | `vault:delete-secrets` | ipc/vault.ts | `vaultService.deleteSecrets(envId)` | `api.vault.deleteSecrets(envId)` |
 | `vault:migrate` | ipc/vault.ts | `vaultService.migrateEnvironment(...)` | `api.vault.migrate(envId, old, new)` |
