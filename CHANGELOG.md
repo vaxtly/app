@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-02-24
+
+### Added
+- Editable auto-generated headers — Content-Type and Authorization headers now appear inline in the headers editor with an "auto" badge and can be toggled on/off or edited directly, instead of being read-only
+- Expandable HTTP detail in session log — click any HTTP log entry to inspect full request (URL, query params, headers, body) and response (status, timing, headers, body, cookies) with tabbed detail panel
+- Bulk edit for form-data entries — same `key:value` textarea interface as other key-value editors, with file entries shown as read-only markers
+
 ## [0.4.0] - 2026-02-24
 
 ### Added
