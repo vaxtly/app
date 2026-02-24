@@ -7,8 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.2] - 2026-02-24
+
 ### Added
 - Drag-and-drop tab reordering — drag tabs left or right to rearrange them, with animated gap preview showing the drop position
+- Splash screen with live status updates during startup — frameless branded window appears instantly on launch, showing initialization progress before the main window is ready
 
 ## [0.4.1] - 2026-02-24
 
