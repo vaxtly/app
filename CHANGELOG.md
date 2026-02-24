@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- Bulk edit mode for all key-value editors (headers, params, environments, URL-encoded, form-data) — toggle to a plain-text textarea with `key:value` format for fast multi-entry input and copy/paste between editors
+
 ### Fixed
 - Environment tab not refreshing after post-response scripts update variables — now explicitly syncs the open env tab after request send, including vault-synced environments
 - Format button (JSON/XML) not updating the CodeMirror editor — `$effect` dependency tracking was broken by short-circuit evaluation when `view` was uninitialized; now uses `$state` for the editor view reference
