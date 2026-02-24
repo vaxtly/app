@@ -29,6 +29,7 @@ import * as remoteSyncService from './sync/remote-sync-service'
 import { logVault, logSync } from './services/session-log'
 
 let mainWindow: BrowserWindow | null = null
+let splashWindow: BrowserWindow | null = null
 
 function getAppIcon(): Electron.NativeImage {
   const iconsDir = app.isPackaged
@@ -71,6 +72,53 @@ function applyThemeSetting(): string {
   }
 }
 
+function createSplashWindow(): Promise<BrowserWindow> {
+  splashWindow = new BrowserWindow({
+    width: 420,
+    height: 300,
+    frame: false,
+    transparent: false,
+    resizable: false,
+    movable: true,
+    center: true,
+    alwaysOnTop: true,
+    skipTaskbar: true,
+    backgroundColor: '#060c18',
+    webPreferences: {
+      preload: join(__dirname, '../preload/splash.js'),
+      sandbox: true,
+      contextIsolation: true,
+      nodeIntegration: false,
+    },
+    show: false,
+  })
+
+  splashWindow.once('ready-to-show', () => {
+    splashWindow?.show()
+  })
+
+  if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
+    splashWindow.loadURL(`${process.env['ELECTRON_RENDERER_URL']}/splash.html`)
+  } else {
+    splashWindow.loadFile(join(__dirname, '../renderer/splash.html'))
+  }
+
+  return new Promise((resolve) => {
+    splashWindow!.webContents.once('did-finish-load', () => resolve(splashWindow!))
+  })
+}
+
+function sendSplashStatus(text: string): void {
+  splashWindow?.webContents.send('splash:status', text)
+}
+
+function closeSplash(): void {
+  if (splashWindow && !splashWindow.isDestroyed()) {
+    splashWindow.close()
+    splashWindow = null
+  }
+}
+
 function createWindow(): void {
   const state = getWindowState()
   const backgroundColor = applyThemeSetting()
@@ -102,6 +150,7 @@ function createWindow(): void {
   }
 
   mainWindow.on('ready-to-show', () => {
+    closeSplash()
     mainWindow?.show()
     runAutoSync()
     checkForUpdates()
@@ -288,18 +337,21 @@ if (!app.isPackaged && process.env.VAXTLY_TEST_USERDATA) {
   app.setPath('userData', process.env.VAXTLY_TEST_USERDATA)
 }
 
-app.whenReady().then(() => {
-  // Initialize encryption (master key for future SQLCipher)
+app.whenReady().then(async () => {
+  // Show splash screen while the app initializes
+  await createSplashWindow()
+
+  sendSplashStatus('Initializing encryption...')
   initEncryption()
 
-  // Open database and run migrations
+  sendSplashStatus('Opening database...')
   const dbPath = join(app.getPath('userData'), 'vaxtly.db')
   openDatabase(dbPath)
 
-  // Migrate existing plaintext data to encrypted storage
+  sendSplashStatus('Running migrations...')
   migrateToEncryptedStorage()
 
-  // Ensure at least one workspace exists
+  sendSplashStatus('Preparing workspace...')
   ensureDefaultWorkspace()
 
   // Register IPC handlers
@@ -324,7 +376,7 @@ app.whenReady().then(() => {
   // Initialize auto-updater
   initUpdater()
 
-  // Create the main window
+  sendSplashStatus('Loading...')
   createWindow()
 
   app.on('activate', () => {
