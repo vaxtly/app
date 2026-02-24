@@ -107,6 +107,7 @@ vaxtly/
 │       │   └── utils/
 │       │       ├── http-colors.ts      # getMethodColor(), getStatusColor() → CSS variable strings
 │       │       ├── formatters.ts       # formatSize, formatTime, detectLanguage, formatBody
+│       │       ├── bulk-edit.ts        # Bulk-edit serialize/parse for key-value and form-data entries
 │       │       └── variable-highlight.ts # CodeMirror {{var}} decoration + hover tooltip
 │       └── components/
 │           ├── CodeEditor.svelte       # CodeMirror 6 wrapper + optional variable highlight
@@ -152,7 +153,7 @@ vaxtly/
 │           ├── help/
 │           │   └── UserManual.svelte     # Comprehensive in-app user manual (F1 shortcut)
 │           └── shared/
-│               ├── KeyValueEditor.svelte  # Reusable checkbox + key + value + delete rows
+│               ├── KeyValueEditor.svelte  # Reusable checkbox + key + value + delete rows + bulk edit mode
 │               ├── ContextMenu.svelte     # Right-click menu with position correction
 │               ├── Modal.svelte           # Generic modal with backdrop + Escape
 │               ├── Toggle.svelte          # Pill-shaped sliding switch (settings)
@@ -174,6 +175,7 @@ vaxtly/
 │   │   ├── vault-handlers.test.ts     # 20 tests: vault IPC handlers + cache-first push
 │   │   ├── data-export-import.test.ts  # 15 tests: export + import + nested + workspace
 │   │   ├── postman-import.test.ts      # 14 tests: 3 formats + form-data + URL objects + XML
+│   │   ├── bulk-edit.test.ts            # 23 tests: entriesToBulk, bulkToEntries, formDataToBulk, bulkToFormData
 │   │   ├── encryption.test.ts          # 6 tests: round-trip, random IV, wrong key
 │   │   ├── fetch-error.test.ts         # 13 tests: all error branches (SSL, DNS, timeout, etc.)
 │   │   ├── session-log.test.ts         # 6 tests: ring buffer, categories, copy safety
