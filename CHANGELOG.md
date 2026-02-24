@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 - Bulk edit mode for all key-value editors (headers, params, environments, URL-encoded, form-data) — toggle to a plain-text textarea with `key:value` format for fast multi-entry input and copy/paste between editors
+- HTTP request/response detail in session log — click any HTTP log entry to expand and inspect full request (URL, query params, headers, body) and response (status, timing, size, headers, body, cookies) with Request/Response tabs
 
 ### Fixed
 - Environment tab not refreshing after post-response scripts update variables — now explicitly syncs the open env tab after request send, including vault-synced environments

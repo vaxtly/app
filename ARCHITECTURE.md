@@ -30,7 +30,7 @@ vaxtly/
 │   │   │   ├── models.ts               # All entity interfaces
 │   │   │   ├── ipc.ts                  # IPC channel constants
 │   │   │   ├── http.ts                 # RequestConfig, ResponseData, etc.
-│   │   │   └── sync.ts                 # SyncConfig, VaultConfig, etc.
+│   │   │   └── sync.ts                 # SyncConfig, VaultConfig, SessionLogEntry, HttpLogDetail
 │   │   └── constants.ts                # HTTP_METHODS, BODY_TYPES, AUTH_TYPES, SENSITIVE_*
 │   ├── main/
 │   │   ├── index.ts                    # App lifecycle, window, boot sequence
@@ -114,7 +114,7 @@ vaxtly/
 │           ├── layout/
 │           │   ├── Sidebar.svelte      # Mode tabs (Collections/Environments) + search + tree + footer toolbar
 │           │   ├── TabBar.svelte       # Horizontal tabs + env icon for environment tabs
-│           │   └── SystemLog.svelte    # Collapsible bottom panel: session logs
+│           │   └── SystemLog.svelte    # Collapsible bottom panel: session logs + expandable HTTP detail
 │           ├── sidebar/
 │           │   ├── CollectionTree.svelte # Recursive tree with search filter
 │           │   ├── CollectionItem.svelte # Expand/collapse, rename, sync, drag-drop target + auto-sync on move
@@ -460,7 +460,8 @@ AUTH_TYPES = ['none','bearer','basic','api-key','oauth2'] as const
 SENSITIVE_HEADERS = ['authorization','x-api-key','cookie','set-cookie', ...]
 SENSITIVE_PARAM_KEYS = ['api_key','apikey','token','secret','password', ...]
 DEFAULTS = { REQUEST_TIMEOUT_MS: 30000, FOLLOW_REDIRECTS: true,
-    VERIFY_SSL: true, MAX_SCRIPT_CHAIN_DEPTH: 3, MAX_VARIABLE_NESTING: 10, SESSION_LOG_MAX_ENTRIES: 100 }
+    VERIFY_SSL: true, MAX_SCRIPT_CHAIN_DEPTH: 3, MAX_VARIABLE_NESTING: 10,
+    SESSION_LOG_MAX_ENTRIES: 100, SESSION_LOG_BODY_MAX_SIZE: 50 * 1024 }
 ```
 
 ---
@@ -560,6 +561,7 @@ Pause/resume supports hover-to-hold: `pauseToast` clears the JS timeout and reco
 - **Pre-request scripts**: executes dependent requests before main send
 - **Post-response scripts**: extracts values and sets collection variables after response
 - **Logs** template URL (not resolved URL with secrets) to session log; error bodies use `error.message` (not stack traces)
+- **HTTP detail capture**: Builds `HttpLogDetail` on both success and failure paths — captures request method/URL/headers/body/queryParams and response status/headers/body/size/timing/cookies. String bodies truncated to `SESSION_LOG_BODY_MAX_SIZE` (50KB); form-data bodies (UndiciFormData) skipped. Passed to `logHttp()` for expandable detail in the session log UI
 - **Security validation**: URL scheme whitelist (http/https only), HTTP method whitelist, timeout clamped 1-300s, response body size limit 50MB (content-length check), form-data file paths validated against dialog-approved set
 
 ### Variable Substitution (`services/variable-substitution.ts`)
@@ -605,10 +607,11 @@ Pause/resume supports hover-to-hold: `pauseToast` clears the JS timeout and reco
 
 ### Session Log (`services/session-log.ts`)
 - In-memory ring buffer, max `DEFAULTS.SESSION_LOG_MAX_ENTRIES` (100) entries
-- Entry: `{ id, category, type, target, message, success, timestamp }`
+- Entry: `{ id, category, type, target, message, success, timestamp, detail? }`
 - Categories: `http`, `sync` (displayed as "git"), `vault`, `system`
+- Optional `detail?: HttpLogDetail` — structured request/response data for HTTP entries (method, URL, headers, body, query params, status, timing, cookies)
 - Pushes new entries to renderer via `BrowserWindow.webContents.send(IPC.LOG_PUSH)`
-- Convenience helpers: `logSync()`, `logVault()`, `logHttp()`, `logSystem()`
+- Convenience helpers: `logSync()`, `logVault()`, `logHttp(…, detail?)`, `logSystem()`
 
 ### YAML Serializer (`services/yaml-serializer.ts`)
 - `serializeToDirectory(collection, options?)` → `Record<path, yamlContent>` file map — fetches requests via `requestsRepo.findByCollection()` (ensures auth fields are decrypted)
