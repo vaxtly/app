@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 - Environment tab not refreshing after post-response scripts update variables — now explicitly syncs the open env tab after request send, including vault-synced environments
+- Format button (JSON/XML) not updating the CodeMirror editor — `$effect` dependency tracking was broken by short-circuit evaluation when `view` was uninitialized; now uses `$state` for the editor view reference
+- Pre-request script logs showing raw template URLs (e.g. <code v-pre>{{domain}}</code>) instead of resolved values — now logs the substituted URL
 
 ## [0.3.2] - 2026-02-23
 

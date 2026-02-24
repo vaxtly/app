@@ -239,7 +239,7 @@ async function executeHttpRequest(
     fetchOptions.body = body
   }
 
-  logScript('pre', request.name, `→ ${request.method} ${request.url}`)
+  logScript('pre', request.name, `→ ${request.method} ${resolvedUrl}`)
 
   const startTime = performance.now()
 

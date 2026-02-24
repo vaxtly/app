@@ -32,7 +32,7 @@
   }: Props = $props()
 
   let container: HTMLDivElement
-  let view: EditorView | undefined
+  let view = $state<EditorView | undefined>(undefined)
   let idleHandle: number | ReturnType<typeof setTimeout> | undefined
   const themeCompartment = new Compartment()
   const schedule = typeof requestIdleCallback === 'function'
@@ -108,9 +108,11 @@
 
   // Update content when value prop changes externally
   $effect(() => {
-    if (view && value !== view.state.doc.toString()) {
+    const v = value   // always access to track as dependency
+    if (!view) return
+    if (v !== view.state.doc.toString()) {
       view.dispatch({
-        changes: { from: 0, to: view.state.doc.length, insert: value }
+        changes: { from: 0, to: view.state.doc.length, insert: v }
       })
     }
   })
