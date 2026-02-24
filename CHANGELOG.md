@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.3] - 2026-02-24
+
+### Fixed
+- v0.4.2 release build missing drag-and-drop tab reordering code
+
 ## [0.4.2] - 2026-02-24
 
 ### Added
