@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.4] - 2026-02-25
+
 ### Added
 - Draft requests — Cmd+N (or double-click empty tab bar space) creates an in-memory scratchpad request with no collection. Edit, send, and test freely. Cmd+S opens a collection picker to save. Drafts are transient and lost on restart.
 - Sync conflict detail — conflict resolution modal now shows which collections, folders, and requests changed locally vs remotely, with method badges and +/~/- change indicators
