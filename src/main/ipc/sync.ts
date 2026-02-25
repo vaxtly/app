@@ -14,13 +14,17 @@ export function registerSyncHandlers(): void {
     return syncService.testConnection(workspaceId)
   })
 
-  ipcMain.handle(IPC.SYNC_PULL, async (_event, workspaceId?: string): Promise<SyncResult> => {
-    return syncService.pull(workspaceId)
+  ipcMain.handle(IPC.SYNC_PULL, async (event, workspaceId?: string): Promise<SyncResult> => {
+    const result = await syncService.pull(workspaceId)
+    if (result.conflicts && result.conflicts.length > 0) {
+      event.sender.send(IPC.SYNC_CONFLICT, result.conflicts)
+    }
+    return result
   })
 
   ipcMain.handle(
     IPC.SYNC_PUSH_COLLECTION,
-    async (_event, collectionId: string, sanitize?: boolean, workspaceId?: string): Promise<SyncResult> => {
+    async (event, collectionId: string, sanitize?: boolean, workspaceId?: string): Promise<SyncResult> => {
       const collection = collectionsRepo.findById(collectionId)
       if (!collection) {
         return { success: false, message: 'Collection not found', pulled: 0, pushed: 0 }
@@ -32,16 +36,19 @@ export function registerSyncHandlers(): void {
       } catch (e) {
         if (e instanceof syncService.SyncConflictError) {
           logSync('push', collection.name, 'Conflict detected — both sides changed', false)
+          const conflicts = [{
+            collectionId: collection.id,
+            collectionName: collection.name,
+            localUpdatedAt: collection.updated_at,
+          }]
+          // Push conflict to renderer so the modal appears regardless of caller
+          event.sender.send(IPC.SYNC_CONFLICT, conflicts)
           return {
             success: false,
             message: 'Conflict detected',
             pulled: 0,
             pushed: 0,
-            conflicts: [{
-              collectionId: collection.id,
-              collectionName: collection.name,
-              localUpdatedAt: collection.updated_at,
-            }],
+            conflicts,
           }
         }
         const msg = (e as Error).message
@@ -51,8 +58,12 @@ export function registerSyncHandlers(): void {
     },
   )
 
-  ipcMain.handle(IPC.SYNC_PUSH_ALL, async (_event, workspaceId?: string): Promise<SyncResult> => {
-    return syncService.pushAll(workspaceId)
+  ipcMain.handle(IPC.SYNC_PUSH_ALL, async (event, workspaceId?: string): Promise<SyncResult> => {
+    const result = await syncService.pushAll(workspaceId)
+    if (result.conflicts && result.conflicts.length > 0) {
+      event.sender.send(IPC.SYNC_CONFLICT, result.conflicts)
+    }
+    return result
   })
 
   ipcMain.handle(
@@ -144,20 +155,6 @@ export function registerSyncHandlers(): void {
         const updated = await syncService.pullSingleCollection(collection, workspaceId)
         return { success: true, message: updated ? 'Pulled successfully' : 'Already up to date', pulled: updated ? 1 : 0, pushed: 0 }
       } catch (e) {
-        if (e instanceof syncService.SyncConflictError) {
-          logSync('pull', collection.name, 'Conflict detected — both sides changed', false)
-          return {
-            success: false,
-            message: 'Conflict detected',
-            pulled: 0,
-            pushed: 0,
-            conflicts: [{
-              collectionId: collection.id,
-              collectionName: collection.name,
-              localUpdatedAt: collection.updated_at,
-            }],
-          }
-        }
         const msg = (e as Error).message
         logSync('pull', collection.name, `Pull failed: ${msg}`, false)
         return { success: false, message: msg, pulled: 0, pushed: 0 }

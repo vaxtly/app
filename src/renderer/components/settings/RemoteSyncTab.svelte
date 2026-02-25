@@ -1,9 +1,7 @@
 <script lang="ts">
   import Toggle from '../shared/Toggle.svelte'
-  import type { SyncConflict } from '../../lib/types'
   import { collectionsStore } from '../../lib/stores/collections.svelte'
   import { appStore } from '../../lib/stores/app.svelte'
-  import ConflictModal from '../modals/ConflictModal.svelte'
   import SensitiveDataModal from '../modals/SensitiveDataModal.svelte'
 
   let provider = $state<'github' | 'gitlab'>('github')
@@ -18,7 +16,6 @@
   let pushing = $state(false)
   let saving = $state(false)
   let status = $state<{ type: 'success' | 'error'; message: string } | null>(null)
-  let activeConflict = $state<SyncConflict | null>(null)
   let sensitiveFindings = $state<{ source: string; requestName: string | null; requestId: string | null; field: string; key: string; maskedValue: string }[]>([])
   let showSensitiveModal = $state(false)
 
@@ -122,8 +119,6 @@
       if (result.success) {
         status = { type: 'success', message: result.message || `Pulled ${result.pulled ?? 0} collections` }
         await collectionsStore.loadAll(appStore.activeWorkspaceId ?? undefined)
-      } else if (result.conflicts && result.conflicts.length > 0) {
-        activeConflict = result.conflicts[0]
       } else {
         status = { type: 'error', message: result.message || 'Pull failed' }
       }
@@ -208,22 +203,6 @@
 
   function toggleAutoSync(value: boolean): void {
     autoSync = value
-  }
-
-  async function handleConflictResolve(resolution: 'keep-local' | 'keep-remote'): Promise<void> {
-    if (!activeConflict) return
-    try {
-      const result = await window.api.sync.resolveConflict(activeConflict.collectionId, resolution, appStore.activeWorkspaceId ?? undefined)
-      if (result.success) {
-        status = { type: 'success', message: `Conflict resolved: ${resolution}` }
-        await collectionsStore.loadAll(appStore.activeWorkspaceId ?? undefined)
-      } else {
-        status = { type: 'error', message: result.message || 'Resolution failed' }
-      }
-    } catch (err) {
-      status = { type: 'error', message: err instanceof Error ? err.message : 'Resolution failed' }
-    }
-    activeConflict = null
   }
 
   function clearStatus(): void {
@@ -420,14 +399,6 @@
     </ul>
   </div>
 </div>
-
-{#if activeConflict}
-  <ConflictModal
-    conflict={activeConflict}
-    onresolve={handleConflictResolve}
-    onclose={() => { activeConflict = null }}
-  />
-{/if}
 
 {#if showSensitiveModal}
   <SensitiveDataModal

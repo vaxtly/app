@@ -478,18 +478,18 @@ export async function pullSingleCollection(collection: Collection, workspaceId?:
   const basePath = `${COLLECTIONS_PATH}/${collection.id}`
 
   const remoteItems = await provider.listDirectoryRecursive(basePath)
-  if (remoteItems.length === 0) return false
-
-  const storedFileShas = collection.file_shas ? JSON.parse(collection.file_shas) : {}
-  if (!hasRemoteFileChanges(storedFileShas, remoteItems)) return false
-
-  if (collection.is_dirty) {
-    throw new SyncConflictError(
-      [basePath],
-      `Conflict: local changes exist for '${collection.name}' and remote has been updated`,
-    )
+  if (remoteItems.length === 0) {
+    logSync('pull', collection.name, 'No remote data found')
+    return false
   }
 
+  const storedFileShas = collection.file_shas ? JSON.parse(collection.file_shas) : {}
+  if (!hasRemoteFileChanges(storedFileShas, remoteItems)) {
+    logSync('pull', collection.name, 'Already up to date')
+    return false
+  }
+
+  // User explicitly requested pull — overwrite local with remote (like forceKeepRemote)
   const files = await provider.getDirectoryTree(basePath)
   if (files.length === 0) throw new Error('Remote directory is empty')
 
@@ -711,9 +711,9 @@ export async function pushSingleRequest(
 
     // Treat 409 (GitHub) and 400 (GitLab) as conflicts — mark dirty for full push later
     if (statusCode === 409 || statusCode === 400 || message.includes('409') || message.includes('400')) {
-      // Conflict — fall back to full collection push
+      logSync('push', collection.name, 'Conflict on single-file push — marked dirty for full sync', false)
     } else {
-      console.warn(`[SYNC] Single-file push failed for request ${requestId}: ${(e as Error).message}`)
+      logSync('push', collection.name, `Push failed: ${(e as Error).message}`, false)
     }
 
     if (!collection.is_dirty) {

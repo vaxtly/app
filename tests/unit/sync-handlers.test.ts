@@ -45,10 +45,22 @@ beforeEach(() => {
 })
 afterEach(() => closeDatabase())
 
+/** Build a fake IPC event with a sender.send spy */
+function makeFakeEvent() {
+  return { sender: { send: vi.fn() } }
+}
+
 function invoke(channel: string, ...args: unknown[]) {
   const handler = handlers.get(channel)
   if (!handler) throw new Error(`No handler for ${channel}`)
-  return handler(null, ...args)
+  return handler(makeFakeEvent(), ...args)
+}
+
+/** Invoke with a specific event (so we can inspect sender.send) */
+function invokeWithEvent(channel: string, event: { sender: { send: ReturnType<typeof vi.fn> } }, ...args: unknown[]) {
+  const handler = handlers.get(channel)
+  if (!handler) throw new Error(`No handler for ${channel}`)
+  return handler(event, ...args)
 }
 
 describe('sync:test-connection', () => {
@@ -79,6 +91,37 @@ describe('sync:pull', () => {
     vi.mocked(syncService.pull).mockResolvedValue({ success: true, message: 'OK', pulled: 0, pushed: 0 })
     await invoke('sync:pull')
     expect(syncService.pull).toHaveBeenCalledWith(undefined)
+  })
+
+  it('sends conflicts to renderer via event.sender.send', async () => {
+    const conflicts = [{ collectionId: 'c1', collectionName: 'Col', localUpdatedAt: '2025-01-01' }]
+    vi.mocked(syncService.pull).mockResolvedValue({
+      success: false,
+      message: 'Conflicts',
+      pulled: 0,
+      pushed: 0,
+      conflicts,
+    })
+
+    const event = makeFakeEvent()
+    await invokeWithEvent('sync:pull', event)
+
+    expect(event.sender.send).toHaveBeenCalledWith('sync:conflict', conflicts)
+  })
+
+  it('does not send conflict IPC when no conflicts', async () => {
+    vi.mocked(syncService.pull).mockResolvedValue({
+      success: true,
+      message: 'OK',
+      pulled: 1,
+      pushed: 0,
+      conflicts: [],
+    })
+
+    const event = makeFakeEvent()
+    await invokeWithEvent('sync:pull', event)
+
+    expect(event.sender.send).not.toHaveBeenCalled()
   })
 })
 
@@ -123,6 +166,31 @@ describe('sync:push-collection', () => {
     expect(result.conflicts[0].collectionName).toBe('My Col')
   })
 
+  it('sends conflicts to renderer via event.sender.send on SyncConflictError', async () => {
+    const col = collectionsRepo.create({ name: 'My Col' })
+    vi.mocked(syncService.pushCollection).mockRejectedValue(new syncService.SyncConflictError('conflict'))
+
+    const event = makeFakeEvent()
+    await invokeWithEvent('sync:push-collection', event, col.id)
+
+    expect(event.sender.send).toHaveBeenCalledWith(
+      'sync:conflict',
+      expect.arrayContaining([
+        expect.objectContaining({ collectionId: col.id, collectionName: 'My Col' }),
+      ]),
+    )
+  })
+
+  it('does not send conflict IPC on non-conflict errors', async () => {
+    const col = collectionsRepo.create({ name: 'Test' })
+    vi.mocked(syncService.pushCollection).mockRejectedValue(new Error('Network timeout'))
+
+    const event = makeFakeEvent()
+    await invokeWithEvent('sync:push-collection', event, col.id)
+
+    expect(event.sender.send).not.toHaveBeenCalled()
+  })
+
   it('returns generic error message on other errors', async () => {
     const col = collectionsRepo.create({ name: 'Test' })
     vi.mocked(syncService.pushCollection).mockRejectedValue(new Error('Network timeout'))
@@ -139,6 +207,36 @@ describe('sync:push-all', () => {
     const result = await invoke('sync:push-all', 'ws-1')
     expect(syncService.pushAll).toHaveBeenCalledWith('ws-1')
     expect(result).toEqual(expected)
+  })
+
+  it('sends conflicts to renderer via event.sender.send', async () => {
+    const conflicts = [{ collectionId: 'c1', collectionName: 'Col', localUpdatedAt: '2025-01-01' }]
+    vi.mocked(syncService.pushAll).mockResolvedValue({
+      success: false,
+      message: 'Conflicts',
+      pulled: 0,
+      pushed: 0,
+      conflicts,
+    })
+
+    const event = makeFakeEvent()
+    await invokeWithEvent('sync:push-all', event, 'ws-1')
+
+    expect(event.sender.send).toHaveBeenCalledWith('sync:conflict', conflicts)
+  })
+
+  it('does not send conflict IPC when no conflicts', async () => {
+    vi.mocked(syncService.pushAll).mockResolvedValue({
+      success: true,
+      message: 'Pushed 1',
+      pulled: 0,
+      pushed: 1,
+    })
+
+    const event = makeFakeEvent()
+    await invokeWithEvent('sync:push-all', event)
+
+    expect(event.sender.send).not.toHaveBeenCalled()
   })
 })
 
@@ -279,13 +377,21 @@ describe('sync:pull-collection', () => {
     expect(result.pulled).toBe(0)
   })
 
-  it('returns conflict result on SyncConflictError', async () => {
-    const col = collectionsRepo.create({ name: 'MyCol' })
-    vi.mocked(syncService.pullSingleCollection).mockRejectedValue(new syncService.SyncConflictError('conflict'))
+  it('returns error message on generic exception', async () => {
+    const col = collectionsRepo.create({ name: 'Test' })
+    vi.mocked(syncService.pullSingleCollection).mockRejectedValue(new Error('Network error'))
     const result = await invoke('sync:pull-collection', col.id)
     expect(result.success).toBe(false)
-    expect(result.message).toBe('Conflict detected')
-    expect(result.conflicts).toHaveLength(1)
-    expect(result.conflicts[0].collectionName).toBe('MyCol')
+    expect(result.message).toBe('Network error')
+  })
+
+  it('passes workspaceId to service', async () => {
+    const col = collectionsRepo.create({ name: 'Test' })
+    vi.mocked(syncService.pullSingleCollection).mockResolvedValue(true)
+    await invoke('sync:pull-collection', col.id, 'ws-42')
+    expect(syncService.pullSingleCollection).toHaveBeenCalledWith(
+      expect.objectContaining({ id: col.id }),
+      'ws-42',
+    )
   })
 })

@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.5] - 2026-02-25
+
+### Fixed
+- Sync pull on a single collection now force-pulls even when the collection is dirty, clearing the dirty state instead of silently doing nothing
+- All sync pull/push paths now log to the session log (pullSingleCollection early returns, pushSingleRequest conflicts and errors were previously silent)
+- Sync conflict modal now appears reliably on all push paths — IPC handlers push conflicts to the renderer via centralized queue instead of relying on callers to check return values
+- Removed duplicate conflict modal in RemoteSyncTab (conflicts now handled exclusively by the centralized queue in App.svelte)
+
+### Added
+- Sync IPC handler tests for conflict surfacing via event.sender.send (sync-handlers.test.ts)
+- Sync service logging tests with mocked git providers (sync-service-logging.test.ts)
+- Draft request e2e tests — lifecycle, send without save, collection picker, persistence, double-click (draft-requests.spec.ts)
+
 ## [0.4.4] - 2026-02-25
 
 ### Added
