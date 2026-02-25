@@ -113,7 +113,7 @@ vaxtly/
 │           ├── CodeEditor.svelte       # CodeMirror 6 wrapper + optional variable highlight
 │           ├── layout/
 │           │   ├── Sidebar.svelte      # Mode tabs (Collections/Environments) + search + tree + footer toolbar
-│           │   ├── TabBar.svelte       # Horizontal tabs + env icon for environment tabs
+│           │   ├── TabBar.svelte       # Horizontal tabs + env icon for environment tabs + double-click empty space opens draft
 │           │   └── SystemLog.svelte    # Collapsible bottom panel: session logs + expandable HTTP detail
 │           ├── sidebar/
 │           │   ├── CollectionTree.svelte # Recursive tree with search filter
@@ -146,6 +146,7 @@ vaxtly/
 │           │   └── VaultTab.svelte        # Vault URL, auth, namespace, actions
 │           ├── modals/
 │           │   ├── CodeSnippetModal.svelte # Language tabs + generated code + copy
+│           │   ├── CollectionPickerModal.svelte # Save draft to collection: search + create new + pick existing
 │           │   ├── ConflictModal.svelte    # Sync conflict resolution with local/remote change details
 │           │   ├── SensitiveDataModal.svelte # Sensitive data findings before push
 │           │   ├── EnvironmentAssociationModal.svelte # Env checkbox list + default star + reloads store on save
@@ -167,7 +168,7 @@ vaxtly/
 │   │   ├── code-generator.test.ts      # 29 tests: 9 languages + all auth/body types
 │   │   ├── oauth2.test.ts             # 17 tests: PKCE, token expiry, mocked token exchange
 │   │   ├── insomnia-import.test.ts    # 14 tests: workspace/folder/request/env import
-│   │   ├── sensitive-data-scanner.test.ts # 24 tests: scan + sanitize + api-key + urlencoded
+│   │   ├── sensitive-data-scanner.test.ts # 26 tests: scan + sanitize + api-key + urlencoded
 │   │   ├── yaml-serializer.test.ts     # 14 tests: serialize + import + auth/scripts + sanitize + auth decryption regression
 │   │   ├── remote-sync.test.ts         # 18 tests: file state + isConfigured + getProvider
 │   │   ├── vault-sync.test.ts          # 14 tests: buildPath + isConfigured + resetProvider + in-memory cache
@@ -476,13 +477,15 @@ All stores use this pattern: module-level `$state` + `$derived` + exported objec
 **State**: `activeWorkspaceId`, `openTabs: Tab[]`, `activeTabId`, `sidebarCollapsed`, `sidebarMode`, `sidebarSearch`, `tabStates: Record<string, TabRequestState>`, `envTabStates: Record<string, TabEnvironmentState>`
 
 **Key types**:
-- `Tab { id, type: 'request'|'environment', entityId, label, method?, pinned, isUnsaved }`
+- `Tab { id, type: 'request'|'environment', entityId, label, method?, pinned, isUnsaved, isDraft }`
 - `TabRequestState { name, method, url, headers, query_params, body, body_type, auth, scripts, response, loading, activeSubTab? }`
 - `TabEnvironmentState { name, variables, isDirty, initialized }`
 
-**Actions**: `openRequestTab`, `openEnvironmentTab`, `closeTab`, `closeOtherTabs`, `closeAllTabs`, `reorderTabs`, `togglePinTab`, `setActiveTab`, `nextTab`, `prevTab`, `toggleSidebar`, `getTabState`, `updateTabState`, `markTabSaved`, `updateTabLabel`, `getEnvTabState`, `updateEnvTabState`
+**Actions**: `openRequestTab`, `openDraftTab`, `promoteDraft`, `openEnvironmentTab`, `closeTab`, `closeOtherTabs`, `closeAllTabs`, `reorderTabs`, `togglePinTab`, `setActiveTab`, `nextTab`, `prevTab`, `toggleSidebar`, `getTabState`, `updateTabState`, `markTabSaved`, `updateTabLabel`, `getEnvTabState`, `updateEnvTabState`
 
-**Session persistence**: Open tabs + active tab serialized to `app_settings` key `session.tabs.{workspaceId}` (debounced 500ms, scoped per workspace). Restored on mount after collections/environments load. Deleted entities silently skipped.
+**Draft requests**: `openDraftTab()` creates a transient in-memory request tab (`isDraft: true`, entity ID `draft-{counter}-{timestamp}`) with no DB backing. Drafts can be sent (the proxy only needs the config object) but don't appear in the sidebar tree. `promoteDraft(tabId, request)` replaces a draft tab in-place with a persisted tab after the user saves to a collection. OAuth2 token operations are disabled on drafts (config fields remain editable).
+
+**Session persistence**: Open tabs + active tab serialized to `app_settings` key `session.tabs.{workspaceId}` (debounced 500ms, scoped per workspace). Draft tabs are excluded — they are transient and lost on restart. Restored on mount after collections/environments load. Deleted entities silently skipped.
 
 ### `collectionsStore` — `lib/stores/collections.svelte.ts`
 
@@ -747,7 +750,7 @@ Pause/resume supports hover-to-hold: `pauseToast` clears the JS timeout and reco
 | Shortcut | Action |
 |----------|--------|
 | Cmd/Ctrl+, | Open settings |
-| Cmd/Ctrl+N | New request (in first collection) |
+| Cmd/Ctrl+N | New draft request (in-memory, no collection) |
 | Cmd/Ctrl+S | Save current request |
 | Cmd/Ctrl+W | Close active tab (unless pinned) |
 | Cmd/Ctrl+Enter | Send request |
@@ -763,8 +766,8 @@ Pause/resume supports hover-to-hold: `pauseToast` clears the JS timeout and reco
 
 Four `$effect` hooks and two `onMount` listeners in `App.svelte` drive cross-cutting UX behaviors:
 
-1. **Session save**: Watches `openTabs.length` + `activeTabId`, debounce-writes to `session.tabs.{workspaceId}` setting (skipped until initial restore completes via `sessionRestored` flag). Sessions are scoped per workspace.
-2. **Sidebar auto-reveal**: When active tab changes — request tabs: expands ancestor tree nodes + switches sidebar to "collections"; environment tabs: switches sidebar to "environments".
+1. **Session save**: Watches `openTabs.length` + `activeTabId`, debounce-writes to `session.tabs.{workspaceId}` setting (skipped until initial restore completes via `sessionRestored` flag). Sessions are scoped per workspace. Draft tabs (`isDraft: true`) are excluded from persistence — they are transient by design.
+2. **Sidebar auto-reveal**: When active tab changes — request tabs (non-draft): expands ancestor tree nodes + switches sidebar to "collections"; environment tabs: switches sidebar to "environments". Draft tabs skip sidebar reveal since they have no collection/folder backing.
 3. **Default environment auto-activation**: When a request tab becomes active, resolves the nearest `default_environment_id` (folder chain → collection) and activates it if different from current.
 4. **Theme application**: Reads `app.theme` setting (`dark` | `light` | `system`), toggles `light` class on `<html>`. In `system` mode listens to `matchMedia('prefers-color-scheme: dark')` with cleanup.
 5. **Toast notifications**: `onMount` listener on `logPush` — filters `success: false` entries with `category === 'vault' || 'sync'` and calls `toastsStore.addToast()`. Also replays recent failures (within 30s) from `log.list()` on mount to catch auto-sync errors that fired before the renderer mounted. `<ToastContainer />` is mounted at root level.
