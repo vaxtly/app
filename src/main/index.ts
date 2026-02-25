@@ -27,6 +27,7 @@ import { encryptValue } from './services/encryption'
 import * as vaultSyncService from './vault/vault-sync-service'
 import * as remoteSyncService from './sync/remote-sync-service'
 import { logVault, logSync } from './services/session-log'
+import { IPC } from '../shared/types/ipc'
 
 let mainWindow: BrowserWindow | null = null
 let splashWindow: BrowserWindow | null = null
@@ -255,6 +256,10 @@ async function runAutoSync(): Promise<void> {
       try {
         const result = await remoteSyncService.pull(ws.id)
         logSync('auto-sync', ws.name, result.message ?? `Pulled ${result.pulled ?? 0} collection(s)`, result.success)
+
+        if (result.conflicts && result.conflicts.length > 0) {
+          mainWindow?.webContents.send(IPC.SYNC_CONFLICT, result.conflicts)
+        }
       } catch (e) {
         logSync('auto-sync', ws.name, `Failed: ${e instanceof Error ? e.message : String(e)}`, false)
       }

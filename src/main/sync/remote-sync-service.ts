@@ -17,10 +17,11 @@ import * as requestsRepo from '../database/repositories/requests'
 import * as settingsRepo from '../database/repositories/settings'
 import * as workspacesRepo from '../database/repositories/workspaces'
 import type { Collection, FileState } from '../../shared/types/models'
-import type { FileContent, SyncResult, SyncConflict } from '../../shared/types/sync'
+import type { FileContent, SyncResult, SyncConflict, ConflictChange } from '../../shared/types/sync'
 import type { GitProvider, DirectoryItem } from './git-provider.interface'
 import { GitHubProvider } from './github-provider'
 import { GitLabProvider } from './gitlab-provider'
+import yaml from 'js-yaml'
 import { serializeToDirectory, serializeRequest, importFromDirectory } from '../services/yaml-serializer'
 import { logSync } from '../services/session-log'
 
@@ -132,6 +133,116 @@ export function hasRemoteFileChanges(
   return false
 }
 
+// --- Conflict detail helpers ---
+
+function parseChangeName(path: string, content: string | undefined): ConflictChange | null {
+  const filename = path.split('/').pop() ?? ''
+
+  // Skip manifests — they're structural, not user-facing
+  if (filename === '_manifest.yaml') return null
+
+  if (filename === '_collection.yaml') {
+    return { type: 'collection', name: 'Collection settings', change: 'modified' }
+  }
+
+  if (filename === '_folder.yaml') {
+    if (content) {
+      try {
+        const parsed = yaml.load(content) as Record<string, unknown> | undefined
+        if (parsed?.name) return { type: 'folder', name: String(parsed.name), change: 'modified' }
+      } catch { /* fall through */ }
+    }
+    // Extract folder context from path
+    return { type: 'folder', name: 'Folder', change: 'modified' }
+  }
+
+  // Request file: {uuid}.yaml
+  if (filename.endsWith('.yaml')) {
+    if (content) {
+      try {
+        const parsed = yaml.load(content) as Record<string, unknown> | undefined
+        if (parsed?.name) {
+          const method = parsed.method ? String(parsed.method).toUpperCase() : undefined
+          return { type: 'request', name: String(parsed.name), change: 'modified', method }
+        }
+      } catch { /* fall through */ }
+    }
+    return { type: 'request', name: filename.replace('.yaml', ''), change: 'modified' }
+  }
+
+  return null
+}
+
+function computeConflictDetails(
+  localCollection: Collection,
+  remoteFiles: FileContent[],
+  storedFileShas: Record<string, unknown>,
+): { localChanges: ConflictChange[]; remoteChanges: ConflictChange[] } {
+  const base = normalizeFileState(storedFileShas)
+  const localChanges: ConflictChange[] = []
+  const remoteChanges: ConflictChange[] = []
+
+  // Serialize local state to get local file contents
+  const localFileMap = serializeToDirectory(localCollection)
+
+  // Build local files with full paths (serializeToDirectory returns {collId}/file.yaml)
+  const localFiles: Record<string, string> = {}
+  for (const [relativePath, content] of Object.entries(localFileMap)) {
+    localFiles[`${COLLECTIONS_PATH}/${relativePath}`] = content
+  }
+
+  // Build remote file lookup
+  const remoteFileMap: Record<string, FileContent> = {}
+  for (const file of remoteFiles) {
+    remoteFileMap[file.path] = file
+  }
+
+  // All known paths
+  const allPaths = new Set([...Object.keys(base), ...Object.keys(localFiles), ...Object.keys(remoteFileMap)])
+
+  for (const path of allPaths) {
+    const baseInfo = base[path]
+    const localContent = localFiles[path]
+    const remoteFile = remoteFileMap[path]
+
+    // --- Local changes (compare local content hash vs base content hash) ---
+    if (localContent && !baseInfo) {
+      // File exists locally but not in base → added locally
+      const entry = parseChangeName(path, localContent)
+      if (entry) { entry.change = 'added'; localChanges.push(entry) }
+    } else if (!localContent && baseInfo) {
+      // File was in base but not in local → deleted locally
+      // Use remote content for name parsing if available
+      const entry = parseChangeName(path, remoteFile?.content)
+      if (entry) { entry.change = 'deleted'; localChanges.push(entry) }
+    } else if (localContent && baseInfo) {
+      const localHash = createHash('sha256').update(localContent).digest('hex')
+      if (localHash !== baseInfo.content_hash) {
+        const entry = parseChangeName(path, localContent)
+        if (entry) { entry.change = 'modified'; localChanges.push(entry) }
+      }
+    }
+
+    // --- Remote changes (compare remote SHA vs base remote SHA) ---
+    if (remoteFile && !baseInfo) {
+      const entry = parseChangeName(path, remoteFile.content)
+      if (entry) { entry.change = 'added'; remoteChanges.push(entry) }
+    } else if (!remoteFile && baseInfo) {
+      // Was in base but not on remote → deleted remotely
+      const entry = parseChangeName(path, localContent)
+      if (entry) { entry.change = 'deleted'; remoteChanges.push(entry) }
+    } else if (remoteFile && baseInfo) {
+      const remoteSha = remoteFile.sha ?? null
+      if (remoteSha && remoteSha !== baseInfo.remote_sha) {
+        const entry = parseChangeName(path, remoteFile.content)
+        if (entry) { entry.change = 'modified'; remoteChanges.push(entry) }
+      }
+    }
+  }
+
+  return { localChanges, remoteChanges }
+}
+
 // --- Pull ---
 
 export async function pull(workspaceId?: string): Promise<SyncResult> {
@@ -220,11 +331,18 @@ export async function pull(workspaceId?: string): Promise<SyncResult> {
           result.pulled!++
           logSync('pull', localCollection.name, 'Updated from remote')
         } else {
-          // Conflict: both sides changed
+          // Conflict: both sides changed — compute change details for the modal
+          const { localChanges, remoteChanges } = computeConflictDetails(
+            localCollection,
+            files,
+            storedFileShas,
+          )
           result.conflicts!.push({
             collectionId: localCollection.id,
             collectionName: localCollection.name,
             localUpdatedAt: localCollection.updated_at,
+            localChanges,
+            remoteChanges,
           })
           logSync('pull', localCollection.name, 'Conflict detected - both sides changed', false)
         }

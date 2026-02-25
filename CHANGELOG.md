@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- Draft requests — Cmd+N (or double-click empty tab bar space) creates an in-memory scratchpad request with no collection. Edit, send, and test freely. Cmd+S opens a collection picker to save. Drafts are transient and lost on restart.
+- Sync conflict detail — conflict resolution modal now shows which collections, folders, and requests changed locally vs remotely, with method badges and +/~/- change indicators
+
+### Changed
+- Sensitive data scanner uses unified body scanning — form-data, urlencoded, and JSON bodies all go through the same key-value detection path instead of branching by body type
+
 ## [0.4.3] - 2026-02-24
 
 ### Fixed

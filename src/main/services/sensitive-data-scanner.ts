@@ -148,23 +148,25 @@ function scanQueryParams(request: RequestData): SensitiveFinding[] {
   return scanKeyValueData(request.query_params ?? [], SENSITIVE_PARAM_KEYS, 'param', 'query_params', request)
 }
 
+function isKeyValueArray(data: unknown[]): boolean {
+  return data.length > 0 && data.every(
+    (item) => typeof item === 'object' && item !== null && 'key' in item && 'value' in item,
+  )
+}
+
 function scanBody(request: RequestData): SensitiveFinding[] {
   const body = request.body
   if (!body) return []
 
-  if (request.body_type === 'form-data' || request.body_type === 'urlencoded') {
-    try {
-      const data = JSON.parse(body) as KeyValueEntry[]
-      if (Array.isArray(data)) {
-        return scanKeyValueData(data, SENSITIVE_PARAM_KEYS, 'body', 'body', request)
-      }
-    } catch { /* ignore parse errors */ }
-    return []
-  }
-
-  // JSON body: try decode and recursive scan
   try {
     const decoded = JSON.parse(body)
+
+    // Key-value array (form-data, urlencoded, or json body with key/value entries)
+    if (Array.isArray(decoded) && isKeyValueArray(decoded)) {
+      return scanKeyValueData(decoded as KeyValueEntry[], SENSITIVE_PARAM_KEYS, 'body', 'body', request)
+    }
+
+    // Arbitrary JSON object: recursive scan
     if (typeof decoded === 'object' && decoded !== null) {
       return scanJsonRecursive(decoded, request)
     }
@@ -347,20 +349,16 @@ function sanitizeKeyValuePairs(data: KeyValueEntry[], sensitiveKeys: string[]): 
   })
 }
 
-function sanitizeBodyData(body: string, bodyType: string): string {
-  if (bodyType === 'form-data' || bodyType === 'urlencoded') {
-    try {
-      const data = JSON.parse(body) as KeyValueEntry[]
-      if (Array.isArray(data)) {
-        return JSON.stringify(sanitizeKeyValuePairs(data, SENSITIVE_PARAM_KEYS))
-      }
-    } catch { /* ignore */ }
-    return body
-  }
-
-  // JSON body
+function sanitizeBodyData(body: string, _bodyType: string): string {
   try {
     const decoded = JSON.parse(body)
+
+    // Key-value array (form-data, urlencoded, or json body with key/value entries)
+    if (Array.isArray(decoded) && isKeyValueArray(decoded)) {
+      return JSON.stringify(sanitizeKeyValuePairs(decoded as KeyValueEntry[], SENSITIVE_PARAM_KEYS))
+    }
+
+    // Arbitrary JSON object
     if (typeof decoded === 'object' && decoded !== null) {
       return JSON.stringify(sanitizeJsonRecursive(decoded))
     }

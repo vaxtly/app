@@ -108,6 +108,9 @@ export const IPC = {
   // Code Generator
   CODE_GENERATE: 'code:generate',
 
+  // Sync conflict (main→renderer push)
+  SYNC_CONFLICT: 'sync:conflict',
+
   // Session Log (main→renderer push)
   LOG_PUSH: 'log:push',
   LOG_LIST: 'log:list',

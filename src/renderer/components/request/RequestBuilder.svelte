@@ -7,6 +7,7 @@
   import ScriptsEditor from './ScriptsEditor.svelte'
   import ResponseViewer from '../response/ResponseViewer.svelte'
   import CodeSnippetModal from '../modals/CodeSnippetModal.svelte'
+  import CollectionPickerModal from '../modals/CollectionPickerModal.svelte'
   import { setContext, untrack } from 'svelte'
   import { appStore, type TabRequestState } from '../../lib/stores/app.svelte'
   import { collectionsStore } from '../../lib/stores/collections.svelte'
@@ -28,6 +29,10 @@
 
   // Code snippet modal
   let showCodeSnippet = $state(false)
+
+  // Draft support
+  let showCollectionPicker = $state(false)
+  let isDraft = $derived(appStore.openTabs.find((t) => t.id === tabId)?.isDraft ?? false)
 
   // Get state from the tab state cache
   let state = $derived(appStore.getTabState(tabId))
@@ -352,6 +357,10 @@
 
   /** Full save: DB write + immediate sync. Used by Ctrl+S explicit save. */
   async function saveRequest(): Promise<void> {
+    if (isDraft) {
+      showCollectionPicker = true
+      return
+    }
     await saveToDb()
     // Sync inline so Ctrl+S gives immediate feedback
     if (currentCollectionId) {
@@ -372,6 +381,39 @@
         }
       }
     }
+  }
+
+  async function handleCollectionSelected(collectionId: string): Promise<void> {
+    showCollectionPicker = false
+    if (!state) return
+
+    // Create the request in the chosen collection
+    const req = await collectionsStore.createRequest(collectionId, state.name || 'New Request')
+
+    // Build clean data to persist
+    const bodyToSave = state.body_type === 'form-data'
+      ? JSON.stringify(formData)
+      : state.body
+
+    const cleanHeaders = JSON.stringify(headers.filter(h => !h.generated))
+
+    await window.api.requests.update(req.id, {
+      name: state.name || 'New Request',
+      method: state.method,
+      url: state.url,
+      headers: cleanHeaders,
+      query_params: state.query_params,
+      body: bodyToSave,
+      body_type: state.body_type,
+      auth: state.auth,
+      scripts: state.scripts,
+    })
+
+    // Promote the draft tab to a persisted tab
+    appStore.promoteDraft(tabId, req)
+
+    // Reload collection to reflect the new request in the sidebar
+    await collectionsStore.reloadCollection(collectionId)
   }
 
   // Expose save/send for keyboard shortcut binding from App.svelte
@@ -507,6 +549,7 @@
             <AuthEditor
               {auth}
               {requestId}
+              {isDraft}
               onchange={(a) => update({ auth: JSON.stringify(a) })}
             />
           {:else if activeRequestTab === 'scripts'}
@@ -552,6 +595,13 @@
     collectionId={currentCollectionId}
     onclose={() => showCodeSnippet = false}
   />
+
+  {#if showCollectionPicker}
+    <CollectionPickerModal
+      onselect={handleCollectionSelected}
+      onclose={() => showCollectionPicker = false}
+    />
+  {/if}
 {:else}
   <div class="flex h-full items-center justify-center">
     <p class="text-[13px] text-surface-500">Select a request to get started</p>

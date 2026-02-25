@@ -6,10 +6,11 @@
   interface Props {
     auth: AuthConfig
     requestId: string
+    isDraft?: boolean
     onchange: (auth: AuthConfig) => void
   }
 
-  let { auth, requestId, onchange }: Props = $props()
+  let { auth, requestId, isDraft = false, onchange }: Props = $props()
 
   const typeLabels: Record<string, string> = {
     none: 'No Auth',
@@ -289,7 +290,9 @@
         <div class="ae-token-section">
           <span class="ae-label">Token</span>
 
-          {#if auth.oauth2_access_token}
+          {#if isDraft}
+            <p class="ae-hint">Save the request first to use OAuth2 token operations.</p>
+          {:else if auth.oauth2_access_token}
             <div class="ae-token-status">
               <div class="ae-token-info">
                 <span class="ae-token-badge ae-token-badge--active">Active</span>
@@ -309,7 +312,7 @@
             <button
               class="ae-btn ae-btn--primary"
               onclick={handleGetToken}
-              disabled={tokenLoading}
+              disabled={tokenLoading || isDraft}
             >
               {#if tokenLoading}
                 <span class="ae-spinner"></span>
@@ -320,7 +323,7 @@
               <button
                 class="ae-btn ae-btn--secondary"
                 onclick={handleRefreshToken}
-                disabled={tokenLoading}
+                disabled={tokenLoading || isDraft}
               >
                 Refresh
               </button>
@@ -329,7 +332,7 @@
               <button
                 class="ae-btn ae-btn--danger"
                 onclick={handleClearToken}
-                disabled={tokenLoading}
+                disabled={tokenLoading || isDraft}
               >
                 Clear
               </button>

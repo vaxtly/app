@@ -2,7 +2,7 @@ import { contextBridge, ipcRenderer } from 'electron'
 import { IPC } from '../shared/types/ipc'
 import type { Workspace, Collection, Folder, Request, Environment, AppSetting, WindowState } from '../shared/types/models'
 import type { RequestConfig, ResponseData } from '../shared/types/http'
-import type { SyncResult, SessionLogEntry } from '../shared/types/sync'
+import type { SyncResult, SyncConflict, SessionLogEntry } from '../shared/types/sync'
 import type { SensitiveFinding } from './services/sensitive-data-scanner'
 import type { CodeLanguage, CodeGenRequest } from './services/code-generator'
 import type { EnvironmentVariable } from '../shared/types/models'
@@ -276,6 +276,13 @@ const api = {
       }
       ipcRenderer.on(IPC.UPDATE_ERROR, handler)
       return () => ipcRenderer.removeListener(IPC.UPDATE_ERROR, handler)
+    },
+    syncConflict: (callback: (conflicts: SyncConflict[]) => void): (() => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, conflicts: SyncConflict[]): void => {
+        callback(conflicts)
+      }
+      ipcRenderer.on(IPC.SYNC_CONFLICT, handler)
+      return () => ipcRenderer.removeListener(IPC.SYNC_CONFLICT, handler)
     },
   },
 }

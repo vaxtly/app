@@ -423,7 +423,7 @@
 
 {#if activeConflict}
   <ConflictModal
-    collection={{ id: activeConflict.collectionId, name: activeConflict.collectionName }}
+    conflict={activeConflict}
     onresolve={handleConflictResolve}
     onclose={() => { activeConflict = null }}
   />

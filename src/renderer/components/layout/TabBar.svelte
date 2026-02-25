@@ -122,6 +122,12 @@
     contextMenu = { x: e.clientX, y: e.clientY, tabId }
   }
 
+  function handleBarDblClick(e: MouseEvent): void {
+    // Only fire when double-clicking empty space, not on a tab
+    if ((e.target as HTMLElement).closest('[role="tab"]')) return
+    appStore.openDraftTab()
+  }
+
   function getContextMenuItems(tabId: string) {
     const tab = appStore.openTabs.find((t) => t.id === tabId)
     if (!tab) return []
@@ -136,7 +142,7 @@
 
 <div class="flex shrink-0 px-1 {isMac ? 'drag-region h-11 items-center' : 'h-9 items-end'}" style="border-bottom: 1px solid var(--glass-border); background: var(--glass-bg); backdrop-filter: blur(var(--glass-blur)); -webkit-backdrop-filter: blur(var(--glass-blur))">
   <!-- svelte-ignore a11y_no_static_element_interactions -->
-  <div class="tab-scroll no-drag flex flex-1 min-w-0 overflow-x-auto {isMac ? 'items-center' : 'items-end'}" style:user-select={isDragging ? 'none' : 'auto'} bind:this={scrollEl} onwheel={handleWheel}>
+  <div class="tab-scroll no-drag flex flex-1 min-w-0 overflow-x-auto {isMac ? 'items-center' : 'items-end'}" style:user-select={isDragging ? 'none' : 'auto'} bind:this={scrollEl} onwheel={handleWheel} ondblclick={handleBarDblClick}>
   {#each appStore.openTabs as tab, i (tab.id)}
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div

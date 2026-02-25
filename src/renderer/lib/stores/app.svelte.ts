@@ -17,6 +17,7 @@ export interface Tab {
   method?: string // For request tabs
   pinned: boolean
   isUnsaved: boolean
+  isDraft: boolean
 }
 
 export interface TabRequestState {
@@ -110,6 +111,7 @@ function openRequestTab(request: Request): void {
     method: request.method,
     pinned: false,
     isUnsaved: false,
+    isDraft: false,
   }
 
   openTabs = [...openTabs, tab]
@@ -128,6 +130,70 @@ function openRequestTab(request: Request): void {
     scripts: request.scripts,
     response: null,
     loading: false,
+  }
+}
+
+let draftCounter = 0
+
+function openDraftTab(): void {
+  const draftId = `draft-${++draftCounter}-${Date.now()}`
+  const tab: Tab = {
+    id: `tab-${draftId}`,
+    type: 'request',
+    entityId: draftId,
+    label: 'New Request',
+    method: 'GET',
+    pinned: false,
+    isUnsaved: true,
+    isDraft: true,
+  }
+
+  openTabs = [...openTabs, tab]
+  activeTabId = tab.id
+
+  tabStates[tab.id] = {
+    name: 'New Request',
+    method: 'GET',
+    url: '',
+    headers: null,
+    query_params: null,
+    body: null,
+    body_type: 'none',
+    auth: null,
+    scripts: null,
+    response: null,
+    loading: false,
+  }
+}
+
+function promoteDraft(draftTabId: string, request: Request): void {
+  const newTabId = `tab-${request.id}`
+
+  // Copy tab state from draft key to new key
+  const draftState = tabStates[draftTabId]
+  if (draftState) {
+    tabStates[newTabId] = { ...draftState }
+    delete tabStates[draftTabId]
+  }
+
+  // Replace the draft tab in-place
+  openTabs = openTabs.map((t) =>
+    t.id === draftTabId
+      ? {
+          ...t,
+          id: newTabId,
+          entityId: request.id,
+          label: request.name,
+          method: request.method,
+          isUnsaved: false,
+          isDraft: false,
+        }
+      : t
+  )
+
+  // Update activeTabId if it was pointing at the draft
+  if (activeTabId === draftTabId) {
+    activeTabId = newTabId
   }
 }
 
@@ -270,6 +336,7 @@ function openEnvironmentTab(env: { id: string; name: string }): void {
     label: env.name,
     pinned: false,
     isUnsaved: false,
+    isDraft: false,
   }
 
   openTabs = [...openTabs, tab]
@@ -330,6 +397,8 @@ export const appStore = {
   renameWorkspace,
   deleteWorkspace,
   openRequestTab,
+  openDraftTab,
+  promoteDraft,
   openEnvironmentTab,
   closeTab,
   closeOtherTabs,

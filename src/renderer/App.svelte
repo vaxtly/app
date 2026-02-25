@@ -8,6 +8,8 @@
   import SettingsModal from './components/settings/SettingsModal.svelte'
   import WelcomeGuide from './components/modals/WelcomeGuide.svelte'
   import ToastContainer from './components/shared/ToastContainer.svelte'
+  import ConflictModal from './components/modals/ConflictModal.svelte'
+  import type { SyncConflict } from './lib/types'
   import { appStore } from './lib/stores/app.svelte'
   import { collectionsStore } from './lib/stores/collections.svelte'
   import { environmentsStore } from './lib/stores/environments.svelte'
@@ -27,6 +29,10 @@
   let updateDismissed = $state(false)
   let installSource: 'brew' | 'scoop' | 'snap' | 'standalone' = $state('standalone')
   let menuUpdateCheck = $state(false)
+
+  // --- Sync conflict state ---
+  let conflictQueue = $state<SyncConflict[]>([])
+  let activeConflict = $derived(conflictQueue.length > 0 ? conflictQueue[0] : null)
 
   function dismissUpdate(): void {
     updateDismissed = true
@@ -60,6 +66,25 @@
     window.api.updater.install()
   }
 
+  async function handleConflictResolve(resolution: 'keep-local' | 'keep-remote'): Promise<void> {
+    if (!activeConflict) return
+    try {
+      const result = await window.api.sync.resolveConflict(activeConflict.collectionId, resolution, appStore.activeWorkspaceId ?? undefined)
+      if (result.success) {
+        await collectionsStore.loadAll(appStore.activeWorkspaceId ?? undefined)
+      } else {
+        toastsStore.addToast('sync', `Git sync: Resolution failed — ${result.message}`)
+      }
+    } catch (err) {
+      toastsStore.addToast('sync', `Git sync: ${err instanceof Error ? err.message : 'Resolution failed'}`)
+    }
+    conflictQueue = conflictQueue.slice(1)
+  }
+
+  function dismissConflict(): void {
+    conflictQueue = conflictQueue.slice(1)
+  }
+
   // Active state for current environment tab (computed here so store
   // tracking works outside the {#key} block)
   let envTabActive = $derived(
@@ -79,9 +104,10 @@
   function saveSession(): void {
     clearTimeout(saveTimer)
     saveTimer = setTimeout(() => {
+      const persistedTabs = appStore.openTabs.filter((t) => !t.isDraft)
       const session: PersistedSession = {
-        tabs: appStore.openTabs.map((t) => ({ type: t.type, entityId: t.entityId, pinned: t.pinned })),
-        activeEntityId: appStore.activeTab?.entityId ?? null,
+        tabs: persistedTabs.map((t) => ({ type: t.type, entityId: t.entityId, pinned: t.pinned })),
+        activeEntityId: appStore.activeTab?.isDraft ? null : (appStore.activeTab?.entityId ?? null),
       }
       const wsId = appStore.activeWorkspaceId
       const sessionKey = wsId ? `session.tabs.${wsId}` : 'session.tabs'
@@ -108,7 +134,7 @@
 
     const tab = untrack(() => appStore.activeTab)
     if (!tab) return
-    if (tab.type === 'request') {
+    if (tab.type === 'request' && !tab.isDraft) {
       appStore.setSidebarMode('collections')
       collectionsStore.revealRequest(tab.entityId)
 
@@ -215,17 +241,8 @@
     }
   }
 
-  async function handleNewRequest(): Promise<void> {
-    // Create request in first collection, or create a collection first
-    let collections = collectionsStore.collections
-    if (collections.length === 0) {
-      await collectionsStore.createCollection('My Collection', appStore.activeWorkspaceId ?? undefined)
-      collections = collectionsStore.collections
-    }
-    if (collections.length > 0) {
-      const req = await collectionsStore.createRequest(collections[0].id, 'New Request')
-      handleRequestClick(req.id)
-    }
+  function handleNewRequest(): void {
+    appStore.openDraftTab()
   }
 
   async function handleSave(): Promise<void> {
@@ -301,12 +318,16 @@
           menuUpdateCheck = false
         }
       }),
-      // Surface vault/git failures as toast notifications
+      // Surface vault/git failures as toast notifications (skip conflicts — modal handles those)
       window.api.on.logPush((entry) => {
         if (!entry.success && (entry.category === 'vault' || entry.category === 'sync')) {
+          if (entry.message.includes('Conflict detected')) return
           const label = entry.category === 'vault' ? 'Vault' : 'Git sync'
           toastsStore.addToast(entry.category, `${label}: ${entry.message}`)
         }
+      }),
+      window.api.on.syncConflict((conflicts) => {
+        conflictQueue = [...conflictQueue, ...conflicts]
       }),
     ]
 
@@ -315,6 +336,7 @@
     const thirtySecondsAgo = Date.now() - 30_000
     for (const entry of recentLogs) {
       if (!entry.success && (entry.category === 'vault' || entry.category === 'sync')) {
+        if (entry.message.includes('Conflict detected')) continue
         if (new Date(entry.timestamp).getTime() > thirtySecondsAgo) {
           const label = entry.category === 'vault' ? 'Vault' : 'Git sync'
           toastsStore.addToast(entry.category, `${label}: ${entry.message}`)
@@ -494,6 +516,14 @@
   <SettingsModal open={appStore.showSettings} onclose={() => appStore.closeSettings()} />
   <WelcomeGuide open={showWelcome} onclose={() => { showWelcome = false }} />
   <ToastContainer />
+
+  {#if activeConflict}
+    <ConflictModal
+      conflict={activeConflict}
+      onresolve={handleConflictResolve}
+      onclose={dismissConflict}
+    />
+  {/if}
 </div>
 
 <style>

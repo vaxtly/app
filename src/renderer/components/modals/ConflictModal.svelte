@@ -1,13 +1,20 @@
 <script lang="ts">
   import Modal from '../shared/Modal.svelte'
+  import type { ConflictChange } from '../../lib/types'
+  import { getMethodColor } from '../../lib/utils/http-colors'
 
   interface Props {
-    collection: { id: string; name: string }
+    conflict: {
+      collectionId: string
+      collectionName: string
+      localChanges?: ConflictChange[]
+      remoteChanges?: ConflictChange[]
+    }
     onresolve: (resolution: 'keep-local' | 'keep-remote') => void
     onclose: () => void
   }
 
-  let { collection, onresolve, onclose }: Props = $props()
+  let { conflict, onresolve, onclose }: Props = $props()
 
   let resolving = $state<'keep-local' | 'keep-remote' | null>(null)
 
@@ -15,7 +22,31 @@
     resolving = resolution
     onresolve(resolution)
   }
+
+  const changeIcons: Record<ConflictChange['change'], { label: string; color: string }> = {
+    added: { label: '+', color: 'text-emerald-400' },
+    modified: { label: '~', color: 'text-amber-400' },
+    deleted: { label: '-', color: 'text-red-400' },
+  }
 </script>
+
+{#snippet changeList(changes: ConflictChange[])}
+  <ul class="space-y-1">
+    {#each changes as item (item.name + item.change + item.type)}
+      {@const icon = changeIcons[item.change]}
+      <li class="flex items-center gap-2 text-xs">
+        <span class="w-3 shrink-0 text-center font-mono font-bold {icon.color}">{icon.label}</span>
+        {#if item.type === 'request' && item.method}
+          <span class="shrink-0 font-mono text-[10px] font-bold" style:color={getMethodColor(item.method)}>
+            {item.method.slice(0, 4)}
+          </span>
+        {/if}
+        <span class="truncate text-surface-300">{item.name}</span>
+        <span class="ml-auto shrink-0 text-[10px] text-surface-600">{item.change}</span>
+      </li>
+    {/each}
+  </ul>
+{/snippet}
 
 <Modal title="Sync Conflict" {onclose} width="max-w-lg">
   <!-- Warning banner -->
@@ -24,9 +55,34 @@
       <svg class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
         <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
       </svg>
-      <span>The collection <strong>{collection.name}</strong> has been modified both locally and remotely.</span>
+      <span>The collection <strong>{conflict.collectionName}</strong> has been modified both locally and remotely.</span>
     </div>
   </div>
+
+  <!-- Change details -->
+  {#if (conflict.localChanges && conflict.localChanges.length > 0) || (conflict.remoteChanges && conflict.remoteChanges.length > 0)}
+    <div class="mb-4 grid grid-cols-2 gap-3">
+      <!-- Local changes -->
+      <div class="rounded-lg border border-surface-700 p-3">
+        <h4 class="mb-2 text-xs font-medium text-surface-400">Your local changes</h4>
+        {#if conflict.localChanges && conflict.localChanges.length > 0}
+          {@render changeList(conflict.localChanges)}
+        {:else}
+          <p class="text-xs text-surface-600">No changes detected</p>
+        {/if}
+      </div>
+
+      <!-- Remote changes -->
+      <div class="rounded-lg border border-surface-700 p-3">
+        <h4 class="mb-2 text-xs font-medium text-surface-400">Remote changes</h4>
+        {#if conflict.remoteChanges && conflict.remoteChanges.length > 0}
+          {@render changeList(conflict.remoteChanges)}
+        {:else}
+          <p class="text-xs text-surface-600">No changes detected</p>
+        {/if}
+      </div>
+    </div>
+  {/if}
 
   <!-- Resolution cards -->
   <div class="grid grid-cols-2 gap-3">

@@ -243,6 +243,34 @@ describe('scanRequest — api-key auth', () => {
   })
 })
 
+describe('scanRequest — json body with key-value entries', () => {
+  it('does not flag variable references in key-value json body', () => {
+    const findings = scanRequest(makeRequest({
+      body: JSON.stringify([
+        { key: 'client_id', value: '{{client_id}}', enabled: true },
+        { key: 'client_secret', value: '{{client_secret}}', enabled: true },
+        { key: 'username', value: '{{userapp_user}}', enabled: true },
+        { key: 'password', value: '{{userapp_pass}}', enabled: true },
+        { key: 'grant_type', value: '{{grant_type}}', enabled: true },
+      ]),
+      body_type: 'json',
+    }))
+    expect(findings).toHaveLength(0)
+  })
+
+  it('flags literal sensitive values in key-value json body', () => {
+    const findings = scanRequest(makeRequest({
+      body: JSON.stringify([
+        { key: 'client_secret', value: 'actual-secret-value', enabled: true },
+        { key: 'username', value: 'john', enabled: true },
+      ]),
+      body_type: 'json',
+    }))
+    expect(findings).toHaveLength(1)
+    expect(findings[0].key).toBe('client_secret')
+  })
+})
+
 describe('sanitizeRequestData — additional types', () => {
   it('sanitizes api-key auth', () => {
     const data = sanitizeRequestData({

@@ -26,11 +26,20 @@ export interface SyncResult {
   pushed?: number
 }
 
+export interface ConflictChange {
+  type: 'collection' | 'folder' | 'request'
+  name: string
+  change: 'added' | 'modified' | 'deleted'
+  method?: string // HTTP method for requests (GET, POST, etc.)
+}
+
 export interface SyncConflict {
   collectionId: string
   collectionName: string
   localUpdatedAt: string
   remoteUpdatedAt?: string
+  localChanges?: ConflictChange[]
+  remoteChanges?: ConflictChange[]
 }
 
 export interface VaultConfig {

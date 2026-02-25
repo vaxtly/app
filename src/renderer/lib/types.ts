@@ -22,4 +22,4 @@ export type {
   EnvironmentVariable,
 } from '../../shared/types/models'
 
-export type { SyncResult, SyncConflict, SessionLogEntry, HttpLogDetail } from '../../shared/types/sync'
+export type { SyncResult, SyncConflict, ConflictChange, SessionLogEntry, HttpLogDetail } from '../../shared/types/sync'
