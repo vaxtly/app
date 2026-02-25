@@ -30,7 +30,7 @@ vaxtly/
 │   │   │   ├── models.ts               # All entity interfaces
 │   │   │   ├── ipc.ts                  # IPC channel constants
 │   │   │   ├── http.ts                 # RequestConfig, ResponseData, etc.
-│   │   │   └── sync.ts                 # SyncConfig, VaultConfig, SessionLogEntry, HttpLogDetail
+│   │   │   └── sync.ts                 # SyncConfig, VaultConfig, ConflictChange, SessionLogEntry, HttpLogDetail
 │   │   └── constants.ts                # HTTP_METHODS, BODY_TYPES, AUTH_TYPES, SENSITIVE_*
 │   ├── main/
 │   │   ├── index.ts                    # App lifecycle, window, boot sequence
@@ -146,7 +146,7 @@ vaxtly/
 │           │   └── VaultTab.svelte        # Vault URL, auth, namespace, actions
 │           ├── modals/
 │           │   ├── CodeSnippetModal.svelte # Language tabs + generated code + copy
-│           │   ├── ConflictModal.svelte    # 2-card sync conflict resolution
+│           │   ├── ConflictModal.svelte    # Sync conflict resolution with local/remote change details
 │           │   ├── SensitiveDataModal.svelte # Sensitive data findings before push
 │           │   ├── EnvironmentAssociationModal.svelte # Env checkbox list + default star + reloads store on save
 │           │   └── WelcomeGuide.svelte    # 5-step onboarding modal
@@ -370,6 +370,7 @@ Pattern: `ipcMain.handle('domain:action', handler)` in main, `ipcRenderer.invoke
 | `sync:resolve-conflict` | ipc/sync.ts | `syncService.forceKeep{Local,Remote}()` | `api.sync.resolveConflict(id, res, wsId?)` |
 | `sync:delete-remote` | ipc/sync.ts | `syncService.deleteRemoteCollection()` | `api.sync.deleteRemote(id)` |
 | `sync:scan-sensitive` | ipc/sync.ts | `scanCollection(reqs, vars)` | `api.sync.scanSensitive(id)` |
+| `sync:conflict` | — (main→renderer push) | — | `api.on.syncConflict(cb)` |
 | `sync:push-request` | ipc/sync.ts | `syncService.pushSingleRequest()` | `api.sync.pushRequest(colId, reqId, sanitize?)` |
 | `vault:test-connection` | ipc/vault.ts | `vaultService.testConnection()` | `api.vault.testConnection()` |
 | `vault:pull` | ipc/vault.ts | `vaultService.pullAll()` | `api.vault.pull()` |
@@ -643,7 +644,7 @@ Pause/resume supports hover-to-hold: `pauseToast` clears the JS timeout and reco
 ### Remote Sync Service (`sync/remote-sync-service.ts`)
 - Settings keys: `sync.provider`, `sync.repository`, `sync.token`, `sync.branch`, `sync.base_url` — read via workspace settings with global fallback (transparent decryption)
 - `getProvider(workspaceId?)` → creates git provider from workspace-scoped config, falls back to global `app_settings`
-- `pull(workspaceId?)` → `SyncResult` — pulls all collections, detects conflicts, collects per-collection errors
+- `pull(workspaceId?)` → `SyncResult` — pulls all collections, detects conflicts (with per-file change details via `computeConflictDetails()`), collects per-collection errors
 - `pushCollection(collection, sanitize?, workspaceId?)` — 3-way merge per file, atomic commit
 - `pushAll(workspaceId?)` → `SyncResult` — pushes all dirty/unsynced collections (scoped to workspace)
 - `pullSingleCollection(collection, workspaceId?)` — pulls one collection
