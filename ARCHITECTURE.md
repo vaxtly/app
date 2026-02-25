@@ -142,7 +142,7 @@ vaxtly/
 │           │   ├── SettingsModal.svelte   # 4-tab bespoke modal (General/Data/Remote/Vault)
 │           │   ├── GeneralTab.svelte      # Layout, timeout, SSL, redirects, about
 │           │   ├── DataTab.svelte         # Export (type pills) + Import (Vaxtly/Postman/Insomnia)
-│           │   ├── RemoteSyncTab.svelte   # Git provider config, test/pull/push + conflict modal
+│           │   ├── RemoteSyncTab.svelte   # Git provider config, test/pull/push (conflicts handled by centralized ConflictModal in App.svelte)
 │           │   └── VaultTab.svelte        # Vault URL, auth, namespace, actions
 │           ├── modals/
 │           │   ├── CodeSnippetModal.svelte # Language tabs + generated code + copy
@@ -170,16 +170,23 @@ vaxtly/
 │   │   ├── insomnia-import.test.ts    # 14 tests: workspace/folder/request/env import
 │   │   ├── sensitive-data-scanner.test.ts # 26 tests: scan + sanitize + api-key + urlencoded
 │   │   ├── yaml-serializer.test.ts     # 14 tests: serialize + import + auth/scripts + sanitize + auth decryption regression
-│   │   ├── remote-sync.test.ts         # 18 tests: file state + isConfigured + getProvider
-│   │   ├── vault-sync.test.ts          # 14 tests: buildPath + isConfigured + resetProvider + in-memory cache
-│   │   ├── vault-e2e.test.ts          # 12 tests: end-to-end vault in-memory flows (fresh install, auto-sync, cold cache, scripts)
+│   │   ├── remote-sync.test.ts         # 19 tests: file state + isConfigured + getProvider
+│   │   ├── sync-handlers.test.ts      # 32 tests: IPC handler logic + event.sender.send conflict push
+│   │   ├── sync-service-logging.test.ts # 12 tests: pull/push logging, force-pull, conflict codes, dirty marking
+│   │   ├── github-provider.test.ts    # 15 tests: GitHub Git Data API + Contents API mocked
+│   │   ├── gitlab-provider.test.ts    # 16 tests: GitLab Repository API v4 mocked
+│   │   ├── vault-sync.test.ts          # 17 tests: buildPath + isConfigured + resetProvider + in-memory cache
+│   │   ├── vault-e2e.test.ts          # 14 tests: end-to-end vault in-memory flows (fresh install, auto-sync, cold cache, scripts)
 │   │   ├── vault-handlers.test.ts     # 20 tests: vault IPC handlers + cache-first push
+│   │   ├── hashicorp-vault-provider.test.ts # 17 tests: KV v2/v1, AppRole auth, namespace, SSL bypass
+│   │   ├── aws-secrets-manager-provider.test.ts # 17 tests: CRUD, pagination, credential resolution
 │   │   ├── data-export-import.test.ts  # 15 tests: export + import + nested + workspace
 │   │   ├── postman-import.test.ts      # 14 tests: 3 formats + form-data + URL objects + XML
 │   │   ├── bulk-edit.test.ts            # 23 tests: entriesToBulk, bulkToEntries, formDataToBulk, bulkToFormData
 │   │   ├── encryption.test.ts          # 6 tests: round-trip, random IV, wrong key
 │   │   ├── fetch-error.test.ts         # 13 tests: all error branches (SSL, DNS, timeout, etc.)
 │   │   ├── session-log.test.ts         # 6 tests: ring buffer, categories, copy safety
+│   │   ├── proxy-handler.test.ts       # 22 tests: HTTP proxy dispatch, auth, body, scripts
 │   │   └── proxy-helpers.test.ts       # 8 tests: parseCookies + setDefaultHeader + deleteHeader
 │   └── e2e/
 │       ├── fixtures/
@@ -191,7 +198,8 @@ vaxtly/
 │       ├── send-request.spec.ts       # 6 tests: GET, POST+JSON, error, 404, 500, custom headers
 │       ├── settings.spec.ts           # 3 tests: tabs, Escape, close button
 │       ├── environment-vars.spec.ts   # 2 tests: create env+var, use {{var}}
-│       └── session-persistence.spec.ts # 1 test: tabs survive restart
+│       ├── session-persistence.spec.ts # 1 test: tabs survive restart
+│       └── draft-requests.spec.ts    # 6 tests: draft lifecycle, send, save, persist, double-click
 ├── electron.vite.config.ts             # 3-target build (main, preload, renderer)
 ├── playwright.config.ts                # E2E config: workers:1, timeout:30s
 ├── vitest.config.ts                    # @shared alias, globals: true
@@ -365,9 +373,9 @@ Pattern: `ipcMain.handle('domain:action', handler)` in main, `ipcRenderer.invoke
 | `log:clear` | ipc/session-log.ts | `clearLogs()` | `api.log.clear()` |
 | `log:push` | — (main→renderer push) | — | `api.on.logPush(cb)` |
 | `sync:test-connection` | ipc/sync.ts | `syncService.testConnection()` | `api.sync.testConnection()` |
-| `sync:pull` | ipc/sync.ts | `syncService.pull(wsId?)` | `api.sync.pull(wsId?)` |
-| `sync:push-collection` | ipc/sync.ts | `syncService.pushCollection(col, sanitize?)` | `api.sync.pushCollection(id, sanitize?)` |
-| `sync:push-all` | ipc/sync.ts | `syncService.pushAll(wsId?)` | `api.sync.pushAll(wsId?)` |
+| `sync:pull` | ipc/sync.ts | `syncService.pull(wsId?)` — pushes conflicts via `sync:conflict` | `api.sync.pull(wsId?)` |
+| `sync:push-collection` | ipc/sync.ts | `syncService.pushCollection()` — pushes conflicts via `sync:conflict` | `api.sync.pushCollection(id, sanitize?)` |
+| `sync:push-all` | ipc/sync.ts | `syncService.pushAll(wsId?)` — pushes conflicts via `sync:conflict` | `api.sync.pushAll(wsId?)` |
 | `sync:resolve-conflict` | ipc/sync.ts | `syncService.forceKeep{Local,Remote}()` | `api.sync.resolveConflict(id, res, wsId?)` |
 | `sync:delete-remote` | ipc/sync.ts | `syncService.deleteRemoteCollection()` | `api.sync.deleteRemote(id)` |
 | `sync:scan-sensitive` | ipc/sync.ts | `scanCollection(reqs, vars)` | `api.sync.scanSensitive(id)` |
@@ -650,8 +658,8 @@ Pause/resume supports hover-to-hold: `pauseToast` clears the JS timeout and reco
 - `pull(workspaceId?)` → `SyncResult` — pulls all collections, detects conflicts (with per-file change details via `computeConflictDetails()`), collects per-collection errors
 - `pushCollection(collection, sanitize?, workspaceId?)` — 3-way merge per file, atomic commit
 - `pushAll(workspaceId?)` → `SyncResult` — pushes all dirty/unsynced collections (scoped to workspace)
-- `pullSingleCollection(collection, workspaceId?)` — pulls one collection
-- `pushSingleRequest(collection, requestId, sanitize?, workspaceId?)` — granular single-file push (fetches request via `requestsRepo.findById()` for decrypted auth)
+- `pullSingleCollection(collection, workspaceId?)` — force-pulls one collection (overwrites local even when dirty, clears `is_dirty`). Logs on all code paths: "No remote data found", "Already up to date", "Pulled from remote successfully"
+- `pushSingleRequest(collection, requestId, sanitize?, workspaceId?)` — granular single-file push (fetches request via `requestsRepo.findById()` for decrypted auth). On 409/400 (conflict): logs and marks dirty for full sync. On other errors: logs failure and marks dirty
 - `forceKeepLocal(collection, workspaceId?)` / `forceKeepRemote(collection, workspaceId?)` — conflict resolution
 - `deleteRemoteCollection(collection, workspaceId?)` — removes from remote
 - `SyncConflictError` class for conflict detection
@@ -764,7 +772,7 @@ Pause/resume supports hover-to-hold: `pauseToast` clears the JS timeout and reco
 
 ## App-Level Reactive Behaviors (`App.svelte`)
 
-Four `$effect` hooks and two `onMount` listeners in `App.svelte` drive cross-cutting UX behaviors:
+Four `$effect` hooks and three `onMount` listeners in `App.svelte` drive cross-cutting UX behaviors:
 
 1. **Session save**: Watches `openTabs.length` + `activeTabId`, debounce-writes to `session.tabs.{workspaceId}` setting (skipped until initial restore completes via `sessionRestored` flag). Sessions are scoped per workspace. Draft tabs (`isDraft: true`) are excluded from persistence — they are transient by design.
 2. **Sidebar auto-reveal**: When active tab changes — request tabs (non-draft): expands ancestor tree nodes + switches sidebar to "collections"; environment tabs: switches sidebar to "environments". Draft tabs skip sidebar reveal since they have no collection/folder backing.
@@ -772,6 +780,7 @@ Four `$effect` hooks and two `onMount` listeners in `App.svelte` drive cross-cut
 4. **Theme application**: Reads `app.theme` setting (`dark` | `light` | `system`), toggles `light` class on `<html>`. In `system` mode listens to `matchMedia('prefers-color-scheme: dark')` with cleanup.
 5. **Toast notifications**: `onMount` listener on `logPush` — filters `success: false` entries with `category === 'vault' || 'sync'` and calls `toastsStore.addToast()`. Also replays recent failures (within 30s) from `log.list()` on mount to catch auto-sync errors that fired before the renderer mounted. `<ToastContainer />` is mounted at root level.
 6. **Vault health LED**: `environmentsStore.vaultHealthy` drives the EnvironmentSelector LED color — green when vault secrets loaded successfully, red when fetch failed, gray when no environment is active.
+7. **Centralized conflict queue**: `onMount` listener on `syncConflict` — all sync IPC handlers (`sync:pull`, `sync:push-collection`, `sync:push-all`) push detected conflicts via `event.sender.send('sync:conflict', conflicts)`. App.svelte queues them in `conflictQueue` and renders a single `ConflictModal` for the first conflict, resolving sequentially. This replaces per-component conflict modals (e.g., RemoteSyncTab no longer handles conflicts locally).
 
 ---
 
