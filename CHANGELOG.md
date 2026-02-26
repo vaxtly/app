@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.7] - 2026-02-26
+
+### Changed
+- Parallelize GitLab/GitHub sync pull — eliminate redundant API calls and fetch files concurrently, significantly reducing sync time for repos with multiple collections
+
 ## [0.4.6] - 2026-02-26
 
 ### Fixed
