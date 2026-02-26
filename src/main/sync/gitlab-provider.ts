@@ -75,17 +75,19 @@ export class GitLabProvider implements GitProvider {
     return all
   }
 
-  async getDirectoryTree(path: string): Promise<FileContent[]> {
-    const items = await this.listDirectoryRecursive(path)
-    const files: FileContent[] = []
+  async getDirectoryTree(path: string, items?: DirectoryItem[]): Promise<FileContent[]> {
+    const resolved = items ?? await this.listDirectoryRecursive(path)
+    const yamlItems = resolved.filter(i => i.type === 'file' && i.path.endsWith('.yaml'))
 
-    for (const item of items) {
-      if (item.type === 'file' && item.path.endsWith('.yaml')) {
-        const file = await this.getFile(item.path)
+    const CONCURRENCY = 6
+    const files: FileContent[] = []
+    for (let i = 0; i < yamlItems.length; i += CONCURRENCY) {
+      const batch = yamlItems.slice(i, i + CONCURRENCY)
+      const results = await Promise.all(batch.map(item => this.getFile(item.path)))
+      for (const file of results) {
         if (file) files.push(file)
       }
     }
-
     return files
   }
 

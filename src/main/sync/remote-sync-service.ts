@@ -270,86 +270,91 @@ export async function pull(workspaceId?: string): Promise<SyncResult> {
     }
   }
 
-  const processedCollectionIds = new Set<string>()
-
   const errors: string[] = []
 
-  for (const [collectionId, dirPath] of Object.entries(collectionDirs)) {
-    try {
-      if (processedCollectionIds.has(collectionId)) continue
-      processedCollectionIds.add(collectionId)
+  async function processCollection(collectionId: string, dirPath: string): Promise<void> {
+    const collectionItems = items.filter(i => i.path.startsWith(dirPath + '/') || i.path === dirPath)
+    const files = await provider!.getDirectoryTree(dirPath, collectionItems)
+    if (files.length === 0) return
 
-      const files = await provider.getDirectoryTree(dirPath)
-      if (files.length === 0) continue
+    const collectionFile = files.find((f) => f.path.endsWith('/_collection.yaml'))
+    if (!collectionFile) return
 
-      const collectionFile = files.find((f) => f.path.endsWith('/_collection.yaml'))
-      if (!collectionFile) continue
+    const localCollection = collectionsRepo.findById(collectionId)
 
-      const localCollection = collectionsRepo.findById(collectionId)
+    if (!localCollection) {
+      // New collection from remote
+      const newCollectionId = importFromDirectory(files, undefined, workspaceId)
+      const newFileState = buildFileStateFromRemote(files)
 
-      if (!localCollection) {
-        // New collection from remote
-        const newCollectionId = importFromDirectory(files, undefined, workspaceId)
+      collectionsRepo.update(newCollectionId, {
+        remote_sha: collectionFile.sha ?? null,
+        file_shas: JSON.stringify(newFileState),
+        remote_synced_at: new Date().toISOString(),
+        sync_enabled: 1,
+        is_dirty: 0,
+      })
+
+      result.pulled!++
+      logSync('pull', collectionFile.path, 'New collection imported from remote')
+    } else {
+      // Check if ANY file changed on remote
+      const remoteItems: DirectoryItem[] = files.map((f) => ({
+        type: 'file' as const,
+        path: f.path,
+        sha: f.sha ?? '',
+      }))
+
+      const storedFileShas = localCollection.file_shas ? JSON.parse(localCollection.file_shas) : {}
+
+      if (!hasRemoteFileChanges(storedFileShas, remoteItems)) {
+        return // No changes on remote
+      }
+
+      if (!localCollection.is_dirty) {
+        // Remote wins - update local
+        importFromDirectory(files, localCollection.id, workspaceId)
         const newFileState = buildFileStateFromRemote(files)
 
-        collectionsRepo.update(newCollectionId, {
+        collectionsRepo.update(localCollection.id, {
           remote_sha: collectionFile.sha ?? null,
           file_shas: JSON.stringify(newFileState),
           remote_synced_at: new Date().toISOString(),
-          sync_enabled: 1,
           is_dirty: 0,
         })
 
         result.pulled!++
-        logSync('pull', collectionFile.path, 'New collection imported from remote')
+        logSync('pull', localCollection.name, 'Updated from remote')
       } else {
-        // Check if ANY file changed on remote
-        const remoteItems: DirectoryItem[] = files.map((f) => ({
-          type: 'file' as const,
-          path: f.path,
-          sha: f.sha ?? '',
-        }))
-
-        const storedFileShas = localCollection.file_shas ? JSON.parse(localCollection.file_shas) : {}
-
-        if (!hasRemoteFileChanges(storedFileShas, remoteItems)) {
-          continue // No changes on remote
-        }
-
-        if (!localCollection.is_dirty) {
-          // Remote wins - update local
-          importFromDirectory(files, localCollection.id, workspaceId)
-          const newFileState = buildFileStateFromRemote(files)
-
-          collectionsRepo.update(localCollection.id, {
-            remote_sha: collectionFile.sha ?? null,
-            file_shas: JSON.stringify(newFileState),
-            remote_synced_at: new Date().toISOString(),
-            is_dirty: 0,
-          })
-
-          result.pulled!++
-          logSync('pull', localCollection.name, 'Updated from remote')
-        } else {
-          // Conflict: both sides changed — compute change details for the modal
-          const { localChanges, remoteChanges } = computeConflictDetails(
-            localCollection,
-            files,
-            storedFileShas,
-          )
-          result.conflicts!.push({
-            collectionId: localCollection.id,
-            collectionName: localCollection.name,
-            localUpdatedAt: localCollection.updated_at,
-            localChanges,
-            remoteChanges,
-          })
-          logSync('pull', localCollection.name, 'Conflict detected - both sides changed', false)
-        }
+        // Conflict: both sides changed — compute change details for the modal
+        const { localChanges, remoteChanges } = computeConflictDetails(
+          localCollection,
+          files,
+          storedFileShas,
+        )
+        result.conflicts!.push({
+          collectionId: localCollection.id,
+          collectionName: localCollection.name,
+          localUpdatedAt: localCollection.updated_at,
+          localChanges,
+          remoteChanges,
+        })
+        logSync('pull', localCollection.name, 'Conflict detected - both sides changed', false)
       }
-    } catch (e) {
-      result.success = false
-      errors.push(`${collectionId}: ${(e as Error).message}`)
+    }
+  }
+
+  const entries = Object.entries(collectionDirs)
+  const COLLECTION_CONCURRENCY = 4
+  for (let i = 0; i < entries.length; i += COLLECTION_CONCURRENCY) {
+    const batch = entries.slice(i, i + COLLECTION_CONCURRENCY)
+    const batchResults = await Promise.allSettled(batch.map(([collectionId, dirPath]) => processCollection(collectionId, dirPath)))
+    for (let j = 0; j < batchResults.length; j++) {
+      const r = batchResults[j]
+      if (r.status === 'rejected') {
+        result.success = false
+        errors.push(`${batch[j][0]}: ${(r.reason as Error).message}`)
+      }
     }
   }
 
@@ -490,7 +495,7 @@ export async function pullSingleCollection(collection: Collection, workspaceId?:
   }
 
   // User explicitly requested pull — overwrite local with remote (like forceKeepRemote)
-  const files = await provider.getDirectoryTree(basePath)
+  const files = await provider.getDirectoryTree(basePath, remoteItems)
   if (files.length === 0) throw new Error('Remote directory is empty')
 
   importFromDirectory(files, collection.id, workspaceId)

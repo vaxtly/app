@@ -19,7 +19,7 @@ export interface GitProvider {
   listDirectoryRecursive(path: string): Promise<DirectoryItem[]>
 
   /** Get the full directory tree with file contents (.yaml files only). */
-  getDirectoryTree(path: string): Promise<FileContent[]>
+  getDirectoryTree(path: string, items?: DirectoryItem[]): Promise<FileContent[]>
 
   /** Get a single file with its content. */
   getFile(path: string): Promise<FileContent | null>
