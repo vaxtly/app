@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.6] - 2026-02-26
+
+### Fixed
+- macOS ARM64 (Apple Silicon) build producing wrong-architecture binary — native modules now explicitly rebuilt for Electron's ABI on all platforms
+
 ## [0.4.5] - 2026-02-25
 
 ### Fixed
