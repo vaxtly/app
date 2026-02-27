@@ -284,6 +284,13 @@ const api = {
       ipcRenderer.on(IPC.SYNC_CONFLICT, handler)
       return () => ipcRenderer.removeListener(IPC.SYNC_CONFLICT, handler)
     },
+    syncPullComplete: (callback: (workspaceId: string) => void): (() => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, workspaceId: string): void => {
+        callback(workspaceId)
+      }
+      ipcRenderer.on(IPC.SYNC_PULL_COMPLETE, handler)
+      return () => ipcRenderer.removeListener(IPC.SYNC_PULL_COMPLETE, handler)
+    },
   },
 }
 

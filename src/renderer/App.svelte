@@ -329,6 +329,11 @@
       window.api.on.syncConflict((conflicts) => {
         conflictQueue = [...conflictQueue, ...conflicts]
       }),
+      window.api.on.syncPullComplete((workspaceId) => {
+        if (workspaceId === appStore.activeWorkspaceId) {
+          collectionsStore.loadAll(workspaceId)
+        }
+      }),
     ]
 
     // Replay recent vault/git failures (covers auto-sync that fired before renderer mounted)

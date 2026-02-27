@@ -257,6 +257,9 @@ async function runAutoSync(): Promise<void> {
         const result = await remoteSyncService.pull(ws.id)
         logSync('auto-sync', ws.name, result.message ?? `Pulled ${result.pulled ?? 0} collection(s)`, result.success)
 
+        if (result.pulled && result.pulled > 0) {
+          mainWindow?.webContents.send(IPC.SYNC_PULL_COMPLETE, ws.id)
+        }
         if (result.conflicts && result.conflicts.length > 0) {
           mainWindow?.webContents.send(IPC.SYNC_CONFLICT, result.conflicts)
         }
