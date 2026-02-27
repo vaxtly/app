@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.8] - 2026-02-27
+
+### Fixed
+- Sidebar not updating after autosync pulls new collections — added IPC notification so the renderer reloads the collection tree immediately
+
 ## [0.4.7] - 2026-02-26
 
 ### Changed
