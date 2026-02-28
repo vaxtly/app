@@ -132,6 +132,25 @@ export function exportConfig(): ExportWrapper {
   })
 }
 
+export function exportSingleMcpServer(serverId: string): ExportWrapper {
+  const server = mcpServersRepo.findById(serverId)
+  if (!server) throw new Error(`MCP server not found: ${serverId}`)
+
+  const data: McpServerExport = {
+    name: server.name,
+    transport_type: server.transport_type,
+    command: server.command,
+    args: server.args ? safeJsonParse(server.args, []) : [],
+    env: server.env ? safeJsonParse(server.env, {}) : {},
+    cwd: server.cwd,
+    url: server.url,
+    headers: server.headers ? safeJsonParse(server.headers, {}) : {},
+    order: server.order,
+  }
+
+  return wrap('mcp_servers', { mcp_servers: [data] })
+}
+
 export function exportMcpServers(workspaceId?: string): ExportWrapper {
   return wrap('mcp_servers', {
     mcp_servers: buildMcpServersData(workspaceId),

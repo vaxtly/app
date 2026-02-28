@@ -32,6 +32,10 @@ export function registerDataImportExportHandlers(): void {
     return dataService.exportSingleCollection(collectionId)
   })
 
+  ipcMain.handle(IPC.DATA_EXPORT_MCP_SERVER, async (_event, serverId: string) => {
+    return dataService.exportSingleMcpServer(serverId)
+  })
+
   ipcMain.handle(IPC.DATA_PICK_AND_READ, async () => {
     const result = await dialog.showOpenDialog({
       properties: ['openFile'],

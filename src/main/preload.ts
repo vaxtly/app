@@ -157,6 +157,8 @@ const api = {
       ipcRenderer.invoke(IPC.DATA_EXPORT, type, workspaceId),
     exportCollection: (collectionId: string): Promise<Record<string, unknown>> =>
       ipcRenderer.invoke(IPC.DATA_EXPORT_COLLECTION, collectionId),
+    exportMcpServer: (serverId: string): Promise<Record<string, unknown>> =>
+      ipcRenderer.invoke(IPC.DATA_EXPORT_MCP_SERVER, serverId),
     pickAndRead: (): Promise<{ content: string; name: string } | null> =>
       ipcRenderer.invoke(IPC.DATA_PICK_AND_READ),
     import: (json: string, workspaceId?: string): Promise<{ collections: number; environments: number; mcp_servers: number; config: boolean; errors: string[] }> =>
