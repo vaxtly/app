@@ -8,9 +8,11 @@ import * as collectionsRepo from '../database/repositories/collections'
 import * as foldersRepo from '../database/repositories/folders'
 import * as requestsRepo from '../database/repositories/requests'
 import * as environmentsRepo from '../database/repositories/environments'
+import * as mcpServersRepo from '../database/repositories/mcp-servers'
 import * as settingsRepo from '../database/repositories/settings'
 import * as workspacesRepo from '../database/repositories/workspaces'
 import type { Collection, Folder, Request as Req, Environment } from '../../shared/types/models'
+import type { McpServer } from '../../shared/types/mcp'
 
 // --- Export types ---
 
@@ -62,9 +64,22 @@ interface EnvironmentExport {
   variables: unknown
 }
 
+interface McpServerExport {
+  name: string
+  transport_type: string
+  command: string | null
+  args: unknown
+  env: unknown
+  cwd: string | null
+  url: string | null
+  headers: unknown
+  order: number
+}
+
 interface ImportResult {
   collections: number
   environments: number
+  mcp_servers: number
   config: boolean
   errors: string[]
 }
@@ -75,6 +90,7 @@ export function exportAll(workspaceId?: string): ExportWrapper {
   return wrap('all', {
     collections: buildCollectionsData(workspaceId),
     environments: buildEnvironmentsData(workspaceId),
+    mcp_servers: buildMcpServersData(workspaceId),
     config: buildConfigData(workspaceId),
   })
 }
@@ -116,10 +132,16 @@ export function exportConfig(): ExportWrapper {
   })
 }
 
+export function exportMcpServers(workspaceId?: string): ExportWrapper {
+  return wrap('mcp_servers', {
+    mcp_servers: buildMcpServersData(workspaceId),
+  })
+}
+
 // --- Import functions ---
 
 export function importData(json: string, workspaceId?: string): ImportResult {
-  const result: ImportResult = { collections: 0, environments: 0, config: false, errors: [] }
+  const result: ImportResult = { collections: 0, environments: 0, mcp_servers: 0, config: false, errors: [] }
 
   let data: Record<string, unknown>
   try {
@@ -151,6 +173,12 @@ export function importData(json: string, workspaceId?: string): ImportResult {
   if (['all', 'environments'].includes(type) && exportData.environments) {
     const r = importEnvironments(exportData.environments as EnvironmentExport[], workspaceId)
     result.environments = r.count
+    result.errors.push(...r.errors)
+  }
+
+  if (['all', 'mcp_servers'].includes(type) && exportData.mcp_servers) {
+    const r = importMcpServers(exportData.mcp_servers as McpServerExport[], workspaceId)
+    result.mcp_servers = r.count
     result.errors.push(...r.errors)
   }
 
@@ -335,6 +363,48 @@ function importConfig(config: Record<string, Record<string, unknown>>, workspace
   }
 }
 
+function importMcpServers(
+  mcpServers: McpServerExport[],
+  workspaceId?: string,
+): { count: number; errors: string[] } {
+  let count = 0
+  const errors: string[] = []
+
+  if (!workspaceId) {
+    errors.push('MCP servers require a workspace — skipped')
+    return { count, errors }
+  }
+
+  for (const serverData of mcpServers) {
+    try {
+      const server = mcpServersRepo.create({
+        workspace_id: workspaceId,
+        name: generateUniqueMcpServerName(serverData.name ?? 'Imported MCP Server', workspaceId),
+        transport_type: serverData.transport_type ?? 'stdio',
+        command: serverData.command ?? undefined,
+        args: serverData.args != null
+          ? (typeof serverData.args === 'string' ? serverData.args : JSON.stringify(serverData.args))
+          : undefined,
+        env: serverData.env != null
+          ? (typeof serverData.env === 'string' ? serverData.env : JSON.stringify(serverData.env))
+          : undefined,
+        cwd: serverData.cwd ?? undefined,
+        url: serverData.url ?? undefined,
+        headers: serverData.headers != null
+          ? (typeof serverData.headers === 'string' ? serverData.headers : JSON.stringify(serverData.headers))
+          : undefined,
+      })
+
+      if (server) count++
+    } catch (e) {
+      const name = serverData.name ?? 'Unknown'
+      errors.push(`Failed to import MCP server '${name}': ${e instanceof Error ? e.message : String(e)}`)
+    }
+  }
+
+  return { count, errors }
+}
+
 function buildCollectionsData(workspaceId?: string): CollectionExport[] {
   const collections = workspaceId
     ? collectionsRepo.findByWorkspace(workspaceId)
@@ -408,6 +478,24 @@ function buildEnvironmentsData(workspaceId?: string): EnvironmentExport[] {
   }))
 }
 
+function buildMcpServersData(workspaceId?: string): McpServerExport[] {
+  const servers = workspaceId
+    ? mcpServersRepo.findByWorkspace(workspaceId)
+    : mcpServersRepo.findAll()
+
+  return servers.map((server) => ({
+    name: server.name,
+    transport_type: server.transport_type,
+    command: server.command,
+    args: server.args ? safeJsonParse(server.args, []) : [],
+    env: server.env ? safeJsonParse(server.env, {}) : {},
+    cwd: server.cwd,
+    url: server.url,
+    headers: server.headers ? safeJsonParse(server.headers, {}) : {},
+    order: server.order,
+  }))
+}
+
 function buildConfigData(workspaceId?: string): { remote: Record<string, unknown>; vault: Record<string, unknown> } {
   function get(key: string): string | undefined {
     if (workspaceId) {
@@ -468,6 +556,19 @@ function generateUniqueEnvironmentName(baseName: string, workspaceId?: string): 
   let counter = 1
 
   while (db.prepare('SELECT 1 FROM environments WHERE name = ? AND workspace_id IS ?').get(name, workspaceId ?? null)) {
+    counter++
+    name = `${baseName} (${counter})`
+  }
+
+  return name
+}
+
+function generateUniqueMcpServerName(baseName: string, workspaceId: string): string {
+  const db = getDatabase()
+  let name = baseName
+  let counter = 1
+
+  while (db.prepare('SELECT 1 FROM mcp_servers WHERE name = ? AND workspace_id = ?').get(name, workspaceId)) {
     counter++
     name = `${baseName} (${counter})`
   }

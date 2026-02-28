@@ -51,6 +51,11 @@ export function findByWorkspace(workspaceId: string): McpServer[] {
   return db.prepare('SELECT * FROM mcp_servers WHERE workspace_id = ? ORDER BY "order" ASC').all(workspaceId) as McpServer[]
 }
 
+export function findAll(): McpServer[] {
+  const db = getDatabase()
+  return db.prepare('SELECT * FROM mcp_servers ORDER BY "order" ASC').all() as McpServer[]
+}
+
 export function update(
   id: string,
   data: Partial<Omit<McpServer, 'id' | 'created_at'>>

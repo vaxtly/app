@@ -2,8 +2,9 @@
   import { appStore } from '../../lib/stores/app.svelte'
   import { collectionsStore } from '../../lib/stores/collections.svelte'
   import { environmentsStore } from '../../lib/stores/environments.svelte'
+  import { mcpStore } from '../../lib/stores/mcp.svelte'
 
-  type ExportType = 'all' | 'collections' | 'environments' | 'config'
+  type ExportType = 'all' | 'collections' | 'environments' | 'mcp_servers' | 'config'
 
   let exportType = $state<ExportType>('all')
   let exporting = $state(false)
@@ -14,9 +15,10 @@
   let status = $state<{ type: 'success' | 'error'; message: string } | null>(null)
 
   const exportOptions: { key: ExportType; label: string; desc: string }[] = [
-    { key: 'all', label: 'Everything', desc: 'Collections, environments, and settings' },
+    { key: 'all', label: 'Everything', desc: 'Collections, environments, MCP servers, and settings' },
     { key: 'collections', label: 'Collections', desc: 'Requests, folders, and variables' },
     { key: 'environments', label: 'Environments', desc: 'Variables and secrets' },
+    { key: 'mcp_servers', label: 'MCP Servers', desc: 'Server configs and transport settings' },
     { key: 'config', label: 'Config', desc: 'App preferences only' },
   ]
 
@@ -123,14 +125,23 @@
         }
       } else {
         const result = await window.api.data.import(json, appStore.activeWorkspaceId ?? undefined)
+        const parts: string[] = []
+        if (result.collections > 0) parts.push(`${result.collections} collection${result.collections > 1 ? 's' : ''}`)
+        if (result.environments > 0) parts.push(`${result.environments} environment${result.environments > 1 ? 's' : ''}`)
+        if (result.mcp_servers > 0) parts.push(`${result.mcp_servers} MCP server${result.mcp_servers > 1 ? 's' : ''}`)
+        if (result.config) parts.push('config')
+        const summary = parts.length > 0 ? parts.join(', ') : 'nothing'
         status = {
           type: result.errors.length > 0 ? 'error' : 'success',
-          message: `Imported ${result.collections} collections, ${result.environments} environments${result.errors.length > 0 ? `. Errors: ${result.errors.join(', ')}` : ''}`,
+          message: `Imported ${summary}${result.errors.length > 0 ? `. Errors: ${result.errors.join(', ')}` : ''}`,
         }
       }
 
       await collectionsStore.loadAll(appStore.activeWorkspaceId ?? undefined)
       await environmentsStore.loadAll(appStore.activeWorkspaceId ?? undefined)
+      if (appStore.activeWorkspaceId) {
+        await mcpStore.loadServers(appStore.activeWorkspaceId)
+      }
     } catch (err) {
       status = { type: 'error', message: err instanceof Error ? err.message : 'Import failed' }
     } finally {

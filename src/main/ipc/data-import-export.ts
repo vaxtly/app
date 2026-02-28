@@ -10,7 +10,7 @@ const MAX_IMPORT_SIZE = 50 * 1024 * 1024 // 50 MB
 export function registerDataImportExportHandlers(): void {
   ipcMain.handle(
     IPC.DATA_EXPORT,
-    async (_event, type: 'all' | 'collections' | 'environments' | 'config', workspaceId?: string) => {
+    async (_event, type: 'all' | 'collections' | 'environments' | 'mcp_servers' | 'config', workspaceId?: string) => {
       switch (type) {
         case 'all':
           return dataService.exportAll(workspaceId)
@@ -18,6 +18,8 @@ export function registerDataImportExportHandlers(): void {
           return dataService.exportCollections(workspaceId)
         case 'environments':
           return dataService.exportEnvironments(workspaceId)
+        case 'mcp_servers':
+          return dataService.exportMcpServers(workspaceId)
         case 'config':
           return dataService.exportConfig()
         default:
