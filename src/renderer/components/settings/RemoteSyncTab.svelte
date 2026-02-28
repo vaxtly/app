@@ -135,11 +135,16 @@
     pushing = true
     status = null
     try {
-      // Scan all sync-enabled collections for sensitive data
+      // Scan all sync-enabled collections and MCP servers for sensitive data
       const syncCollections = collectionsStore.collections.filter((c) => c.sync_enabled)
       const allFindings: typeof sensitiveFindings = []
       for (const col of syncCollections) {
         const findings = await window.api.sync.scanSensitive(col.id)
+        allFindings.push(...findings)
+      }
+      const syncServers = mcpStore.servers.filter((s) => s.sync_enabled === 1)
+      for (const server of syncServers) {
+        const findings = await window.api.sync.scanMcpSensitive(server.id)
         allFindings.push(...findings)
       }
 

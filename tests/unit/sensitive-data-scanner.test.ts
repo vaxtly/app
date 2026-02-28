@@ -83,6 +83,18 @@ describe('scanRequest', () => {
     expect(findings[0].key).toBe('Authorization')
   })
 
+  it('detects param-style sensitive keys in headers', () => {
+    const findings = scanRequest(makeRequest({
+      headers: [
+        { key: 'password', value: 'secretpassword', enabled: true },
+        { key: 'api_key', value: 'sk-12345', enabled: true },
+        { key: 'Accept', value: 'application/json', enabled: true },
+      ],
+    }))
+    expect(findings).toHaveLength(2)
+    expect(findings.map(f => f.key).sort()).toEqual(['api_key', 'password'])
+  })
+
   it('detects sensitive query params', () => {
     const findings = scanRequest(makeRequest({
       query_params: [
@@ -182,6 +194,23 @@ describe('sanitizeRequestData', () => {
     })
     expect((data.headers as any)[0].value).toBe('')
     expect((data.headers as any)[1].value).toBe('application/json')
+  })
+
+  it('blanks param-style sensitive keys in headers', () => {
+    const data = sanitizeRequestData({
+      auth: null,
+      headers: [
+        { key: 'password', value: 'secretpassword', enabled: true },
+        { key: 'api_key', value: 'sk-12345', enabled: true },
+        { key: 'Content-Type', value: 'application/json', enabled: true },
+      ],
+      query_params: [],
+      body: null,
+      body_type: 'none',
+    })
+    expect((data.headers as any)[0].value).toBe('')
+    expect((data.headers as any)[1].value).toBe('')
+    expect((data.headers as any)[2].value).toBe('application/json')
   })
 
   it('preserves {{variable}} references during sanitization', () => {

@@ -2,6 +2,7 @@
   import { mcpStore } from '../../lib/stores/mcp.svelte'
   import { appStore } from '../../lib/stores/app.svelte'
   import ContextMenu from '../shared/ContextMenu.svelte'
+  import SensitiveDataModal from '../modals/SensitiveDataModal.svelte'
 
   interface Props {
     onmcpserverclick: (serverId: string) => void
@@ -11,6 +12,9 @@
   let { onmcpserverclick, searchFilter }: Props = $props()
 
   let contextMenu = $state<{ x: number; y: number; serverId: string } | null>(null)
+  let sensitiveFindings = $state<{ source: string; requestName: string | null; requestId: string | null; field: string; key: string; maskedValue: string }[]>([])
+  let showSensitiveModal = $state(false)
+  let pendingPushServerId = $state<string | null>(null)
 
   let filtered = $derived(
     searchFilter
@@ -45,14 +49,40 @@
   }
 
   async function pushServer(serverId: string): Promise<void> {
-    const wsId = appStore.activeWorkspaceId ?? undefined
     try {
-      await window.api.sync.pushMcpServer(serverId, false, wsId)
+      const findings = await window.api.sync.scanMcpSensitive(serverId)
+      if (findings.length > 0) {
+        sensitiveFindings = findings
+        pendingPushServerId = serverId
+        showSensitiveModal = true
+        return
+      }
+      await doPushServer(serverId, false)
     } catch (e) {
       console.error('Failed to push MCP server:', e)
     }
-    // Reload to update sync state
+  }
+
+  async function doPushServer(serverId: string, sanitize: boolean): Promise<void> {
+    const wsId = appStore.activeWorkspaceId ?? undefined
+    try {
+      await window.api.sync.pushMcpServer(serverId, sanitize, wsId)
+    } catch (e) {
+      console.error('Failed to push MCP server:', e)
+    }
     await mcpStore.loadServers(appStore.activeWorkspaceId!)
+  }
+
+  function pushAnyway(): void {
+    showSensitiveModal = false
+    if (pendingPushServerId) doPushServer(pendingPushServerId, false)
+    pendingPushServerId = null
+  }
+
+  function pushSanitized(): void {
+    showSensitiveModal = false
+    if (pendingPushServerId) doPushServer(pendingPushServerId, true)
+    pendingPushServerId = null
   }
 
   function getContextMenuItems(serverId: string) {
@@ -121,5 +151,14 @@
     y={contextMenu.y}
     items={getContextMenuItems(contextMenu.serverId)}
     onclose={() => contextMenu = null}
+  />
+{/if}
+
+{#if showSensitiveModal}
+  <SensitiveDataModal
+    findings={sensitiveFindings}
+    onclose={() => { showSensitiveModal = false; pendingPushServerId = null }}
+    onsyncanyway={pushAnyway}
+    onsyncwithout={pushSanitized}
   />
 {/if}

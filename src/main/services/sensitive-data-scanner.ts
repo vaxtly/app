@@ -141,7 +141,7 @@ function scanAuth(request: RequestData): SensitiveFinding[] {
 }
 
 function scanHeaders(request: RequestData): SensitiveFinding[] {
-  return scanKeyValueData(request.headers ?? [], SENSITIVE_HEADER_KEYS, 'header', 'headers', request)
+  return scanKeyValueData(request.headers ?? [], ALL_SENSITIVE_KEYS, 'header', 'headers', request)
 }
 
 function scanQueryParams(request: RequestData): SensitiveFinding[] {
@@ -297,7 +297,7 @@ export function sanitizeRequestData(data: Record<string, unknown>): Record<strin
 
   // Sanitize headers
   if (Array.isArray(data.headers)) {
-    data.headers = sanitizeKeyValuePairs(data.headers as KeyValueEntry[], SENSITIVE_HEADER_KEYS)
+    data.headers = sanitizeKeyValuePairs(data.headers as KeyValueEntry[], ALL_SENSITIVE_KEYS)
   }
 
   // Sanitize query params
@@ -430,7 +430,7 @@ export function scanMcpServer(server: McpServerData): SensitiveFinding[] {
     for (const [key, value] of Object.entries(server.headers)) {
       if (!key || !value) continue
       if (isVariableReference(value)) continue
-      if (isSensitiveKey(key, SENSITIVE_HEADER_KEYS)) {
+      if (isSensitiveKey(key, ALL_SENSITIVE_KEYS)) {
         findings.push({
           source: 'header',
           requestName: server.name ?? null,
@@ -462,7 +462,7 @@ export function sanitizeMcpServerData(data: Record<string, unknown>): Record<str
   if (data.headers && typeof data.headers === 'object') {
     const headers = { ...(data.headers as Record<string, string>) }
     for (const [key, value] of Object.entries(headers)) {
-      if (value && !isVariableReference(value) && isSensitiveKey(key, SENSITIVE_HEADER_KEYS)) {
+      if (value && !isVariableReference(value) && isSensitiveKey(key, ALL_SENSITIVE_KEYS)) {
         headers[key] = ''
       }
     }

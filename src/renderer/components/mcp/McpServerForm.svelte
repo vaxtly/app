@@ -5,6 +5,7 @@
   import { environmentsStore } from '../../lib/stores/environments.svelte'
   import KeyValueEditor from '../shared/KeyValueEditor.svelte'
   import VarInput from '../shared/VarInput.svelte'
+  import SensitiveDataModal from '../modals/SensitiveDataModal.svelte'
   import type { McpTransportType, KeyValueEntry } from '../../lib/types'
   import type { ResolvedVariable } from '../../lib/utils/variable-highlight'
 
@@ -25,6 +26,11 @@
   let cwd = $state('')
   let url = $state('')
   let headerEntries = $state<KeyValueEntry[]>([])
+
+  // Sensitive data modal state
+  let pendingSensitiveFindings = $state<{ source: string; requestName: string | null; requestId: string | null; field: string; key: string; maskedValue: string }[]>([])
+  let pendingSensitivePushId = $state<string | null>(null)
+  let showSensitiveModal = $state(false)
 
   // Resolved variables for highlighting (refreshed when env changes)
   let resolvedVars = $state<Record<string, ResolvedVariable>>({})
@@ -109,14 +115,58 @@
       const tabId = `tab-mcp-${serverId}`
       appStore.updateTabLabel(tabId, updated.name)
 
-      // Auto-push to remote if sync is enabled (fire-and-forget)
+      // Auto-push to remote if sync is enabled (scan first)
       if (updated.sync_enabled === 1) {
         const wsId = appStore.activeWorkspaceId ?? undefined
-        window.api.sync.pushMcpServer(serverId, false, wsId)
-          .then(() => mcpStore.loadServers(appStore.activeWorkspaceId!))
-          .catch(() => {}) // Error already logged server-side
+        try {
+          const findings = await window.api.sync.scanMcpSensitive(serverId)
+          if (findings.length > 0) {
+            pendingSensitiveFindings = findings
+            pendingSensitivePushId = serverId
+            showSensitiveModal = true
+            return // Don't close — show the modal instead
+          }
+          window.api.sync.pushMcpServer(serverId, false, wsId)
+            .then(() => mcpStore.loadServers(appStore.activeWorkspaceId!))
+            .catch(() => {})
+        } catch {
+          // Scan failed — push without scanning
+          window.api.sync.pushMcpServer(serverId, false, wsId)
+            .then(() => mcpStore.loadServers(appStore.activeWorkspaceId!))
+            .catch(() => {})
+        }
       }
     }
+    onclose()
+  }
+
+  function handleSensitivePushAnyway(): void {
+    showSensitiveModal = false
+    if (pendingSensitivePushId) {
+      const wsId = appStore.activeWorkspaceId ?? undefined
+      window.api.sync.pushMcpServer(pendingSensitivePushId, false, wsId)
+        .then(() => mcpStore.loadServers(appStore.activeWorkspaceId!))
+        .catch(() => {})
+    }
+    pendingSensitivePushId = null
+    onclose()
+  }
+
+  function handleSensitivePushSanitized(): void {
+    showSensitiveModal = false
+    if (pendingSensitivePushId) {
+      const wsId = appStore.activeWorkspaceId ?? undefined
+      window.api.sync.pushMcpServer(pendingSensitivePushId, true, wsId)
+        .then(() => mcpStore.loadServers(appStore.activeWorkspaceId!))
+        .catch(() => {})
+    }
+    pendingSensitivePushId = null
+    onclose()
+  }
+
+  function handleSensitiveCancel(): void {
+    showSensitiveModal = false
+    pendingSensitivePushId = null
     onclose()
   }
 
@@ -268,3 +318,12 @@
     </div>
   </div>
 </div>
+
+{#if showSensitiveModal}
+  <SensitiveDataModal
+    findings={pendingSensitiveFindings}
+    onclose={handleSensitiveCancel}
+    onsyncanyway={handleSensitivePushAnyway}
+    onsyncwithout={handleSensitivePushSanitized}
+  />
+{/if}

@@ -254,7 +254,7 @@
     <div
       bind:this={editEl}
       {id}
-      class="{className} vi-editable whitespace-nowrap overflow-hidden outline-none"
+      class="{className} vi-editable flex items-center whitespace-nowrap overflow-hidden outline-none"
       contenteditable={readonly ? 'false' : 'true'}
       role="textbox"
       tabindex="0"
@@ -267,7 +267,7 @@
       onmouseout={handleMouseOut}
     ></div>
     {#if !value}
-      <span class="{className} vi-placeholder absolute inset-0 pointer-events-none whitespace-nowrap overflow-hidden">{placeholder}</span>
+      <span class="{className} vi-placeholder absolute inset-0 flex items-center pointer-events-none whitespace-nowrap overflow-hidden">{placeholder}</span>
     {/if}
   </div>
 {/if}
@@ -304,8 +304,6 @@
   .vi-placeholder {
     position: absolute;
     inset: 0;
-    height: auto;
-    width: auto;
     color: var(--color-surface-500);
     background: transparent;
     border-color: transparent;
