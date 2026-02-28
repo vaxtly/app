@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onMount } from 'svelte'
   import { appStore } from '../../lib/stores/app.svelte'
   import { collectionsStore } from '../../lib/stores/collections.svelte'
   import { environmentsStore } from '../../lib/stores/environments.svelte'
@@ -20,10 +21,34 @@
   let collectionSearch = $state('')
   let environmentSearch = $state('')
   let mcpSearch = $state('')
+  let modeDropdownOpen = $state(false)
 
   let theme = $derived(settingsStore.get('app.theme'))
   let layout = $derived(settingsStore.get('request.layout'))
   let hasExpanded = $derived(collectionsStore.expandedIds.size > 0)
+
+  const MODE_OPTIONS = [
+    { mode: 'collections' as const, label: 'Collections' },
+    { mode: 'environments' as const, label: 'Environments' },
+    { mode: 'mcp' as const, label: 'MCP Servers' },
+  ]
+
+  function selectMode(mode: 'collections' | 'environments' | 'mcp'): void {
+    appStore.setSidebarMode(mode)
+    modeDropdownOpen = false
+  }
+
+  // Close dropdown on outside click
+  onMount(() => {
+    function handleClick(e: MouseEvent): void {
+      const target = e.target as HTMLElement
+      if (modeDropdownOpen && !target.closest('.mode-switcher')) {
+        modeDropdownOpen = false
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  })
 
   let searchValue = $derived(
     appStore.sidebarMode === 'collections' ? collectionSearch
@@ -73,13 +98,39 @@
     <WorkspaceSwitcher />
   </div>
 
-  <!-- Header with active mode label + add button -->
-  <div class="flex shrink-0 items-center gap-2 px-3 py-1.5" style="border-bottom: 1px solid var(--glass-border)">
-    <span class="text-[11px] font-medium uppercase tracking-wider text-surface-400">
-      {appStore.sidebarMode === 'collections' ? 'Collections' : appStore.sidebarMode === 'environments' ? 'Environments' : 'MCP Servers'}
-    </span>
-
-    <div class="min-w-0 flex-1"></div>
+  <!-- Header with mode selector dropdown + add button -->
+  <div class="mode-switcher relative flex shrink-0 items-center gap-1 pr-2" style="border-bottom: 1px solid var(--glass-border)">
+    <button
+      onclick={() => modeDropdownOpen = !modeDropdownOpen}
+      class="group flex h-9 flex-1 min-w-0 items-center gap-1.5 px-3 bg-transparent text-surface-300 text-xs cursor-pointer transition-all duration-150 text-left hover:bg-[var(--tint-subtle)] hover:text-surface-100"
+    >
+      <!-- Mode icon -->
+      {#if appStore.sidebarMode === 'collections'}
+        <svg class="w-3.5 h-3.5 shrink-0 text-surface-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+        </svg>
+      {:else if appStore.sidebarMode === 'environments'}
+        <svg class="w-3.5 h-3.5 shrink-0 text-surface-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
+        </svg>
+      {:else}
+        <svg class="w-3.5 h-3.5 shrink-0 text-surface-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 22v-5"/>
+          <path d="M9 8V2"/>
+          <path d="M15 8V2"/>
+          <path d="M18 8v5a6 6 0 01-12 0V8h12z"/>
+        </svg>
+      {/if}
+      <span class="flex-1 min-w-0 truncate font-medium">
+        {appStore.sidebarMode === 'collections' ? 'Collections' : appStore.sidebarMode === 'environments' ? 'Environments' : 'MCP Servers'}
+      </span>
+      <svg
+        class="shrink-0 opacity-50 text-surface-500 transition-[transform,opacity] duration-200 ease-out group-hover:opacity-80 {modeDropdownOpen ? 'rotate-180 opacity-80' : ''}"
+        width="10" height="10" viewBox="0 0 10 10" fill="none"
+      >
+        <path d="M2.5 3.75L5 6.25L7.5 3.75" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </button>
 
     <button
       onclick={appStore.sidebarMode === 'collections' ? handleNewCollection : appStore.sidebarMode === 'environments' ? handleNewEnvironment : handleNewMcpServer}
@@ -90,6 +141,45 @@
         <path d="M12 4v16m8-8H4" />
       </svg>
     </button>
+
+    <!-- Mode dropdown -->
+    {#if modeDropdownOpen}
+      <div
+        class="absolute left-0 right-0 top-full z-50 mt-1 rounded-xl overflow-hidden animate-[dropdown-in_0.15s_ease-out]"
+        style="background: var(--glass-bg-heavy); backdrop-filter: blur(var(--glass-blur-heavy)); -webkit-backdrop-filter: blur(var(--glass-blur-heavy)); border: 1px solid var(--glass-border); box-shadow: var(--shadow-dropdown)"
+      >
+        {#each MODE_OPTIONS as opt (opt.mode)}
+          {@const isActive = opt.mode === appStore.sidebarMode}
+          <button
+            onclick={() => selectMode(opt.mode)}
+            class="flex items-center gap-2 w-full px-3 py-1.5 border-none bg-transparent text-xs cursor-pointer text-left transition-colors duration-100 hover:bg-[var(--tint-muted)] {isActive ? 'text-surface-100' : 'text-surface-200 hover:text-surface-100'}"
+          >
+            <span class="w-3.5 h-3.5 flex items-center justify-center shrink-0">
+              {#if isActive}
+                <span class="mode-item-dot"></span>
+              {/if}
+            </span>
+            {#if opt.mode === 'collections'}
+              <svg class="w-3.5 h-3.5 shrink-0 text-surface-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+              </svg>
+            {:else if opt.mode === 'environments'}
+              <svg class="w-3.5 h-3.5 shrink-0 text-surface-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
+              </svg>
+            {:else}
+              <svg class="w-3.5 h-3.5 shrink-0 text-surface-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 22v-5"/>
+                <path d="M9 8V2"/>
+                <path d="M15 8V2"/>
+                <path d="M18 8v5a6 6 0 01-12 0V8h12z"/>
+              </svg>
+            {/if}
+            <span class="truncate flex-1 min-w-0">{opt.label}</span>
+          </button>
+        {/each}
+      </div>
+    {/if}
   </div>
 
   <!-- Search (shared) -->
@@ -155,7 +245,6 @@
           {appStore.sidebarMode === 'mcp' ? 'text-brand-400 bg-[var(--tint-active)]' : 'text-surface-500 hover:text-surface-300 hover:bg-[var(--tint-subtle)]'}"
         title="MCP Servers"
       >
-        <!-- Plug/connector icon -->
         <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M12 22v-5"/>
           <path d="M9 8V2"/>
@@ -167,7 +256,7 @@
 
     <div class="flex-1"></div>
 
-    <!-- Right group: layout, expand/collapse, settings -->
+    <!-- Right group: layout, expand/collapse, theme, settings -->
     <div class="flex items-center gap-0.5">
       <!-- Layout toggle -->
       <button
@@ -255,4 +344,12 @@
   .sidebar-scroll::-webkit-scrollbar { width: 3px; }
   .sidebar-scroll::-webkit-scrollbar-track { background: transparent; }
   .sidebar-scroll::-webkit-scrollbar-thumb { background: var(--color-surface-600); border-radius: 1.5px; }
+
+  .mode-item-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--color-brand-400);
+    box-shadow: 0 0 5px color-mix(in srgb, var(--color-brand-400) 50%, transparent);
+  }
 </style>

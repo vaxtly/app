@@ -122,7 +122,7 @@ vaxtly/
 │       └── components/
 │           ├── CodeEditor.svelte       # CodeMirror 6 wrapper + optional variable highlight
 │           ├── layout/
-│           │   ├── Sidebar.svelte      # Mode tabs (Collections/Environments/MCP) + search + tree + footer toolbar
+│           │   ├── Sidebar.svelte      # Mode selector dropdown (Collections/Environments/MCP) + search + tree + footer toolbar
 │           │   ├── TabBar.svelte       # Horizontal tabs + env icon for environment tabs + double-click empty space opens draft
 │           │   └── SystemLog.svelte    # Collapsible bottom panel: session logs + expandable HTTP detail
 │           ├── sidebar/
