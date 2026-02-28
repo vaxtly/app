@@ -67,6 +67,7 @@ export const IPC = {
   SYNC_PUSH_REQUEST: 'sync:push-request',
   SYNC_PULL_COLLECTION: 'sync:pull-collection',
   SYNC_PUSH_MCP_SERVER: 'sync:push-mcp-server',
+  SYNC_PULL_MCP_SERVER: 'sync:pull-mcp-server',
   SYNC_SCAN_MCP_SENSITIVE: 'sync:scan-mcp-sensitive',
 
   // Vault

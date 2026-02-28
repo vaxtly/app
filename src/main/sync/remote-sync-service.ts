@@ -860,6 +860,51 @@ export async function pullMcpServers(
   return { pulled }
 }
 
+export async function pullSingleMcpServer(server: McpServer, workspaceId?: string): Promise<boolean> {
+  const provider = getProvider(workspaceId)
+  if (!provider) throw new Error('Remote not configured')
+
+  const filePath = `${MCP_SERVERS_PATH}/${server.id}.yaml`
+
+  let items: DirectoryItem[]
+  try {
+    items = await provider.listDirectoryRecursive(MCP_SERVERS_PATH)
+  } catch {
+    logSync('pull', server.name, 'No remote data found')
+    return false
+  }
+
+  const remoteFile = items.find((item) => item.path === filePath)
+  if (!remoteFile) {
+    logSync('pull', server.name, 'No remote data found for this server')
+    return false
+  }
+
+  // Check if remote has changes
+  if (remoteFile.sha && remoteFile.sha === server.remote_sha) {
+    logSync('pull', server.name, 'Already up to date')
+    return false
+  }
+
+  // Fetch the file content
+  const files = await provider.getDirectoryTree(MCP_SERVERS_PATH, [remoteFile])
+  if (files.length === 0) throw new Error('Remote file is empty')
+
+  const file = files[0]
+  importMcpServerFromYaml(file.content, workspaceId ?? '')
+  const fileState = buildSingleFileState(file)
+
+  mcpServersRepo.update(server.id, {
+    remote_sha: file.sha ?? null,
+    remote_synced_at: new Date().toISOString(),
+    is_dirty: 0,
+    file_shas: JSON.stringify(fileState),
+  })
+
+  logSync('pull', server.name, 'Pulled from remote successfully')
+  return true
+}
+
 export async function pushMcpServer(
   server: McpServer,
   sanitize = false,

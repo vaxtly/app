@@ -183,6 +183,25 @@ export function registerSyncHandlers(): void {
   )
 
   ipcMain.handle(
+    IPC.SYNC_PULL_MCP_SERVER,
+    async (_event, serverId: string, workspaceId?: string): Promise<SyncResult> => {
+      const server = mcpServersRepo.findById(serverId)
+      if (!server) {
+        return { success: false, message: 'MCP server not found', pulled: 0, pushed: 0 }
+      }
+
+      try {
+        const updated = await syncService.pullSingleMcpServer(server, workspaceId)
+        return { success: true, message: updated ? 'Pulled successfully' : 'Already up to date', pulled: updated ? 1 : 0, pushed: 0 }
+      } catch (e) {
+        const msg = (e as Error).message
+        logSync('pull', server.name, `Pull failed: ${msg}`, false)
+        return { success: false, message: msg, pulled: 0, pushed: 0 }
+      }
+    },
+  )
+
+  ipcMain.handle(
     IPC.SYNC_SCAN_MCP_SENSITIVE,
     async (_event, serverId: string): Promise<SensitiveFinding[]> => {
       const server = mcpServersRepo.findById(serverId)

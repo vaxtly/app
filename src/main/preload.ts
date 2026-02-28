@@ -125,6 +125,8 @@ const api = {
       ipcRenderer.invoke(IPC.SYNC_PULL_COLLECTION, collectionId, workspaceId),
     pushMcpServer: (serverId: string, sanitize?: boolean, workspaceId?: string): Promise<SyncResult> =>
       ipcRenderer.invoke(IPC.SYNC_PUSH_MCP_SERVER, serverId, sanitize, workspaceId),
+    pullMcpServer: (serverId: string, workspaceId?: string): Promise<SyncResult> =>
+      ipcRenderer.invoke(IPC.SYNC_PULL_MCP_SERVER, serverId, workspaceId),
     scanMcpSensitive: (serverId: string): Promise<SensitiveFinding[]> =>
       ipcRenderer.invoke(IPC.SYNC_SCAN_MCP_SENSITIVE, serverId),
   },

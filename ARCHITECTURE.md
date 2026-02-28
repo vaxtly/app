@@ -434,6 +434,7 @@ Pattern: `ipcMain.handle('domain:action', handler)` in main, `ipcRenderer.invoke
 | `sync:conflict` | — (main→renderer push) | — | `api.on.syncConflict(cb)` |
 | `sync:push-request` | ipc/sync.ts | `syncService.pushSingleRequest()` | `api.sync.pushRequest(colId, reqId, sanitize?)` |
 | `sync:push-mcp-server` | ipc/sync.ts | `syncService.pushMcpServer()` | `api.sync.pushMcpServer(serverId, sanitize?, wsId?)` |
+| `sync:pull-mcp-server` | ipc/sync.ts | `syncService.pullSingleMcpServer()` | `api.sync.pullMcpServer(serverId, wsId?)` |
 | `sync:scan-mcp-sensitive` | ipc/sync.ts | `scanMcpServer()` | `api.sync.scanMcpSensitive(serverId)` |
 | `vault:test-connection` | ipc/vault.ts | `vaultService.testConnection()` | `api.vault.testConnection()` |
 | `vault:pull` | ipc/vault.ts | `vaultService.pullAll()` | `api.vault.pull()` |
