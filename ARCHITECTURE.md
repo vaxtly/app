@@ -18,6 +18,7 @@
 | Encryption | Electron safeStorage + AES-256-GCM | — |
 | Tests (unit) | Vitest | 4 |
 | Tests (e2e) | Playwright Electron | 1 |
+| MCP | @modelcontextprotocol/sdk | 1 |
 | Types | TypeScript strict | 5.7 |
 
 ## Project Structure
@@ -30,6 +31,7 @@ vaxtly/
 │   │   │   ├── models.ts               # All entity interfaces
 │   │   │   ├── ipc.ts                  # IPC channel constants
 │   │   │   ├── http.ts                 # RequestConfig, ResponseData, etc.
+│   │   │   ├── mcp.ts                  # MCP types: McpServer, McpServerState, McpTool, McpResource, McpPrompt, traffic/notifications
 │   │   │   └── sync.ts                 # SyncConfig, VaultConfig, ConflictChange, SessionLogEntry, HttpLogDetail
 │   │   └── constants.ts                # HTTP_METHODS, BODY_TYPES, AUTH_TYPES, SENSITIVE_*
 │   ├── main/
@@ -40,13 +42,15 @@ vaxtly/
 │   │   │   ├── connection.ts           # SQLite open/close + migration runner
 │   │   │   ├── migrations/
 │   │   │   │   ├── types.ts            # MigrationFile interface
-│   │   │   │   └── 001_initial_schema.ts
+│   │   │   │   ├── 001_initial_schema.ts
+│   │   │   │   └── 002_mcp_servers.ts
 │   │   │   └── repositories/
 │   │   │       ├── workspaces.ts
 │   │   │       ├── collections.ts
 │   │   │       ├── folders.ts
 │   │   │       ├── requests.ts
 │   │   │       ├── environments.ts
+│   │   │       ├── mcp-servers.ts        # MCP server CRUD + reorder
 │   │   │       └── settings.ts
 │   │   ├── ipc/                        # IPC handler registration per domain
 │   │   │   ├── workspaces.ts
@@ -54,6 +58,7 @@ vaxtly/
 │   │   │   ├── folders.ts
 │   │   │   ├── requests.ts
 │   │   │   ├── environments.ts
+│   │   │   ├── mcp.ts                 # MCP server CRUD, connect/disconnect, primitives, traffic
 │   │   │   ├── proxy.ts               # HTTP proxy + var substitution + pre/post scripts
 │   │   │   ├── variables.ts           # Variable resolution IPC (resolve, resolveWithSource) — async, ensures vault cache
 │   │   │   ├── session-log.ts         # Session log list + clear
@@ -71,6 +76,7 @@ vaxtly/
 │   │   │   ├── oauth2.ts               # OAuth 2.0: PKCE, token exchange, callback server, refresh
 │   │   │   ├── code-generator.ts       # Code snippet generation (9 languages)
 │   │   │   ├── insomnia-import.ts      # Import Insomnia v4 collections/environments
+│   │   │   ├── mcp-client.ts           # MCP SDK client: connect/disconnect, tool/resource/prompt calls, traffic log
 │   │   │   ├── session-log.ts          # In-memory ring buffer, push to renderer
 │   │   │   ├── yaml-serializer.ts      # Collection ↔ YAML directory serialization/import
 │   │   │   ├── fetch-error.ts            # Shared formatFetchError (SSL, DNS, timeout, etc.)
@@ -102,6 +108,7 @@ vaxtly/
 │       │   │   ├── app.svelte.ts       # Tabs, sidebar, workspace state, settings modal
 │       │   │   ├── collections.svelte.ts # Tree, CRUD, expand/collapse
 │       │   │   ├── environments.svelte.ts # Environment list, activation
+│       │   │   ├── mcp.svelte.ts       # MCP servers, connection states, traffic, notifications
 │       │   │   ├── settings.svelte.ts  # App settings with typed keys + IPC persistence
 │       │   │   ├── toasts.svelte.ts   # Toast notifications for vault/git failures
 │       │   │   └── drag.svelte.ts      # Drag-and-drop state for sidebar items
@@ -113,7 +120,7 @@ vaxtly/
 │       └── components/
 │           ├── CodeEditor.svelte       # CodeMirror 6 wrapper + optional variable highlight
 │           ├── layout/
-│           │   ├── Sidebar.svelte      # Mode tabs (Collections/Environments) + search + tree + footer toolbar
+│           │   ├── Sidebar.svelte      # Mode tabs (Collections/Environments/MCP) + search + tree + footer toolbar
 │           │   ├── TabBar.svelte       # Horizontal tabs + env icon for environment tabs + double-click empty space opens draft
 │           │   └── SystemLog.svelte    # Collapsible bottom panel: session logs + expandable HTTP detail
 │           ├── sidebar/
@@ -122,7 +129,17 @@ vaxtly/
 │           │   ├── FolderItem.svelte    # Same pattern, self-recursive, drag-drop target + auto-sync on move
 │           │   ├── RequestItem.svelte   # Method badge, active state, draggable
 │           │   ├── EnvironmentList.svelte # Env list + active toggle + context menu
+│           │   ├── McpServerList.svelte   # MCP server list with status dots + context menu
 │           │   └── WorkspaceSwitcher.svelte # Dropdown workspace selector + rename/delete/create
+│           ├── mcp/
+│           │   ├── McpInspector.svelte    # Main tab: header + sub-tabs (Tools/Resources/Prompts/Traffic/Notifications)
+│           │   ├── McpServerForm.svelte   # Server config form (transport, command/URL, env vars, headers)
+│           │   ├── McpJsonSchemaForm.svelte # Dynamic JSON Schema form for tool args
+│           │   ├── McpToolsPane.svelte    # Tool list + call + results
+│           │   ├── McpResourcesPane.svelte # Resource list + read
+│           │   ├── McpPromptsPane.svelte  # Prompt list + get with arguments
+│           │   ├── McpTrafficPane.svelte  # JSON-RPC traffic log
+│           │   └── McpNotificationsPane.svelte # Server notifications log
 │           ├── request/
 │           │   ├── RequestBuilder.svelte # Container: URL + sub-tabs + response split
 │           │   ├── UrlBar.svelte        # Method select + URL input + Send/Cancel
@@ -184,6 +201,8 @@ vaxtly/
 │   │   ├── aws-secrets-manager-provider.test.ts # 17 tests: CRUD, pagination, credential resolution
 │   │   ├── data-export-import.test.ts  # 15 tests: export + import + nested + workspace
 │   │   ├── postman-import.test.ts      # 14 tests: 3 formats + form-data + URL objects + XML
+│   │   ├── mcp-servers-repository.test.ts # MCP server CRUD, cascade, reorder
+│   │   ├── mcp-client.test.ts          # MCP client lifecycle, traffic log, mocked SDK
 │   │   ├── bulk-edit.test.ts            # 23 tests: entriesToBulk, bulkToEntries, formDataToBulk, bulkToFormData
 │   │   ├── encryption.test.ts          # 6 tests: round-trip, random IV, wrong key
 │   │   ├── fetch-error.test.ts         # 13 tests: all error branches (SSL, DNS, timeout, etc.)
@@ -225,6 +244,7 @@ SQLite WAL mode. All primary keys are UUID TEXT. Foreign keys enforced via `PRAG
 ```
 workspaces 1──N collections
 workspaces 1──N environments
+workspaces 1──N mcp_servers
 collections 1──N folders
 collections 1──N requests
 folders 1──N folders (self-referential, max ~3 levels)
@@ -325,6 +345,23 @@ folders 1──N requests (ON DELETE SET NULL)
 | height | INTEGER | 800 | |
 | is_maximized | INTEGER | 0 | |
 
+#### `mcp_servers`
+| Column | Type | Default | Notes |
+|--------|------|---------|-------|
+| id | TEXT PK | uuid | |
+| workspace_id | TEXT NOT NULL | | FK → workspaces ON DELETE CASCADE |
+| name | TEXT NOT NULL | | |
+| transport_type | TEXT NOT NULL | 'stdio' | 'stdio' \| 'streamable-http' \| 'sse' |
+| command | TEXT | NULL | stdio only |
+| args | TEXT | NULL | JSON `string[]` — stdio only |
+| env | TEXT | NULL | JSON `Record<string, string>` — stdio only |
+| cwd | TEXT | NULL | stdio only |
+| url | TEXT | NULL | HTTP/SSE only |
+| headers | TEXT | NULL | JSON `Record<string, string>` — HTTP/SSE only |
+| order | INTEGER | 0 | |
+| created_at | TEXT | datetime('now') | |
+| updated_at | TEXT | datetime('now') | |
+
 ---
 
 ## IPC Architecture
@@ -413,6 +450,28 @@ Pattern: `ipcMain.handle('domain:action', handler)` in main, `ipcRenderer.invoke
 | `window:get-state` | ipc/settings.ts | `getWindowState()` | `api.window.getState()` |
 | `window:save-state` | ipc/settings.ts | `saveWindowState(s)` | `api.window.saveState(s)` |
 
+| `mcp:servers-list` | ipc/mcp.ts | `findByWorkspace(wsId)` | `api.mcp.listServers(wsId)` |
+| `mcp:servers-create` | ipc/mcp.ts | `create(data)` | `api.mcp.createServer(data)` |
+| `mcp:servers-update` | ipc/mcp.ts | `update(id, data)` | `api.mcp.updateServer(id, data)` |
+| `mcp:servers-delete` | ipc/mcp.ts | `remove(id)` + disconnect | `api.mcp.deleteServer(id)` |
+| `mcp:servers-reorder` | ipc/mcp.ts | `reorder(ids)` | `api.mcp.reorderServers(ids)` |
+| `mcp:connect` | ipc/mcp.ts | `mcpClient.connect(server)` | `api.mcp.connect(serverId)` |
+| `mcp:disconnect` | ipc/mcp.ts | `mcpClient.disconnect(serverId)` | `api.mcp.disconnect(serverId)` |
+| `mcp:list-tools` | ipc/mcp.ts | `mcpClient.listTools(serverId)` | `api.mcp.listTools(serverId)` |
+| `mcp:call-tool` | ipc/mcp.ts | `mcpClient.callTool(serverId, name, args)` | `api.mcp.callTool(serverId, name, args)` |
+| `mcp:list-resources` | ipc/mcp.ts | `mcpClient.listResources(serverId)` | `api.mcp.listResources(serverId)` |
+| `mcp:read-resource` | ipc/mcp.ts | `mcpClient.readResource(serverId, uri)` | `api.mcp.readResource(serverId, uri)` |
+| `mcp:list-resource-templates` | ipc/mcp.ts | `mcpClient.listResourceTemplates(serverId)` | `api.mcp.listResourceTemplates(serverId)` |
+| `mcp:list-prompts` | ipc/mcp.ts | `mcpClient.listPrompts(serverId)` | `api.mcp.listPrompts(serverId)` |
+| `mcp:get-prompt` | ipc/mcp.ts | `mcpClient.getPrompt(serverId, name, args)` | `api.mcp.getPrompt(serverId, name, args)` |
+| `mcp:traffic-list` | ipc/mcp.ts | `mcpClient.getTrafficLog(serverId)` | `api.mcp.trafficList(serverId)` |
+| `mcp:traffic-clear` | ipc/mcp.ts | `mcpClient.clearTrafficLog(serverId)` | `api.mcp.trafficClear(serverId)` |
+| `mcp:status-changed` | — (main→renderer push) | — | `api.on.mcpStatusChanged(cb)` |
+| `mcp:notification` | — (main→renderer push) | — | `api.on.mcpNotification(cb)` |
+| `mcp:traffic-push` | — (main→renderer push) | — | `api.on.mcpTrafficPush(cb)` |
+| `mcp:tools-changed` | — (main→renderer push) | — | `api.on.mcpToolsChanged(cb)` |
+| `mcp:resources-changed` | — (main→renderer push) | — | `api.on.mcpResourcesChanged(cb)` |
+| `mcp:prompts-changed` | — (main→renderer push) | — | `api.on.mcpPromptsChanged(cb)` |
 | `update:check` | ipc/updater.ts | `checkForUpdates()` | `api.updater.check()` |
 | `update:install` | ipc/updater.ts | `quitAndInstall()` | `api.updater.install()` |
 | `update:install-source` | ipc/updater.ts | `getInstallSource()` | `api.updater.installSource()` |
@@ -467,6 +526,24 @@ interface ResponseTiming { start, ttfb, total }
 interface ResponseCookie { name, value, domain?, path?, expires?, httpOnly?, secure?, sameSite? }
 ```
 
+### `mcp.ts`
+
+```typescript
+type McpTransportType = 'stdio' | 'streamable-http' | 'sse'
+type McpServerStatus = 'disconnected' | 'connecting' | 'connected' | 'error'
+interface McpServer { id, workspace_id, name, transport_type, command?, args?, env?, cwd?, url?, headers?, order, created_at, updated_at }
+interface McpServerState { serverId, status, error?, serverInfo?, tools[], resources[], resourceTemplates[], prompts[] }
+interface McpTool { name, description?, inputSchema }
+interface McpResource { uri, name, description?, mimeType? }
+interface McpResourceTemplate { uriTemplate, name, description?, mimeType? }
+interface McpPrompt { name, description?, arguments?: McpPromptArgument[] }
+interface McpToolCallResult { content: McpContentBlock[], isError? }
+interface McpResourceReadResult { contents: Array<{ uri, mimeType?, text?, blob? }> }
+interface McpPromptGetResult { description?, messages: McpPromptMessage[] }
+interface McpTrafficEntry { id, serverId, direction, method, params?, result?, error?, timestamp }
+interface McpNotification { id, serverId, method, params?, timestamp }
+```
+
 ### `constants.ts`
 
 ```typescript
@@ -488,14 +565,15 @@ All stores use this pattern: module-level `$state` + `$derived` + exported objec
 
 ### `appStore` — `lib/stores/app.svelte.ts`
 
-**State**: `activeWorkspaceId`, `openTabs: Tab[]`, `activeTabId`, `sidebarCollapsed`, `sidebarMode`, `sidebarSearch`, `tabStates: Record<string, TabRequestState>`, `envTabStates: Record<string, TabEnvironmentState>`
+**State**: `activeWorkspaceId`, `openTabs: Tab[]`, `activeTabId`, `sidebarCollapsed`, `sidebarMode`, `sidebarSearch`, `tabStates: Record<string, TabRequestState>`, `envTabStates: Record<string, TabEnvironmentState>`, `mcpTabStates: Record<string, TabMcpState>`
 
 **Key types**:
-- `Tab { id, type: 'request'|'environment', entityId, label, method?, pinned, isUnsaved, isDraft }`
+- `Tab { id, type: 'request'|'environment'|'mcp', entityId, label, method?, pinned, isUnsaved, isDraft }`
+- `TabMcpState { serverId, activeSubTab: 'tools'|'resources'|'prompts'|'traffic'|'notifications' }`
 - `TabRequestState { name, method, url, headers, query_params, body, body_type, auth, scripts, response, loading, activeSubTab? }`
 - `TabEnvironmentState { name, variables, isDirty, initialized }`
 
-**Actions**: `openRequestTab`, `openDraftTab`, `promoteDraft`, `openEnvironmentTab`, `closeTab`, `closeOtherTabs`, `closeAllTabs`, `reorderTabs`, `togglePinTab`, `setActiveTab`, `nextTab`, `prevTab`, `toggleSidebar`, `getTabState`, `updateTabState`, `markTabSaved`, `updateTabLabel`, `getEnvTabState`, `updateEnvTabState`
+**Actions**: `openRequestTab`, `openDraftTab`, `promoteDraft`, `openEnvironmentTab`, `openMcpTab`, `closeTab`, `closeOtherTabs`, `closeAllTabs`, `reorderTabs`, `togglePinTab`, `setActiveTab`, `nextTab`, `prevTab`, `toggleSidebar`, `getTabState`, `updateTabState`, `markTabSaved`, `updateTabLabel`, `getEnvTabState`, `updateEnvTabState`, `getMcpTabState`, `updateMcpTabState`
 
 **Draft requests**: `openDraftTab()` creates a transient in-memory request tab (`isDraft: true`, entity ID `draft-{counter}-{timestamp}`) with no DB backing. Drafts can be sent (the proxy only needs the config object) but don't appear in the sidebar tree. `promoteDraft(tabId, request)` replaces a draft tab in-place with a persisted tab after the user saves to a collection. OAuth2 token operations are disabled on drafts (config fields remain editable).
 
@@ -531,6 +609,16 @@ All stores use this pattern: module-level `$state` + `$derived` + exported objec
 
 Pause/resume supports hover-to-hold: `pauseToast` clears the JS timeout and records remaining time; `resumeToast` restarts with the remaining duration. The CSS countdown bar pauses via `animation-play-state: paused` on hover.
 
+### `mcpStore` — `lib/stores/mcp.svelte.ts`
+
+**State**: `servers: McpServer[]`, `connectionStates: Record<string, McpServerState>`, `trafficLog: McpTrafficEntry[]`, `notifications: McpNotification[]`
+
+**Actions**: `loadServers`, `createServer`, `updateServer`, `deleteServer`, `reorderServers`, `connect`, `disconnect`, `callTool`, `listResources`, `readResource`, `listResourceTemplates`, `listPrompts`, `getPrompt`, `getTrafficLog`, `clearTrafficLog`
+
+**Push handlers**: `handleStatusChanged`, `handleToolsChanged`, `handleResourcesChanged`, `handlePromptsChanged`, `handleTrafficPush`, `handleNotification` — registered in `App.svelte` `onMount`
+
+**IPC serialization**: Uses `$state.snapshot()` before sending reactive proxy objects through Electron IPC (prevents "object could not be cloned" errors).
+
 ### `settingsStore` — `lib/stores/settings.svelte.ts`
 
 **State**: `allSettings: Record<string, string>`
@@ -562,6 +650,19 @@ Pause/resume supports hover-to-hold: `pauseToast` clears the JS timeout and reco
 - Sensitive keys encrypted: `sync.token`, `vault.token`, `vault.role_id`, `vault.secret_id`, `vault.aws_access_key_id`, `vault.aws_secret_access_key`
 - **Fallback pattern**: Services (`getProvider`) try workspace settings first, fall back to global `app_settings` if workspace has no config for that domain
 - Provider cache invalidation: `ipc/settings.ts` monitors `PROVIDER_KEYS` set and calls `resetVaultProvider()` when relevant keys change
+
+### MCP Client (`services/mcp-client.ts`)
+- Manages MCP server connections using `@modelcontextprotocol/sdk` Client class
+- **Transports**: `StdioClientTransport` (local process), `StreamableHTTPClientTransport` (HTTP), `SSEClientTransport` (legacy SSE)
+- `connections: Map<string, { client, transport, state }>` — active connections keyed by server ID
+- `trafficLog: McpTrafficEntry[]` — in-memory ring buffer (500 entries) for JSON-RPC traffic inspection
+- `connect(server)` → creates transport, wires notification handlers (tools/resources/prompts list_changed → auto-refresh + push), fetches initial capabilities, returns `McpServerState`
+- `disconnect(serverId)` → calls `client.close()`, removes from map, pushes status change
+- `disconnectAll()` → called on `app.will-quit` for cleanup
+- Primitive wrappers: `listTools`, `callTool`, `listResources`, `readResource`, `listResourceTemplates`, `listPrompts`, `getPrompt` — each logs traffic entries
+- `pushToRenderer(channel, data)` → broadcasts to all `BrowserWindow.getAllWindows()`
+- **Sanitization**: All SDK results sanitized with `JSON.parse(JSON.stringify())` to strip non-cloneable properties before IPC transit
+- **Notification schemas**: Uses Zod schemas from `@modelcontextprotocol/sdk/types.js` (`ToolListChangedNotificationSchema`, etc.)
 
 ### Fetch Error Formatting (`services/fetch-error.ts`)
 - `formatFetchError(error, url?)` → user-friendly error message from undici/fetch errors
@@ -788,7 +889,7 @@ Pause/resume supports hover-to-hold: `pauseToast` clears the JS timeout and reco
 Four `$effect` hooks and three `onMount` listeners in `App.svelte` drive cross-cutting UX behaviors:
 
 1. **Session save**: Watches `openTabs.length` + `activeTabId`, debounce-writes to `session.tabs.{workspaceId}` setting (skipped until initial restore completes via `sessionRestored` flag). Sessions are scoped per workspace. Draft tabs (`isDraft: true`) are excluded from persistence — they are transient by design.
-2. **Sidebar auto-reveal**: When active tab changes — request tabs (non-draft): expands ancestor tree nodes + switches sidebar to "collections"; environment tabs: switches sidebar to "environments". Draft tabs skip sidebar reveal since they have no collection/folder backing.
+2. **Sidebar auto-reveal**: When active tab changes — request tabs (non-draft): expands ancestor tree nodes + switches sidebar to "collections"; environment tabs: switches sidebar to "environments"; MCP tabs: switches sidebar to "mcp". Draft tabs skip sidebar reveal since they have no collection/folder backing.
 3. **Default environment auto-activation**: When a request tab becomes active, resolves the nearest `default_environment_id` (folder chain → collection) and activates it if different from current.
 4. **Theme application**: Reads `app.theme` setting (`dark` | `light` | `system`), toggles `light` class on `<html>`. In `system` mode listens to `matchMedia('prefers-color-scheme: dark')` with cleanup.
 5. **Toast notifications**: `onMount` listener on `logPush` — filters `success: false` entries with `category === 'vault' || 'sync'` and calls `toastsStore.addToast()`. Also replays recent failures (within 30s) from `log.list()` on mount to catch auto-sync errors that fired before the renderer mounted. `<ToastContainer />` is mounted at root level.
@@ -845,7 +946,7 @@ All method colors are theme-aware via `--color-method-*` CSS variables. Componen
 2. openDatabase(dbPath)          — Open SQLite + run pending migrations
 3. migrateToEncryptedStorage()   — One-time: encrypt existing plaintext sensitive data
 4. ensureDefaultWorkspace()      — Create "Default Workspace" if table is empty
-5. registerAllIpcHandlers()      — Register all domain handlers (incl. workspace-settings, session-log, code-generator, oauth2, updater)
+5. registerAllIpcHandlers()      — Register all domain handlers (incl. workspace-settings, session-log, code-generator, oauth2, updater, mcp)
 6. dropLegacyTables()            — DROP TABLE IF EXISTS request_histories (feature removed)
 7. scrubVaultSecrets()           — UPDATE environments SET variables='[]' WHERE vault_synced=1 AND variables!='[]' (safety net for orphaned secrets)
 8. buildMenu()                   — Set native application menu (using IPC.MENU_* constants)

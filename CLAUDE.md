@@ -11,7 +11,7 @@ See `ARCHITECTURE.md` for the complete technical reference.
 |------|-------|
 | Full architecture docs | `ARCHITECTURE.md` |
 | Shared types | `src/shared/types/*.ts` + `src/shared/constants.ts` |
-| Database schema | `src/main/database/migrations/001_initial_schema.ts` |
+| Database schema | `src/main/database/migrations/001_initial_schema.ts`, `002_mcp_servers.ts` |
 | All IPC handlers | `src/main/ipc/*.ts` |
 | Main services | `src/main/services/*.ts` |
 | All repositories | `src/main/database/repositories/*.ts` |
@@ -57,7 +57,7 @@ npx electron-rebuild -f -w better-sqlite3  # Rebuild native module for Electron 
 - Pattern: `ipcMain.handle('domain:action', handler)` in main.
 - Preload exposes typed API: `window.api.domain.action()`.
 - **Push channels** (main→renderer): use `event.sender.send(IPC.CHANNEL, data)` in handlers + `ipcRenderer.on` listeners in preload's `on` namespace. Return cleanup function `() => void`.
-- Domain prefixes: workspaces, collections, folders, requests, environments, histories, proxy, sync, vault, settings, window.
+- Domain prefixes: workspaces, collections, folders, requests, environments, histories, proxy, sync, vault, settings, window, mcp.
 
 ### Testing
 - Vitest with `openTestDatabase()` (in-memory SQLite) in `beforeEach`.
