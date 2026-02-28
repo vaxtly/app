@@ -5,24 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [0.5.0] - 2026-02-28
 
 ### Added
-- Sidebar mode selector dropdown — the header label is now a clickable dropdown (matching WorkspaceSwitcher style) for switching between Collections, Environments, and MCP Servers directly from the header; footer mode buttons remain as well
-- MCP server export/import — export individual MCP servers via right-click → Export in the sidebar, export all MCP servers from Settings → Data, and import MCP server configs from any Vaxtly export file (single server, all servers, or full data export)
-- "MCP Servers" export option in Settings → Data alongside the existing Collections, Environments, and Config options
-- MCP server testing — connect to MCP servers and inspect their capabilities natively within Vaxtly, like the MCP Inspector but built into the app
+- MCP server testing — connect to MCP servers and inspect their capabilities natively within Vaxtly
   - Three transport types: stdio (local process), Streamable HTTP, and legacy SSE
-  - Per-workspace server configurations stored in the database
   - Full MCP primitive support: Tools (list, call with dynamic JSON Schema forms), Resources (list, read), and Prompts (list, get with arguments)
   - Real-time traffic log showing all JSON-RPC messages with expandable params/results
   - Server notification feed with method and payload inspection
-  - Third sidebar mode ("MCP") with server list, status indicators (connected/connecting/error/disconnected), and context menus
   - Inspector tab with sub-tab navigation: Tools, Resources, Prompts, Traffic, Notifications
   - Connect/disconnect to multiple MCP servers simultaneously
-  - Server configuration form with key-value editors for headers and environment variables (reuses the existing KeyValueEditor component)
   - Auto-refresh on server-side list_changed notifications for tools, resources, and prompts
-  - 24 new unit tests: MCP server repository (11) and MCP client service (13)
+- MCP server git sync — sync server configurations to the same Git remote as collections, with auto-push on save, pull on startup, and sensitive data scanning
+- MCP server variable substitution — configuration fields support `{{variable}}` references resolved at connect time from the active environment
+- MCP server export/import — export individual servers via right-click → Export, export all from Settings → Data, and import from any Vaxtly export file
+- Pull from Remote for individual MCP servers via right-click context menu
+- Sidebar mode selector dropdown — header label is now a clickable dropdown for switching between Collections, Environments, and MCP Servers
+- "MCP Servers" export option in Settings → Data alongside Collections, Environments, and Config
+
+### Fixed
+- Vault sync subtitle now says "your secret manager" instead of hardcoding "HashiCorp Vault" (both HashiCorp Vault and AWS Secrets Manager are supported)
+- Auto-generated header badge ("AUTO") no longer breaks key-value column alignment
+- Sensitive data scanning and VarInput vertical alignment
 
 ## [0.4.9] - 2026-02-27
 
