@@ -971,6 +971,7 @@ All method colors are theme-aware via `--color-method-*` CSS variables. Componen
 ## Boot Sequence (`main/index.ts`)
 
 ```
+0. fixPath (inline)              — Spawn login shell, capture only $PATH (macOS/Linux GUI launch gives minimal PATH; no-op on Windows; no secrets cross process boundary)
 1. initEncryption()              — Load/create master key from OS keychain (vxk1: prefix, 0o600 perms)
 2. openDatabase(dbPath)          — Open SQLite + run pending migrations
 3. migrateToEncryptedStorage()   — One-time: encrypt existing plaintext sensitive data
@@ -1034,6 +1035,7 @@ All method colors are theme-aware via `--color-method-*` CSS variables. Componen
 - **Linux `artifactName`**: includes `${arch}` for multi-architecture builds
 - **macOS notarization**: `build/notarize.js` (CJS) — runs `@electron/notarize` as afterSign hook; errors propagate to fail the build
 - **Dependencies**: `uuid` pinned to v9 (CJS-compatible; v13+ is pure ESM, incompatible with Electron main process)
+
 
 ## Build & Test Commands
 

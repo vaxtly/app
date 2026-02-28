@@ -1,3 +1,4 @@
+import { execFileSync } from 'child_process'
 import { app, BrowserWindow, nativeImage, nativeTheme, shell } from 'electron'
 import { join } from 'path'
 import { is } from '@electron-toolkit/utils'
@@ -352,6 +353,30 @@ if (!app.isPackaged && process.env.VAXTLY_TEST_USERDATA) {
 }
 
 app.whenReady().then(async () => {
+  // Fix $PATH on macOS/Linux when launched from GUI (Finder, Dock, desktop file).
+  // Spawns the user's login shell and captures only $PATH — no other env vars
+  // cross the process boundary (avoids leaking secrets from shell profiles).
+  if (process.platform !== 'win32') {
+    const loginShell = process.env.SHELL || '/bin/sh'
+    const DELIM = '__VAXTLY_PATH__'
+    try {
+      const out = execFileSync(loginShell, [
+        '-ilc',
+        `echo ${DELIM} && printf '%s' "$PATH" && echo && echo ${DELIM}`,
+      ], {
+        encoding: 'utf8',
+        timeout: 5000,
+        env: { DISABLE_AUTO_UPDATE: 'true', ZSH_TMUX_AUTOSTARTED: 'true', ZSH_TMUX_AUTOSTART: 'false' },
+      })
+      const match = out.match(new RegExp(`${DELIM}\\n(.+)\\n${DELIM}`))
+      if (match?.[1]) {
+        process.env.PATH = match[1]
+      }
+    } catch {
+      // Shell failed — keep the existing PATH
+    }
+  }
+
   // Show splash screen while the app initializes
   await createSplashWindow()
 

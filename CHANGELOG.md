@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.5.1] - 2026-02-28
+
+### Fixed
+- Resolve shell PATH for MCP stdio server spawning on macOS and Linux when launched from Finder/Dock/desktop (fixes `spawn npx ENOENT` errors caused by minimal GUI PATH missing nvm, volta, Homebrew, etc.)
+
 ## [0.5.0] - 2026-02-28
 
 ### Added
