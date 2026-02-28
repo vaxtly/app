@@ -148,7 +148,6 @@
 
   // Vault sync
   let vaultConfigured = $state(false)
-  let vaultProviderLabel = $state('Vault')
   let vaultSynced = $derived(environment?.vault_synced === 1)
   let vaultPulling = $state(false)
   let vaultStatus = $state<{ type: 'success' | 'error'; message: string } | null>(null)
@@ -173,11 +172,9 @@
     if (providerType === 'aws') {
       const region = await get('vault.aws_region')
       vaultConfigured = !!region
-      vaultProviderLabel = 'AWS Secrets Manager'
     } else {
       const url = await get('vault.url')
       vaultConfigured = !!url
-      vaultProviderLabel = 'HashiCorp Vault'
     }
   }
 
@@ -265,7 +262,7 @@
           <div class="mb-3 flex items-center justify-between">
             <div>
               <div class="text-xs font-medium text-surface-300">Vault Sync</div>
-              <div class="text-[10px] text-surface-500">Sync variables with {vaultProviderLabel}</div>
+              <div class="text-[10px] text-surface-500">Sync variables with your secret manager</div>
             </div>
             <button
               type="button"
