@@ -166,11 +166,13 @@
         <div class="flex h-full items-center justify-center text-surface-600">No log entries</div>
       {:else}
         {#each logs as entry (entry.id)}
-          <!-- svelte-ignore a11y_no_static_element_interactions a11y_click_events_have_key_events -->
           <div
+            role="button"
+            tabindex="0"
             class="sl-log-row flex items-center gap-2 h-7 px-3 whitespace-nowrap transition-colors duration-100 hover:bg-[var(--tint-faint)] {entry.detail ? 'cursor-pointer' : ''}"
             style="border-bottom: 1px solid var(--border-muted)"
             onclick={() => toggleDetail(entry)}
+            onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleDetail(entry) } }}
           >
             {#if entry.detail}
               <svg

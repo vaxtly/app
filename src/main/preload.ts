@@ -8,6 +8,7 @@ import type { CodeLanguage, CodeGenRequest } from './services/code-generator'
 import type { EnvironmentVariable } from '../shared/types/models'
 import type { PostmanImportResult } from './services/postman-import'
 import type { InsomniaImportResult } from './services/insomnia-import'
+import type { McpServer, McpServerState, McpTool, McpResource, McpResourceTemplate, McpPrompt, McpToolCallResult, McpResourceReadResult, McpPromptGetResult, McpTrafficEntry, McpNotification } from '../shared/types/mcp'
 
 const api = {
   workspaces: {
@@ -190,6 +191,45 @@ const api = {
       ipcRenderer.invoke(IPC.UPDATE_INSTALL_SOURCE),
   },
 
+  mcp: {
+    servers: {
+      list: (workspaceId: string): Promise<McpServer[]> =>
+        ipcRenderer.invoke(IPC.MCP_SERVERS_LIST, workspaceId),
+      create: (data: { workspace_id: string; name: string; transport_type?: string; command?: string; args?: string; env?: string; cwd?: string; url?: string; headers?: string }): Promise<McpServer> =>
+        ipcRenderer.invoke(IPC.MCP_SERVERS_CREATE, data),
+      update: (id: string, data: Partial<McpServer>): Promise<McpServer | undefined> =>
+        ipcRenderer.invoke(IPC.MCP_SERVERS_UPDATE, id, data),
+      delete: (id: string): Promise<boolean> =>
+        ipcRenderer.invoke(IPC.MCP_SERVERS_DELETE, id),
+      reorder: (ids: string[]): Promise<void> =>
+        ipcRenderer.invoke(IPC.MCP_SERVERS_REORDER, ids),
+    },
+    connect: (serverId: string): Promise<McpServerState> =>
+      ipcRenderer.invoke(IPC.MCP_CONNECT, serverId),
+    disconnect: (serverId: string): Promise<void> =>
+      ipcRenderer.invoke(IPC.MCP_DISCONNECT, serverId),
+    listTools: (serverId: string): Promise<McpTool[]> =>
+      ipcRenderer.invoke(IPC.MCP_LIST_TOOLS, serverId),
+    callTool: (serverId: string, name: string, args?: Record<string, unknown>): Promise<McpToolCallResult> =>
+      ipcRenderer.invoke(IPC.MCP_CALL_TOOL, serverId, name, args),
+    listResources: (serverId: string): Promise<McpResource[]> =>
+      ipcRenderer.invoke(IPC.MCP_LIST_RESOURCES, serverId),
+    readResource: (serverId: string, uri: string): Promise<McpResourceReadResult> =>
+      ipcRenderer.invoke(IPC.MCP_READ_RESOURCE, serverId, uri),
+    listResourceTemplates: (serverId: string): Promise<McpResourceTemplate[]> =>
+      ipcRenderer.invoke(IPC.MCP_LIST_RESOURCE_TEMPLATES, serverId),
+    listPrompts: (serverId: string): Promise<McpPrompt[]> =>
+      ipcRenderer.invoke(IPC.MCP_LIST_PROMPTS, serverId),
+    getPrompt: (serverId: string, name: string, args?: Record<string, string>): Promise<McpPromptGetResult> =>
+      ipcRenderer.invoke(IPC.MCP_GET_PROMPT, serverId, name, args),
+    traffic: {
+      list: (serverId?: string): Promise<McpTrafficEntry[]> =>
+        ipcRenderer.invoke(IPC.MCP_TRAFFIC_LIST, serverId),
+      clear: (serverId?: string): Promise<void> =>
+        ipcRenderer.invoke(IPC.MCP_TRAFFIC_CLEAR, serverId),
+    },
+  },
+
   settings: {
     get: (key: string): Promise<string | undefined> =>
       ipcRenderer.invoke(IPC.SETTINGS_GET, key),
@@ -311,6 +351,48 @@ const api = {
       }
       ipcRenderer.on(IPC.SSE_STREAM_END, handler)
       return () => ipcRenderer.removeListener(IPC.SSE_STREAM_END, handler)
+    },
+    mcpStatusChanged: (callback: (data: { serverId: string; status: string; error: string | null }) => void): (() => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, data: { serverId: string; status: string; error: string | null }): void => {
+        callback(data)
+      }
+      ipcRenderer.on(IPC.MCP_STATUS_CHANGED, handler)
+      return () => ipcRenderer.removeListener(IPC.MCP_STATUS_CHANGED, handler)
+    },
+    mcpNotification: (callback: (entry: McpNotification) => void): (() => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, entry: McpNotification): void => {
+        callback(entry)
+      }
+      ipcRenderer.on(IPC.MCP_NOTIFICATION, handler)
+      return () => ipcRenderer.removeListener(IPC.MCP_NOTIFICATION, handler)
+    },
+    mcpTrafficPush: (callback: (entry: McpTrafficEntry) => void): (() => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, entry: McpTrafficEntry): void => {
+        callback(entry)
+      }
+      ipcRenderer.on(IPC.MCP_TRAFFIC_PUSH, handler)
+      return () => ipcRenderer.removeListener(IPC.MCP_TRAFFIC_PUSH, handler)
+    },
+    mcpToolsChanged: (callback: (data: { serverId: string; tools: McpTool[] }) => void): (() => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, data: { serverId: string; tools: McpTool[] }): void => {
+        callback(data)
+      }
+      ipcRenderer.on(IPC.MCP_TOOLS_CHANGED, handler)
+      return () => ipcRenderer.removeListener(IPC.MCP_TOOLS_CHANGED, handler)
+    },
+    mcpResourcesChanged: (callback: (data: { serverId: string; resources: McpResource[]; resourceTemplates: McpResourceTemplate[] }) => void): (() => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, data: { serverId: string; resources: McpResource[]; resourceTemplates: McpResourceTemplate[] }): void => {
+        callback(data)
+      }
+      ipcRenderer.on(IPC.MCP_RESOURCES_CHANGED, handler)
+      return () => ipcRenderer.removeListener(IPC.MCP_RESOURCES_CHANGED, handler)
+    },
+    mcpPromptsChanged: (callback: (data: { serverId: string; prompts: McpPrompt[] }) => void): (() => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, data: { serverId: string; prompts: McpPrompt[] }): void => {
+        callback(data)
+      }
+      ipcRenderer.on(IPC.MCP_PROMPTS_CHANGED, handler)
+      return () => ipcRenderer.removeListener(IPC.MCP_PROMPTS_CHANGED, handler)
     },
   },
 }

@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- MCP server testing — connect to MCP servers and inspect their capabilities natively within Vaxtly, like the MCP Inspector but built into the app
+  - Three transport types: stdio (local process), Streamable HTTP, and legacy SSE
+  - Per-workspace server configurations stored in the database
+  - Full MCP primitive support: Tools (list, call with dynamic JSON Schema forms), Resources (list, read), and Prompts (list, get with arguments)
+  - Real-time traffic log showing all JSON-RPC messages with expandable params/results
+  - Server notification feed with method and payload inspection
+  - Third sidebar mode ("MCP") with server list, status indicators (connected/connecting/error/disconnected), and context menus
+  - Inspector tab with sub-tab navigation: Tools, Resources, Prompts, Traffic, Notifications
+  - Connect/disconnect to multiple MCP servers simultaneously
+  - Server configuration form with key-value editors for headers and environment variables (reuses the existing KeyValueEditor component)
+  - Auto-refresh on server-side list_changed notifications for tools, resources, and prompts
+  - 24 new unit tests: MCP server repository (11) and MCP client service (13)
+
 ## [0.4.9] - 2026-02-27
 
 ### Added

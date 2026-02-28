@@ -2,34 +2,44 @@
   import { appStore } from '../../lib/stores/app.svelte'
   import { collectionsStore } from '../../lib/stores/collections.svelte'
   import { environmentsStore } from '../../lib/stores/environments.svelte'
+  import { mcpStore } from '../../lib/stores/mcp.svelte'
   import { settingsStore } from '../../lib/stores/settings.svelte'
   import CollectionTree from '../sidebar/CollectionTree.svelte'
   import EnvironmentList from '../sidebar/EnvironmentList.svelte'
+  import McpServerList from '../sidebar/McpServerList.svelte'
   import WorkspaceSwitcher from '../sidebar/WorkspaceSwitcher.svelte'
 
   interface Props {
     onrequestclick: (requestId: string) => void
     onenvironmentclick: (environmentId: string) => void
+    onmcpserverclick: (serverId: string) => void
   }
 
-  let { onrequestclick, onenvironmentclick }: Props = $props()
+  let { onrequestclick, onenvironmentclick, onmcpserverclick }: Props = $props()
 
   let collectionSearch = $state('')
   let environmentSearch = $state('')
+  let mcpSearch = $state('')
 
   let theme = $derived(settingsStore.get('app.theme'))
   let layout = $derived(settingsStore.get('request.layout'))
   let hasExpanded = $derived(collectionsStore.expandedIds.size > 0)
 
-  let searchValue = $derived(appStore.sidebarMode === 'collections' ? collectionSearch : environmentSearch)
+  let searchValue = $derived(
+    appStore.sidebarMode === 'collections' ? collectionSearch
+    : appStore.sidebarMode === 'environments' ? environmentSearch
+    : mcpSearch
+  )
 
   function handleSearchInput(e: Event): void {
     const value = (e.target as HTMLInputElement).value
     if (appStore.sidebarMode === 'collections') {
       collectionSearch = value
       appStore.setSidebarSearch(value)
-    } else {
+    } else if (appStore.sidebarMode === 'environments') {
       environmentSearch = value
+    } else {
+      mcpSearch = value
     }
   }
 
@@ -46,6 +56,15 @@
     const env = await environmentsStore.create('New Environment', appStore.activeWorkspaceId ?? undefined)
     onenvironmentclick(env.id)
   }
+
+  async function handleNewMcpServer(): Promise<void> {
+    if (!appStore.activeWorkspaceId) return
+    const server = await mcpStore.createServer({
+      workspace_id: appStore.activeWorkspaceId,
+      name: 'New MCP Server',
+    })
+    onmcpserverclick(server.id)
+  }
 </script>
 
 <div class="flex h-full flex-col glass">
@@ -54,52 +73,23 @@
     <WorkspaceSwitcher />
   </div>
 
-  <!-- Header with mode tabs -->
-  <div class="flex shrink-0 flex-col" style="border-bottom: 1px solid var(--glass-border)">
-    <div class="flex items-center gap-0.5 px-2 py-1">
-      <button
-        onclick={() => appStore.setSidebarMode('collections')}
-        class="min-w-0 truncate rounded-full px-2.5 py-1.5 text-[11px] font-medium uppercase tracking-wider transition-all duration-150
-          {appStore.sidebarMode === 'collections'
-            ? 'bg-[var(--tint-active)] text-surface-200 shadow-[inset_0_1px_0_var(--glass-highlight)]'
-            : 'text-surface-500 hover:text-surface-300 hover:bg-[var(--tint-subtle)]'}"
-      >
-        Collections
-      </button>
-      <button
-        onclick={() => appStore.setSidebarMode('environments')}
-        class="min-w-0 truncate rounded-full px-2.5 py-1.5 text-[11px] font-medium uppercase tracking-wider transition-all duration-150
-          {appStore.sidebarMode === 'environments'
-            ? 'bg-[var(--tint-active)] text-surface-200 shadow-[inset_0_1px_0_var(--glass-highlight)]'
-            : 'text-surface-500 hover:text-surface-300 hover:bg-[var(--tint-subtle)]'}"
-      >
-        Environments
-      </button>
+  <!-- Header with active mode label + add button -->
+  <div class="flex shrink-0 items-center gap-2 px-3 py-1.5" style="border-bottom: 1px solid var(--glass-border)">
+    <span class="text-[11px] font-medium uppercase tracking-wider text-surface-400">
+      {appStore.sidebarMode === 'collections' ? 'Collections' : appStore.sidebarMode === 'environments' ? 'Environments' : 'MCP Servers'}
+    </span>
 
-      <div class="min-w-0 flex-1"></div>
+    <div class="min-w-0 flex-1"></div>
 
-      {#if appStore.sidebarMode === 'collections'}
-        <button
-          onclick={handleNewCollection}
-          class="flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-surface-400 transition-all duration-150 hover:bg-[var(--tint-muted)] hover:text-brand-400"
-          title="New Collection"
-        >
-          <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-            <path d="M12 4v16m8-8H4" />
-          </svg>
-        </button>
-      {:else}
-        <button
-          onclick={handleNewEnvironment}
-          class="flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-surface-400 transition-all duration-150 hover:bg-[var(--tint-muted)] hover:text-brand-400"
-          title="New Environment"
-        >
-          <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-            <path d="M12 4v16m8-8H4" />
-          </svg>
-        </button>
-      {/if}
-    </div>
+    <button
+      onclick={appStore.sidebarMode === 'collections' ? handleNewCollection : appStore.sidebarMode === 'environments' ? handleNewEnvironment : handleNewMcpServer}
+      class="flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-surface-400 transition-all duration-150 hover:bg-[var(--tint-muted)] hover:text-brand-400"
+      title={appStore.sidebarMode === 'collections' ? 'New Collection' : appStore.sidebarMode === 'environments' ? 'New Environment' : 'New MCP Server'}
+    >
+      <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <path d="M12 4v16m8-8H4" />
+      </svg>
+    </button>
   </div>
 
   <!-- Search (shared) -->
@@ -123,10 +113,15 @@
     <div class="sidebar-scroll flex-1 overflow-y-auto px-1 pb-2">
       <CollectionTree searchFilter={searchValue} {onrequestclick} />
     </div>
-  {:else}
+  {:else if appStore.sidebarMode === 'environments'}
     <!-- Environment list -->
     <div class="sidebar-scroll flex-1 overflow-y-auto">
       <EnvironmentList searchFilter={searchValue} {onenvironmentclick} />
+    </div>
+  {:else}
+    <!-- MCP server list -->
+    <div class="sidebar-scroll flex-1 overflow-y-auto">
+      <McpServerList searchFilter={searchValue} {onmcpserverclick} />
     </div>
   {/if}
 
@@ -152,6 +147,20 @@
       >
         <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
           <path d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
+        </svg>
+      </button>
+      <button
+        onclick={() => appStore.setSidebarMode('mcp')}
+        class="flex h-7 w-7 items-center justify-center rounded-lg transition-all duration-150
+          {appStore.sidebarMode === 'mcp' ? 'text-brand-400 bg-[var(--tint-active)]' : 'text-surface-500 hover:text-surface-300 hover:bg-[var(--tint-subtle)]'}"
+        title="MCP Servers"
+      >
+        <!-- Plug/connector icon -->
+        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 22v-5"/>
+          <path d="M9 8V2"/>
+          <path d="M15 8V2"/>
+          <path d="M18 8v5a6 6 0 01-12 0V8h12z"/>
         </svg>
       </button>
     </div>

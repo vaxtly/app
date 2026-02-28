@@ -27,3 +27,23 @@ export type {
 } from '../../shared/types/models'
 
 export type { SyncResult, SyncConflict, ConflictChange, SessionLogEntry, HttpLogDetail } from '../../shared/types/sync'
+
+export type {
+  McpTransportType,
+  McpServerStatus,
+  McpServer,
+  McpServerInfo,
+  McpServerState,
+  McpTool,
+  McpResource,
+  McpResourceTemplate,
+  McpPromptArgument,
+  McpPrompt,
+  McpContentBlock,
+  McpToolCallResult,
+  McpResourceReadResult,
+  McpPromptMessage,
+  McpPromptGetResult,
+  McpTrafficEntry,
+  McpNotification,
+} from '../../shared/types/mcp'

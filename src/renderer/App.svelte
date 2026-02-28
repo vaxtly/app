@@ -4,6 +4,7 @@
   import TabBar from './components/layout/TabBar.svelte'
   import RequestBuilder from './components/request/RequestBuilder.svelte'
   import EnvironmentEditor from './components/environment/EnvironmentEditor.svelte'
+  import McpInspector from './components/mcp/McpInspector.svelte'
   import SystemLog from './components/layout/SystemLog.svelte'
   import SettingsModal from './components/settings/SettingsModal.svelte'
   import WelcomeGuide from './components/modals/WelcomeGuide.svelte'
@@ -13,6 +14,7 @@
   import { appStore } from './lib/stores/app.svelte'
   import { collectionsStore } from './lib/stores/collections.svelte'
   import { environmentsStore } from './lib/stores/environments.svelte'
+  import { mcpStore } from './lib/stores/mcp.svelte'
   import { settingsStore } from './lib/stores/settings.svelte'
   import { toastsStore } from './lib/stores/toasts.svelte'
 
@@ -95,7 +97,7 @@
   // --- Session persistence ---
 
   interface PersistedSession {
-    tabs: Array<{ type: 'request' | 'environment'; entityId: string; pinned: boolean }>
+    tabs: Array<{ type: 'request' | 'environment' | 'mcp'; entityId: string; pinned: boolean }>
     activeEntityId: string | null
   }
 
@@ -162,6 +164,8 @@
       }
     } else if (tab.type === 'environment') {
       appStore.setSidebarMode('environments')
+    } else if (tab.type === 'mcp') {
+      appStore.setSidebarMode('mcp')
     }
   })
 
@@ -186,6 +190,12 @@
           if (env) {
             appStore.openEnvironmentTab({ id: env.id, name: env.name })
             if (saved.pinned) appStore.togglePinTab(`tab-env-${saved.entityId}`)
+          }
+        } else if (saved.type === 'mcp') {
+          const server = mcpStore.servers.find((s) => s.id === saved.entityId)
+          if (server) {
+            appStore.openMcpTab({ id: server.id, name: server.name })
+            if (saved.pinned) appStore.togglePinTab(`tab-mcp-${saved.entityId}`)
           }
         }
       }
@@ -241,6 +251,13 @@
     }
   }
 
+  function handleMcpServerClick(serverId: string): void {
+    const server = mcpStore.servers.find((s) => s.id === serverId)
+    if (server) {
+      appStore.openMcpTab({ id: server.id, name: server.name })
+    }
+  }
+
   function handleNewRequest(): void {
     appStore.openDraftTab()
   }
@@ -280,6 +297,7 @@
       appStore.setActiveWorkspace(workspaces[0].id)
       await collectionsStore.loadAll(workspaces[0].id)
       await environmentsStore.loadAll(workspaces[0].id)
+      await mcpStore.loadServers(workspaces[0].id)
       await restoreSession()
     }
     sessionRestored = true
@@ -334,6 +352,13 @@
           collectionsStore.loadAll(workspaceId)
         }
       }),
+      // MCP push events
+      window.api.on.mcpStatusChanged((data) => mcpStore.handleStatusChanged(data)),
+      window.api.on.mcpNotification((entry) => mcpStore.handleNotification(entry)),
+      window.api.on.mcpTrafficPush((entry) => mcpStore.handleTrafficPush(entry)),
+      window.api.on.mcpToolsChanged((data) => mcpStore.handleToolsChanged(data)),
+      window.api.on.mcpResourcesChanged((data) => mcpStore.handleResourcesChanged(data)),
+      window.api.on.mcpPromptsChanged((data) => mcpStore.handlePromptsChanged(data)),
     ]
 
     // Replay recent vault/git failures (covers auto-sync that fired before renderer mounted)
@@ -438,7 +463,7 @@
     <!-- Sidebar -->
     {#if !appStore.sidebarCollapsed}
       <div class="shrink-0" style="width: {appStore.sidebarWidth}px">
-        <Sidebar onrequestclick={handleRequestClick} onenvironmentclick={handleEnvironmentClick} />
+        <Sidebar onrequestclick={handleRequestClick} onenvironmentclick={handleEnvironmentClick} onmcpserverclick={handleMcpServerClick} />
       </div>
 
       <!-- Sidebar resize divider -->
@@ -492,6 +517,11 @@
                 tabId={appStore.activeTab.id}
                 environmentId={appStore.activeTab.entityId}
                 isActive={envTabActive}
+              />
+            {:else if appStore.activeTab.type === 'mcp'}
+              <McpInspector
+                tabId={appStore.activeTab.id}
+                serverId={appStore.activeTab.entityId}
               />
             {/if}
           {/key}

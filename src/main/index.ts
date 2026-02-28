@@ -20,6 +20,8 @@ import { registerCodeGeneratorHandlers } from './ipc/code-generator'
 import { registerDataImportExportHandlers } from './ipc/data-import-export'
 import { registerOAuth2Handlers } from './ipc/oauth2'
 import { registerUpdaterHandlers } from './ipc/updater'
+import { registerMcpHandlers } from './ipc/mcp'
+import { disconnectAll as disconnectAllMcpServers } from './services/mcp-client'
 import { initUpdater, checkForUpdates } from './services/updater'
 import * as workspacesRepo from './database/repositories/workspaces'
 import { getSetting, setSetting } from './database/repositories/settings'
@@ -212,6 +214,7 @@ function registerAllIpcHandlers(): void {
   registerDataImportExportHandlers()
   registerOAuth2Handlers()
   registerUpdaterHandlers()
+  registerMcpHandlers()
 }
 
 function ensureDefaultWorkspace(): void {
@@ -401,5 +404,6 @@ app.on('window-all-closed', () => {
 })
 
 app.on('will-quit', () => {
+  disconnectAllMcpServers()
   closeDatabase()
 })

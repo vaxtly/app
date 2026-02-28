@@ -137,6 +137,38 @@ export const IPC = {
   UPDATE_CHECK: 'update:check',
   UPDATE_INSTALL: 'update:install',
   UPDATE_INSTALL_SOURCE: 'update:install-source',
+
+  // MCP Servers — CRUD
+  MCP_SERVERS_LIST: 'mcp:servers-list',
+  MCP_SERVERS_CREATE: 'mcp:servers-create',
+  MCP_SERVERS_UPDATE: 'mcp:servers-update',
+  MCP_SERVERS_DELETE: 'mcp:servers-delete',
+  MCP_SERVERS_REORDER: 'mcp:servers-reorder',
+
+  // MCP — Connection
+  MCP_CONNECT: 'mcp:connect',
+  MCP_DISCONNECT: 'mcp:disconnect',
+
+  // MCP — Primitives
+  MCP_LIST_TOOLS: 'mcp:list-tools',
+  MCP_CALL_TOOL: 'mcp:call-tool',
+  MCP_LIST_RESOURCES: 'mcp:list-resources',
+  MCP_READ_RESOURCE: 'mcp:read-resource',
+  MCP_LIST_RESOURCE_TEMPLATES: 'mcp:list-resource-templates',
+  MCP_LIST_PROMPTS: 'mcp:list-prompts',
+  MCP_GET_PROMPT: 'mcp:get-prompt',
+
+  // MCP — Traffic
+  MCP_TRAFFIC_LIST: 'mcp:traffic-list',
+  MCP_TRAFFIC_CLEAR: 'mcp:traffic-clear',
+
+  // MCP — Push events (main→renderer)
+  MCP_STATUS_CHANGED: 'mcp:status-changed',
+  MCP_NOTIFICATION: 'mcp:notification',
+  MCP_TRAFFIC_PUSH: 'mcp:traffic-push',
+  MCP_TOOLS_CHANGED: 'mcp:tools-changed',
+  MCP_RESOURCES_CHANGED: 'mcp:resources-changed',
+  MCP_PROMPTS_CHANGED: 'mcp:prompts-changed',
 } as const
 
 export type IpcChannel = (typeof IPC)[keyof typeof IPC]

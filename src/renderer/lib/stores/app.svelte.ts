@@ -7,7 +7,7 @@ import type { Request, ResponseData, Workspace, SSEEvent } from '../../lib/types
 
 // --- Types ---
 
-export type TabType = 'request' | 'environment'
+export type TabType = 'request' | 'environment' | 'mcp'
 
 export interface Tab {
   id: string
@@ -53,7 +53,14 @@ export interface TabEnvironmentState {
   initialized: boolean
 }
 
-type SidebarMode = 'collections' | 'environments'
+export type McpSubTab = 'tools' | 'resources' | 'prompts' | 'traffic' | 'notifications'
+
+export interface TabMcpState {
+  serverId: string
+  activeSubTab: McpSubTab
+}
+
+type SidebarMode = 'collections' | 'environments' | 'mcp'
 
 // --- State ---
 
@@ -72,6 +79,9 @@ let tabStates = $state<Record<string, TabRequestState>>({})
 
 // Per-tab environment state cache (parallel to tabStates for env tabs)
 let envTabStates = $state<Record<string, TabEnvironmentState>>({})
+
+// Per-tab MCP state cache
+let mcpTabStates = $state<Record<string, TabMcpState>>({})
 
 // --- Derived ---
 
@@ -214,6 +224,7 @@ function closeTab(tabId: string): void {
   openTabs = openTabs.filter((t) => t.id !== tabId)
   delete tabStates[tabId]
   delete envTabStates[tabId]
+  delete mcpTabStates[tabId]
 
   if (activeTabId === tabId) {
     // Activate the nearest tab
@@ -232,6 +243,7 @@ function closeOtherTabs(keepTabId: string): void {
   for (const t of removing) {
     delete tabStates[t.id]
     delete envTabStates[t.id]
+    delete mcpTabStates[t.id]
   }
   openTabs = keep
   if (!openTabs.find((t) => t.id === activeTabId)) {
@@ -244,6 +256,7 @@ function closeAllTabs(): void {
   for (const t of unpinned) {
     delete tabStates[t.id]
     delete envTabStates[t.id]
+    delete mcpTabStates[t.id]
   }
   openTabs = openTabs.filter((t) => t.pinned)
   if (openTabs.length > 0) {
@@ -385,6 +398,42 @@ function updateEnvTabState(tabId: string, partial: Partial<TabEnvironmentState>)
   }
 }
 
+function openMcpTab(server: { id: string; name: string }): void {
+  const existing = openTabs.find((t) => t.type === 'mcp' && t.entityId === server.id)
+  if (existing) {
+    activeTabId = existing.id
+    return
+  }
+
+  const tab: Tab = {
+    id: `tab-mcp-${server.id}`,
+    type: 'mcp',
+    entityId: server.id,
+    label: server.name,
+    pinned: false,
+    isUnsaved: false,
+    isDraft: false,
+  }
+
+  openTabs = [...openTabs, tab]
+  activeTabId = tab.id
+
+  mcpTabStates[tab.id] = {
+    serverId: server.id,
+    activeSubTab: 'tools',
+  }
+}
+
+function getMcpTabState(tabId: string): TabMcpState | undefined {
+  return mcpTabStates[tabId]
+}
+
+function updateMcpTabState(tabId: string, partial: Partial<TabMcpState>): void {
+  const current = mcpTabStates[tabId]
+  if (!current) return
+  mcpTabStates[tabId] = { ...current, ...partial }
+}
+
 // --- Export reactive getters + actions ---
 
 export const appStore = {
@@ -429,4 +478,7 @@ export const appStore = {
   updateTabLabel,
   getEnvTabState,
   updateEnvTabState,
+  openMcpTab,
+  getMcpTabState,
+  updateMcpTabState,
 }

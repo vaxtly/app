@@ -8,11 +8,12 @@
 import Database from 'better-sqlite3'
 import type { MigrationFile } from './migrations/types'
 import m001 from './migrations/001_initial_schema'
+import m002 from './migrations/002_mcp_servers'
 
 let db: Database.Database | null = null
 
 // Static migration registry. Add new migrations here.
-const ALL_MIGRATIONS: MigrationFile[] = [m001]
+const ALL_MIGRATIONS: MigrationFile[] = [m001, m002]
 
 /**
  * Open or create the database. Runs all pending migrations.
