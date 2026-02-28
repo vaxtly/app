@@ -17,6 +17,9 @@ import {
   PromptListChangedNotificationSchema,
 } from '@modelcontextprotocol/sdk/types.js'
 import { IPC } from '../../shared/types/ipc'
+import { substitute } from './variable-substitution'
+import { ensureLoaded } from '../vault/vault-sync-service'
+import * as environmentsRepo from '../database/repositories/environments'
 import type {
   McpServer,
   McpServerState,
@@ -80,33 +83,74 @@ function setConnectionStatus(serverId: string, status: McpServerStatus, error?: 
   pushToRenderer(IPC.MCP_STATUS_CHANGED, { serverId, status, error: error ?? null })
 }
 
-function createTransport(server: McpServer): Transport {
+async function createTransportWithVars(server: McpServer): Promise<Transport> {
+  // Build substitution helper from active environment
+  const wsId = server.workspace_id
+  const activeEnv = environmentsRepo.findActive(wsId)
+  if (activeEnv?.vault_synced === 1) {
+    try { await ensureLoaded(activeEnv.id, wsId) } catch { /* silent — vars just won't resolve */ }
+  }
+  const sub = (text: string): string => substitute(text, wsId)
+
   switch (server.transport_type) {
     case 'stdio': {
       if (!server.command) throw new Error('stdio transport requires a command')
       const args = server.args ? JSON.parse(server.args) as string[] : []
       const env = server.env ? JSON.parse(server.env) as Record<string, string> : undefined
+
+      // Substitute: command, each arg, env values (not keys), cwd
+      const resolvedCommand = sub(server.command)
+      const resolvedArgs = args.map((a) => sub(a))
+      let resolvedEnv: Record<string, string> | undefined
+      if (env) {
+        resolvedEnv = {}
+        for (const [key, value] of Object.entries(env)) {
+          resolvedEnv[key] = sub(value)
+        }
+      }
+      const resolvedCwd = server.cwd ? sub(server.cwd) : undefined
+
       return new StdioClientTransport({
-        command: server.command,
-        args,
-        env: env ? { ...process.env, ...env } as Record<string, string> : undefined,
-        cwd: server.cwd ?? undefined,
+        command: resolvedCommand,
+        args: resolvedArgs,
+        env: resolvedEnv ? { ...process.env, ...resolvedEnv } as Record<string, string> : undefined,
+        cwd: resolvedCwd,
       })
     }
     case 'streamable-http': {
       if (!server.url) throw new Error('streamable-http transport requires a URL')
       const headers = server.headers ? JSON.parse(server.headers) as Record<string, string> : undefined
+
+      const resolvedUrl = sub(server.url)
+      let resolvedHeaders: Record<string, string> | undefined
+      if (headers) {
+        resolvedHeaders = {}
+        for (const [key, value] of Object.entries(headers)) {
+          resolvedHeaders[key] = sub(value)
+        }
+      }
+
       return new StreamableHTTPClientTransport(
-        new URL(server.url),
-        { requestInit: headers ? { headers } : undefined }
+        new URL(resolvedUrl),
+        { requestInit: resolvedHeaders ? { headers: resolvedHeaders } : undefined }
       )
     }
     case 'sse': {
       if (!server.url) throw new Error('SSE transport requires a URL')
       const sseHeaders = server.headers ? JSON.parse(server.headers) as Record<string, string> : undefined
+
+      const resolvedUrl = sub(server.url)
+      let resolvedHeaders: Record<string, string> | undefined
+      if (sseHeaders) {
+        resolvedHeaders = {}
+        for (const [key, value] of Object.entries(sseHeaders)) {
+          resolvedHeaders[key] = sub(value)
+        }
+      }
+
       return new SSEClientTransport(
-        new URL(server.url),
-        { requestInit: sseHeaders ? { headers: sseHeaders } : undefined }
+        new URL(resolvedUrl),
+        { requestInit: resolvedHeaders ? { headers: resolvedHeaders } : undefined }
       )
     }
     default:
@@ -135,7 +179,7 @@ export async function connect(server: McpServer): Promise<McpServerState> {
 
   pushToRenderer(IPC.MCP_STATUS_CHANGED, { serverId: server.id, status: 'connecting', error: null })
 
-  const transport = createTransport(server)
+  const transport = await createTransportWithVars(server)
   const client = new Client({ name: 'Vaxtly', version: '1.0.0' })
 
   const conn: Connection = { client, transport, state }

@@ -20,6 +20,11 @@ export interface McpServer {
   url: string | null // streamable-http, sse
   headers: string | null // streamable-http, sse — JSON string: Record<string, string>
   order: number
+  sync_enabled: number // 0 | 1
+  is_dirty: number // 0 | 1
+  remote_sha: string | null
+  remote_synced_at: string | null
+  file_shas: string | null // JSON Record<string, FileState>
   created_at: string
   updated_at: string
 }

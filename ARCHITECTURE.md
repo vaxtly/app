@@ -43,14 +43,15 @@ vaxtly/
 │   │   │   ├── migrations/
 │   │   │   │   ├── types.ts            # MigrationFile interface
 │   │   │   │   ├── 001_initial_schema.ts
-│   │   │   │   └── 002_mcp_servers.ts
+│   │   │   │   ├── 002_mcp_servers.ts
+│   │   │   │   └── 003_mcp_sync_fields.ts
 │   │   │   └── repositories/
 │   │   │       ├── workspaces.ts
 │   │   │       ├── collections.ts
 │   │   │       ├── folders.ts
 │   │   │       ├── requests.ts
 │   │   │       ├── environments.ts
-│   │   │       ├── mcp-servers.ts        # MCP server CRUD + reorder
+│   │   │       ├── mcp-servers.ts        # MCP server CRUD + reorder + sync (markDirty, findDirtyOrNew, findSyncEnabled)
 │   │   │       └── settings.ts
 │   │   ├── ipc/                        # IPC handler registration per domain
 │   │   │   ├── workspaces.ts
@@ -76,14 +77,15 @@ vaxtly/
 │   │   │   ├── oauth2.ts               # OAuth 2.0: PKCE, token exchange, callback server, refresh
 │   │   │   ├── code-generator.ts       # Code snippet generation (9 languages)
 │   │   │   ├── insomnia-import.ts      # Import Insomnia v4 collections/environments
-│   │   │   ├── mcp-client.ts           # MCP SDK client: connect/disconnect, tool/resource/prompt calls, traffic log
+│   │   │   ├── mcp-client.ts           # MCP SDK client: connect/disconnect, tool/resource/prompt calls, traffic log, {{variable}} substitution at connect time
 │   │   │   ├── session-log.ts          # In-memory ring buffer, push to renderer
 │   │   │   ├── yaml-serializer.ts      # Collection ↔ YAML directory serialization/import
 │   │   │   ├── fetch-error.ts            # Shared formatFetchError (SSL, DNS, timeout, etc.)
-│   │   │   ├── sensitive-data-scanner.ts # Scan/sanitize sensitive data in requests & variables
+│   │   │   ├── sensitive-data-scanner.ts # Scan/sanitize sensitive data in requests, variables & MCP servers
 │   │   │   ├── sse-parser.ts           # Stateful SSE text parser (spec-compliant, handles partial chunks)
 │   │   │   ├── data-export-import.ts  # Export/import collections, environments, config
 │   │   │   ├── postman-import.ts      # Import Postman collections/environments (3 formats)
+│   │   │   ├── mcp-yaml-serializer.ts # MCP server ↔ YAML directory serialization/import
 │   │   │   └── updater.ts            # electron-updater: init, check, quit-and-install, install-source detection
 │   │   ├── vault/
 │   │   │   ├── secrets-provider.interface.ts      # SecretsProvider interface
@@ -129,11 +131,11 @@ vaxtly/
 │           │   ├── FolderItem.svelte    # Same pattern, self-recursive, drag-drop target + auto-sync on move
 │           │   ├── RequestItem.svelte   # Method badge, active state, draggable
 │           │   ├── EnvironmentList.svelte # Env list + active toggle + context menu
-│           │   ├── McpServerList.svelte   # MCP server list with status dots + context menu
+│           │   ├── McpServerList.svelte   # MCP server list with status dots + sync indicators + context menu (connect, edit, sync toggle, push)
 │           │   └── WorkspaceSwitcher.svelte # Dropdown workspace selector + rename/delete/create
 │           ├── mcp/
 │           │   ├── McpInspector.svelte    # Main tab: header + sub-tabs (Tools/Resources/Prompts/Traffic/Notifications)
-│           │   ├── McpServerForm.svelte   # Server config form (transport, command/URL, env vars, headers)
+│           │   ├── McpServerForm.svelte   # Server config form (transport, command/URL, env vars, headers) + {{variable}} highlighting via VarInput
 │           │   ├── McpJsonSchemaForm.svelte # Dynamic JSON Schema form for tool args
 │           │   ├── McpToolsPane.svelte    # Tool list + call + results
 │           │   ├── McpResourcesPane.svelte # Resource list + read
@@ -187,7 +189,7 @@ vaxtly/
 │   │   ├── code-generator.test.ts      # 29 tests: 9 languages + all auth/body types
 │   │   ├── oauth2.test.ts             # 17 tests: PKCE, token expiry, mocked token exchange
 │   │   ├── insomnia-import.test.ts    # 14 tests: workspace/folder/request/env import
-│   │   ├── sensitive-data-scanner.test.ts # 26 tests: scan + sanitize + api-key + urlencoded
+│   │   ├── sensitive-data-scanner.test.ts # 34 tests: scan + sanitize + api-key + urlencoded + MCP server scan/sanitize
 │   │   ├── yaml-serializer.test.ts     # 14 tests: serialize + import + auth/scripts + sanitize + auth decryption regression
 │   │   ├── remote-sync.test.ts         # 19 tests: file state + isConfigured + getProvider
 │   │   ├── sync-handlers.test.ts      # 32 tests: IPC handler logic + event.sender.send conflict push
@@ -202,7 +204,9 @@ vaxtly/
 │   │   ├── data-export-import.test.ts  # 15 tests: export + import + nested + workspace
 │   │   ├── postman-import.test.ts      # 14 tests: 3 formats + form-data + URL objects + XML
 │   │   ├── mcp-servers-repository.test.ts # MCP server CRUD, cascade, reorder
-│   │   ├── mcp-client.test.ts          # MCP client lifecycle, traffic log, mocked SDK
+│   │   ├── mcp-client.test.ts          # 15 tests: MCP client lifecycle, traffic log, variable substitution, mocked SDK
+│   │   ├── mcp-sync.test.ts            # 5 tests: sync field defaults, markDirty, findDirtyOrNew, findSyncEnabled
+│   │   ├── mcp-yaml-serializer.test.ts # 11 tests: serialize/import round-trip, manifest, sanitize, upsert
 │   │   ├── bulk-edit.test.ts            # 23 tests: entriesToBulk, bulkToEntries, formDataToBulk, bulkToFormData
 │   │   ├── encryption.test.ts          # 6 tests: round-trip, random IV, wrong key
 │   │   ├── fetch-error.test.ts         # 13 tests: all error branches (SSL, DNS, timeout, etc.)
@@ -359,6 +363,11 @@ folders 1──N requests (ON DELETE SET NULL)
 | url | TEXT | NULL | HTTP/SSE only |
 | headers | TEXT | NULL | JSON `Record<string, string>` — HTTP/SSE only |
 | order | INTEGER | 0 | |
+| sync_enabled | INTEGER | 0 | 1 = sync to remote |
+| is_dirty | INTEGER | 0 | 1 = needs push |
+| remote_sha | TEXT | NULL | Git blob SHA for sync |
+| remote_synced_at | TEXT | NULL | |
+| file_shas | TEXT | NULL | JSON `{path: {content_hash, remote_sha, commit_sha}}` |
 | created_at | TEXT | datetime('now') | |
 | updated_at | TEXT | datetime('now') | |
 
@@ -424,6 +433,8 @@ Pattern: `ipcMain.handle('domain:action', handler)` in main, `ipcRenderer.invoke
 | `sync:scan-sensitive` | ipc/sync.ts | `scanCollection(reqs, vars)` | `api.sync.scanSensitive(id)` |
 | `sync:conflict` | — (main→renderer push) | — | `api.on.syncConflict(cb)` |
 | `sync:push-request` | ipc/sync.ts | `syncService.pushSingleRequest()` | `api.sync.pushRequest(colId, reqId, sanitize?)` |
+| `sync:push-mcp-server` | ipc/sync.ts | `syncService.pushMcpServer()` | `api.sync.pushMcpServer(serverId, sanitize?, wsId?)` |
+| `sync:scan-mcp-sensitive` | ipc/sync.ts | `scanMcpServer()` | `api.sync.scanMcpSensitive(serverId)` |
 | `vault:test-connection` | ipc/vault.ts | `vaultService.testConnection()` | `api.vault.testConnection()` |
 | `vault:pull` | ipc/vault.ts | `vaultService.pullAll()` | `api.vault.pull()` |
 | `vault:push` | ipc/vault.ts | `vaultService.pushVariables()` | `api.vault.push(envId)` |
@@ -531,7 +542,7 @@ interface ResponseCookie { name, value, domain?, path?, expires?, httpOnly?, sec
 ```typescript
 type McpTransportType = 'stdio' | 'streamable-http' | 'sse'
 type McpServerStatus = 'disconnected' | 'connecting' | 'connected' | 'error'
-interface McpServer { id, workspace_id, name, transport_type, command?, args?, env?, cwd?, url?, headers?, order, created_at, updated_at }
+interface McpServer { id, workspace_id, name, transport_type, command?, args?, env?, cwd?, url?, headers?, order, sync_enabled, is_dirty, remote_sha?, remote_synced_at?, file_shas?, created_at, updated_at }
 interface McpServerState { serverId, status, error?, serverInfo?, tools[], resources[], resourceTemplates[], prompts[] }
 interface McpTool { name, description?, inputSchema }
 interface McpResource { uri, name, description?, mimeType? }
@@ -656,7 +667,7 @@ Pause/resume supports hover-to-hold: `pauseToast` clears the JS timeout and reco
 - **Transports**: `StdioClientTransport` (local process), `StreamableHTTPClientTransport` (HTTP), `SSEClientTransport` (legacy SSE)
 - `connections: Map<string, { client, transport, state }>` — active connections keyed by server ID
 - `trafficLog: McpTrafficEntry[]` — in-memory ring buffer (500 entries) for JSON-RPC traffic inspection
-- `connect(server)` → creates transport, wires notification handlers (tools/resources/prompts list_changed → auto-refresh + push), fetches initial capabilities, returns `McpServerState`
+- `connect(server)` → creates transport with `{{variable}}` substitution (command, args, env values, cwd, url, header values resolved via active environment + vault), wires notification handlers (tools/resources/prompts list_changed → auto-refresh + push), fetches initial capabilities, returns `McpServerState`
 - `disconnect(serverId)` → calls `client.close()`, removes from map, pushes status change
 - `disconnectAll()` → called on `app.will-quit` for cleanup
 - Primitive wrappers: `listTools`, `callTool`, `listResources`, `readResource`, `listResourceTemplates`, `listPrompts`, `getPrompt` — each logs traffic entries
@@ -745,6 +756,15 @@ Pause/resume supports hover-to-hold: `pauseToast` clears the JS timeout and reco
 - Strips local file references from form-data before sync
 - `parseYaml()` validates non-null/non-empty returns; `serializeRequest()` wraps JSON.parse of scripts/auth in try/catch
 
+### MCP YAML Serializer (`services/mcp-yaml-serializer.ts`)
+- `serializeMcpServer(server, options?)` → YAML string — serializes one MCP server config
+- `serializeMcpServersDirectory(servers, options?)` → `Record<path, yamlContent>` file map (one file per server + `_manifest.yaml`)
+- `importMcpServerFromYaml(content, workspaceId)` → server ID (creates or upserts)
+- `importMcpServersFromDirectory(files, workspaceId)` → server ID array
+- Directory structure: `mcp-servers/{uuid}.yaml`, `_manifest.yaml` (ordering)
+- `sanitize` option strips sensitive env/header values via `sanitizeMcpServerData()`
+- Handles stdio servers (command, args, env, cwd) and HTTP servers (url, headers)
+
 ### SSE Parser (`services/sse-parser.ts`)
 - Stateful text parser per the [SSE spec](https://html.spec.whatwg.org/multipage/server-sent-events.html#event-stream-interpretation)
 - `push(chunk: string): SSEEvent[]` — returns 0+ complete events per chunk, buffers partial lines across boundaries
@@ -754,7 +774,8 @@ Pause/resume supports hover-to-hold: `pauseToast` clears the JS timeout and reco
 ### Sensitive Data Scanner (`services/sensitive-data-scanner.ts`)
 - `scanRequest(request)` → `SensitiveFinding[]` — scans auth, headers, params, body
 - `scanCollection(requests, variables)` → `SensitiveFinding[]` — scans all requests (using decrypted data from repository) + collection variables
-- `sanitizeRequestData(data)` / `sanitizeCollectionData(data)` — blanks sensitive values, preserves `{{var}}` references
+- `scanMcpServer(server)` → `SensitiveFinding[]` — scans env values against `SENSITIVE_PARAM_KEYS`, header values against `SENSITIVE_HEADER_KEYS`, skips `{{variable}}` references
+- `sanitizeRequestData(data)` / `sanitizeCollectionData(data)` / `sanitizeMcpServerData(data)` — blanks sensitive values, preserves `{{var}}` references
 - Extensive sensitive key lists: auth tokens, API keys, passwords, cloud keys, PII
 - Recursive JSON body scanning
 
@@ -769,9 +790,13 @@ Pause/resume supports hover-to-hold: `pauseToast` clears the JS timeout and reco
 ### Remote Sync Service (`sync/remote-sync-service.ts`)
 - Settings keys: `sync.provider`, `sync.repository`, `sync.token`, `sync.branch`, `sync.base_url` — read via workspace settings with global fallback (transparent decryption)
 - `getProvider(workspaceId?)` → creates git provider from workspace-scoped config, falls back to global `app_settings`
-- `pull(workspaceId?)` → `SyncResult` — pulls all collections, detects conflicts (with per-file change details via `computeConflictDetails()`), collects per-collection errors
+- `pull(workspaceId?)` → `SyncResult` — pulls all collections + MCP servers, detects conflicts (with per-file change details via `computeConflictDetails()`), collects per-collection errors
 - `pushCollection(collection, sanitize?, workspaceId?)` — 3-way merge per file, atomic commit
-- `pushAll(workspaceId?)` → `SyncResult` — pushes all dirty/unsynced collections (scoped to workspace)
+- `pushAll(workspaceId?)` → `SyncResult` — pushes all dirty/unsynced collections + MCP servers (scoped to workspace)
+- `pullMcpServers(provider, workspaceId?)` — imports new MCP servers from remote, updates changed ones, skips conflicts
+- `pushMcpServer(server, sanitize?, workspaceId?)` — serializes and pushes single MCP server + manifest
+- `pushAllMcpServers(workspaceId?)` — pushes all dirty/new sync-enabled MCP servers
+- `deleteMcpServerRemote(server, workspaceId?)` — deletes server file from remote and updates manifest
 - `pullSingleCollection(collection, workspaceId?)` — force-pulls one collection (overwrites local even when dirty, clears `is_dirty`). Logs on all code paths: "No remote data found", "Already up to date", "Pulled from remote successfully"
 - `pushSingleRequest(collection, requestId, sanitize?, workspaceId?)` — granular single-file push (fetches request via `requestsRepo.findById()` for decrypted auth). On 409/400 (conflict): logs and marks dirty for full sync. On other errors: logs failure and marks dirty
 - `forceKeepLocal(collection, workspaceId?)` / `forceKeepRemote(collection, workspaceId?)` — conflict resolution

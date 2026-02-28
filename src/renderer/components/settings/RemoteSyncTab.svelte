@@ -1,6 +1,7 @@
 <script lang="ts">
   import Toggle from '../shared/Toggle.svelte'
   import { collectionsStore } from '../../lib/stores/collections.svelte'
+  import { mcpStore } from '../../lib/stores/mcp.svelte'
   import { appStore } from '../../lib/stores/app.svelte'
   import SensitiveDataModal from '../modals/SensitiveDataModal.svelte'
 
@@ -119,6 +120,7 @@
       if (result.success) {
         status = { type: 'success', message: result.message || `Pulled ${result.pulled ?? 0} collections` }
         await collectionsStore.loadAll(appStore.activeWorkspaceId ?? undefined)
+        await mcpStore.loadServers(appStore.activeWorkspaceId!)
       } else {
         status = { type: 'error', message: result.message || 'Pull failed' }
       }

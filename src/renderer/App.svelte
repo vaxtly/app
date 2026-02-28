@@ -350,6 +350,8 @@
       window.api.on.syncPullComplete((workspaceId) => {
         if (workspaceId === appStore.activeWorkspaceId) {
           collectionsStore.loadAll(workspaceId)
+          mcpStore.loadServers(workspaceId)
+          environmentsStore.loadAll(workspaceId)
         }
       }),
       // MCP push events

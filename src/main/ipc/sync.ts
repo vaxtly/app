@@ -5,7 +5,8 @@ import type { SensitiveFinding } from '../services/sensitive-data-scanner'
 import * as syncService from '../sync/remote-sync-service'
 import * as collectionsRepo from '../database/repositories/collections'
 import * as requestsRepo from '../database/repositories/requests'
-import { scanCollection } from '../services/sensitive-data-scanner'
+import * as mcpServersRepo from '../database/repositories/mcp-servers'
+import { scanCollection, scanMcpServer } from '../services/sensitive-data-scanner'
 import { logSync } from '../services/session-log'
 import type { KeyValueEntry } from '../../shared/types/models'
 
@@ -159,6 +160,43 @@ export function registerSyncHandlers(): void {
         logSync('pull', collection.name, `Pull failed: ${msg}`, false)
         return { success: false, message: msg, pulled: 0, pushed: 0 }
       }
+    },
+  )
+
+  ipcMain.handle(
+    IPC.SYNC_PUSH_MCP_SERVER,
+    async (_event, serverId: string, sanitize?: boolean, workspaceId?: string): Promise<SyncResult> => {
+      const server = mcpServersRepo.findById(serverId)
+      if (!server) {
+        return { success: false, message: 'MCP server not found', pulled: 0, pushed: 0 }
+      }
+
+      try {
+        await syncService.pushMcpServer(server, sanitize ?? false, workspaceId)
+        return { success: true, message: 'Pushed successfully', pulled: 0, pushed: 1 }
+      } catch (e) {
+        const msg = (e as Error).message
+        logSync('push', server.name, `Push failed: ${msg}`, false)
+        return { success: false, message: msg, pulled: 0, pushed: 0 }
+      }
+    },
+  )
+
+  ipcMain.handle(
+    IPC.SYNC_SCAN_MCP_SENSITIVE,
+    async (_event, serverId: string): Promise<SensitiveFinding[]> => {
+      const server = mcpServersRepo.findById(serverId)
+      if (!server) return []
+
+      const env = server.env ? JSON.parse(server.env) as Record<string, string> : undefined
+      const headers = server.headers ? JSON.parse(server.headers) as Record<string, string> : undefined
+
+      return scanMcpServer({
+        id: server.id,
+        name: server.name,
+        env,
+        headers,
+      })
     },
   )
 }

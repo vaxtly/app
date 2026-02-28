@@ -4,6 +4,8 @@ import {
   scanRequest,
   sanitizeRequestData,
   sanitizeCollectionData,
+  scanMcpServer,
+  sanitizeMcpServerData,
   isVariableReference,
   maskValue,
 } from '../../src/main/services/sensitive-data-scanner'
@@ -268,6 +270,76 @@ describe('scanRequest — json body with key-value entries', () => {
     }))
     expect(findings).toHaveLength(1)
     expect(findings[0].key).toBe('client_secret')
+  })
+})
+
+describe('scanMcpServer', () => {
+  it('detects sensitive env var keys', () => {
+    const findings = scanMcpServer({
+      id: 'server-1',
+      name: 'Test Server',
+      env: { API_KEY: 'secret123', DEBUG: 'true' },
+    })
+    expect(findings).toHaveLength(1)
+    expect(findings[0].key).toBe('API_KEY')
+    expect(findings[0].source).toBe('env')
+  })
+
+  it('detects sensitive header keys', () => {
+    const findings = scanMcpServer({
+      id: 'server-1',
+      name: 'Test Server',
+      headers: { Authorization: 'Bearer token123', 'Content-Type': 'application/json' },
+    })
+    expect(findings).toHaveLength(1)
+    expect(findings[0].key).toBe('Authorization')
+    expect(findings[0].source).toBe('header')
+  })
+
+  it('skips {{variable}} references in env values', () => {
+    const findings = scanMcpServer({
+      env: { API_KEY: '{{api_key}}', SECRET: '{{secret}}' },
+    })
+    expect(findings).toHaveLength(0)
+  })
+
+  it('skips {{variable}} references in header values', () => {
+    const findings = scanMcpServer({
+      headers: { Authorization: 'Bearer {{token}}' },
+    })
+    expect(findings).toHaveLength(0)
+  })
+
+  it('returns empty for server without env/headers', () => {
+    const findings = scanMcpServer({ id: 'server-1', name: 'Empty' })
+    expect(findings).toHaveLength(0)
+  })
+})
+
+describe('sanitizeMcpServerData', () => {
+  it('blanks sensitive env values', () => {
+    const data = sanitizeMcpServerData({
+      env: { API_KEY: 'secret', NORMAL: 'value' },
+    })
+    expect((data.env as Record<string, string>).API_KEY).toBe('')
+    expect((data.env as Record<string, string>).NORMAL).toBe('value')
+  })
+
+  it('blanks sensitive header values', () => {
+    const data = sanitizeMcpServerData({
+      headers: { Authorization: 'Bearer token', Accept: 'application/json' },
+    })
+    expect((data.headers as Record<string, string>).Authorization).toBe('')
+    expect((data.headers as Record<string, string>).Accept).toBe('application/json')
+  })
+
+  it('preserves {{variable}} references during sanitization', () => {
+    const data = sanitizeMcpServerData({
+      env: { API_KEY: '{{my_key}}' },
+      headers: { Authorization: '{{auth_header}}' },
+    })
+    expect((data.env as Record<string, string>).API_KEY).toBe('{{my_key}}')
+    expect((data.headers as Record<string, string>).Authorization).toBe('{{auth_header}}')
   })
 })
 

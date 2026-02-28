@@ -394,4 +394,82 @@ function sanitizeJsonRecursive(data: Record<string, unknown>): Record<string, un
   return result
 }
 
+// --- MCP Server scanning ---
+
+interface McpServerData {
+  id?: string
+  name?: string
+  env?: Record<string, string>
+  headers?: Record<string, string>
+  [key: string]: unknown
+}
+
+export function scanMcpServer(server: McpServerData): SensitiveFinding[] {
+  const findings: SensitiveFinding[] = []
+
+  // Scan env values
+  if (server.env && typeof server.env === 'object') {
+    for (const [key, value] of Object.entries(server.env)) {
+      if (!key || !value) continue
+      if (isVariableReference(value)) continue
+      if (isSensitiveKey(key, SENSITIVE_PARAM_KEYS)) {
+        findings.push({
+          source: 'env',
+          requestName: server.name ?? null,
+          requestId: server.id ?? null,
+          field: 'env',
+          key,
+          maskedValue: maskValue(value),
+        })
+      }
+    }
+  }
+
+  // Scan header values
+  if (server.headers && typeof server.headers === 'object') {
+    for (const [key, value] of Object.entries(server.headers)) {
+      if (!key || !value) continue
+      if (isVariableReference(value)) continue
+      if (isSensitiveKey(key, SENSITIVE_HEADER_KEYS)) {
+        findings.push({
+          source: 'header',
+          requestName: server.name ?? null,
+          requestId: server.id ?? null,
+          field: 'headers',
+          key,
+          maskedValue: maskValue(value),
+        })
+      }
+    }
+  }
+
+  return findings
+}
+
+export function sanitizeMcpServerData(data: Record<string, unknown>): Record<string, unknown> {
+  // Sanitize env values
+  if (data.env && typeof data.env === 'object') {
+    const env = { ...(data.env as Record<string, string>) }
+    for (const [key, value] of Object.entries(env)) {
+      if (value && !isVariableReference(value) && isSensitiveKey(key, SENSITIVE_PARAM_KEYS)) {
+        env[key] = ''
+      }
+    }
+    data.env = env
+  }
+
+  // Sanitize header values
+  if (data.headers && typeof data.headers === 'object') {
+    const headers = { ...(data.headers as Record<string, string>) }
+    for (const [key, value] of Object.entries(headers)) {
+      if (value && !isVariableReference(value) && isSensitiveKey(key, SENSITIVE_HEADER_KEYS)) {
+        headers[key] = ''
+      }
+    }
+    data.headers = headers
+  }
+
+  return data
+}
+
 export { isVariableReference, maskValue }

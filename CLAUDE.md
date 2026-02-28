@@ -11,7 +11,7 @@ See `ARCHITECTURE.md` for the complete technical reference.
 |------|-------|
 | Full architecture docs | `ARCHITECTURE.md` |
 | Shared types | `src/shared/types/*.ts` + `src/shared/constants.ts` |
-| Database schema | `src/main/database/migrations/001_initial_schema.ts`, `002_mcp_servers.ts` |
+| Database schema | `src/main/database/migrations/001_initial_schema.ts`, `002_mcp_servers.ts`, `003_mcp_sync_fields.ts` |
 | All IPC handlers | `src/main/ipc/*.ts` |
 | Main services | `src/main/services/*.ts` |
 | All repositories | `src/main/database/repositories/*.ts` |

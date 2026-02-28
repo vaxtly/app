@@ -1,8 +1,12 @@
 <script lang="ts">
+  import { setContext } from 'svelte'
   import { mcpStore } from '../../lib/stores/mcp.svelte'
   import { appStore } from '../../lib/stores/app.svelte'
+  import { environmentsStore } from '../../lib/stores/environments.svelte'
   import KeyValueEditor from '../shared/KeyValueEditor.svelte'
+  import VarInput from '../shared/VarInput.svelte'
   import type { McpTransportType, KeyValueEntry } from '../../lib/types'
+  import type { ResolvedVariable } from '../../lib/utils/variable-highlight'
 
   interface Props {
     serverId: string
@@ -21,6 +25,25 @@
   let cwd = $state('')
   let url = $state('')
   let headerEntries = $state<KeyValueEntry[]>([])
+
+  // Resolved variables for highlighting (refreshed when env changes)
+  let resolvedVars = $state<Record<string, ResolvedVariable>>({})
+
+  $effect(() => {
+    void environmentsStore.activeEnvironmentId
+    const wsId = server?.workspace_id
+    let cancelled = false
+    window.api.variables.resolveWithSource(wsId).then((result) => {
+      if (!cancelled) resolvedVars = result as Record<string, ResolvedVariable>
+    })
+    return () => { cancelled = true }
+  })
+
+  function getResolvedVariables(): Record<string, ResolvedVariable> {
+    return resolvedVars
+  }
+
+  setContext('resolvedVars', getResolvedVariables)
 
   /** Convert a JSON object string (e.g. '{"key":"value"}') to KeyValueEntry[] */
   function jsonToEntries(json: string | null): KeyValueEntry[] {
@@ -85,6 +108,14 @@
       // Update the tab label if name changed
       const tabId = `tab-mcp-${serverId}`
       appStore.updateTabLabel(tabId, updated.name)
+
+      // Auto-push to remote if sync is enabled (fire-and-forget)
+      if (updated.sync_enabled === 1) {
+        const wsId = appStore.activeWorkspaceId ?? undefined
+        window.api.sync.pushMcpServer(serverId, false, wsId)
+          .then(() => mcpStore.loadServers(appStore.activeWorkspaceId!))
+          .catch(() => {}) // Error already logged server-side
+      }
     }
     onclose()
   }
@@ -169,26 +200,26 @@
 
       {#if transportType === 'stdio'}
         <!-- Command -->
-        <label class="flex flex-col gap-1.5">
+        <div class="flex flex-col gap-1.5">
           <span class="text-xs font-medium text-surface-400">Command</span>
-          <input
-            type="text"
-            bind:value={command}
+          <VarInput
+            value={command}
+            oninput={(v) => { command = v }}
             class="h-8 rounded-md border border-[var(--tint-muted)] bg-[var(--tint-subtle)] px-3 font-mono text-sm text-surface-200 focus:border-brand-500/50 focus:outline-none"
             placeholder="npx"
           />
-        </label>
+        </div>
 
         <!-- Args -->
-        <label class="flex flex-col gap-1.5">
+        <div class="flex flex-col gap-1.5">
           <span class="text-xs font-medium text-surface-400">Arguments <span class="text-surface-600">(space-separated)</span></span>
-          <input
-            type="text"
-            bind:value={args}
+          <VarInput
+            value={args}
+            oninput={(v) => { args = v }}
             class="h-8 rounded-md border border-[var(--tint-muted)] bg-[var(--tint-subtle)] px-3 font-mono text-sm text-surface-200 focus:border-brand-500/50 focus:outline-none"
             placeholder="-y @modelcontextprotocol/server-everything"
           />
-        </label>
+        </div>
 
         <!-- Environment variables -->
         <div class="flex flex-col gap-1.5">
@@ -202,26 +233,26 @@
         </div>
 
         <!-- Working directory -->
-        <label class="flex flex-col gap-1.5">
+        <div class="flex flex-col gap-1.5">
           <span class="text-xs font-medium text-surface-400">Working Directory <span class="text-surface-600">(optional)</span></span>
-          <input
-            type="text"
-            bind:value={cwd}
+          <VarInput
+            value={cwd}
+            oninput={(v) => { cwd = v }}
             class="h-8 rounded-md border border-[var(--tint-muted)] bg-[var(--tint-subtle)] px-3 font-mono text-sm text-surface-200 focus:border-brand-500/50 focus:outline-none"
             placeholder="/path/to/project"
           />
-        </label>
+        </div>
       {:else}
         <!-- URL -->
-        <label class="flex flex-col gap-1.5">
+        <div class="flex flex-col gap-1.5">
           <span class="text-xs font-medium text-surface-400">URL</span>
-          <input
-            type="text"
-            bind:value={url}
+          <VarInput
+            value={url}
+            oninput={(v) => { url = v }}
             class="h-8 rounded-md border border-[var(--tint-muted)] bg-[var(--tint-subtle)] px-3 font-mono text-sm text-surface-200 focus:border-brand-500/50 focus:outline-none"
             placeholder="http://localhost:3000/mcp"
           />
-        </label>
+        </div>
 
         <!-- Headers -->
         <div class="flex flex-col gap-1.5">

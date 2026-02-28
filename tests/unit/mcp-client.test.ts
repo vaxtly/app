@@ -49,6 +49,22 @@ vi.mock('@modelcontextprotocol/sdk/client/sse.js', () => ({
   SSEClientTransport: class MockSSE {},
 }))
 
+// Mock variable substitution (passes through by default)
+const mockSubstitute = vi.fn((text: string) => text)
+vi.mock('../../src/main/services/variable-substitution', () => ({
+  substitute: (...args: unknown[]) => mockSubstitute(...args),
+}))
+
+// Mock vault sync
+vi.mock('../../src/main/vault/vault-sync-service', () => ({
+  ensureLoaded: vi.fn().mockResolvedValue(undefined),
+}))
+
+// Mock environments repo
+vi.mock('../../src/main/database/repositories/environments', () => ({
+  findActive: vi.fn().mockReturnValue(undefined),
+}))
+
 import * as mcpClient from '../../src/main/services/mcp-client'
 import type { McpServer } from '../../src/shared/types/mcp'
 
@@ -65,6 +81,11 @@ function makeServer(overrides?: Partial<McpServer>): McpServer {
     url: null,
     headers: null,
     order: 0,
+    sync_enabled: 0,
+    is_dirty: 0,
+    remote_sha: null,
+    remote_synced_at: null,
+    file_shas: null,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
     ...overrides,
@@ -212,5 +233,37 @@ describe('mcp-client service', () => {
 
     // Should have set up handlers for tools, resources, and prompts list_changed
     expect(mockSetNotificationHandler).toHaveBeenCalledTimes(3)
+  })
+
+  it('calls substitute during connection', async () => {
+    const server = makeServer({
+      command: '{{cmd}}',
+      args: JSON.stringify(['{{arg1}}']),
+      env: JSON.stringify({ KEY: '{{val}}' }),
+      cwd: '{{cwd}}',
+    })
+
+    await mcpClient.connect(server)
+
+    // substitute should be called for command, arg, env value, cwd
+    expect(mockSubstitute).toHaveBeenCalledWith('{{cmd}}', 'ws-1')
+    expect(mockSubstitute).toHaveBeenCalledWith('{{arg1}}', 'ws-1')
+    expect(mockSubstitute).toHaveBeenCalledWith('{{val}}', 'ws-1')
+    expect(mockSubstitute).toHaveBeenCalledWith('{{cwd}}', 'ws-1')
+  })
+
+  it('calls substitute for HTTP transport fields', async () => {
+    const server = makeServer({
+      transport_type: 'streamable-http',
+      command: null,
+      args: null,
+      url: 'http://{{host}}/mcp',
+      headers: JSON.stringify({ Authorization: 'Bearer {{token}}' }),
+    })
+
+    await mcpClient.connect(server)
+
+    expect(mockSubstitute).toHaveBeenCalledWith('http://{{host}}/mcp', 'ws-1')
+    expect(mockSubstitute).toHaveBeenCalledWith('Bearer {{token}}', 'ws-1')
   })
 })

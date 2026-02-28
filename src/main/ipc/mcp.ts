@@ -2,6 +2,7 @@ import { ipcMain } from 'electron'
 import { IPC } from '../../shared/types/ipc'
 import * as mcpServersRepo from '../database/repositories/mcp-servers'
 import * as mcpClient from '../services/mcp-client'
+import { deleteMcpServerRemote } from '../sync/remote-sync-service'
 
 /** Strip non-cloneable properties (Zod schemas, class instances) for Electron IPC */
 function toPlain<T>(value: T): T {
@@ -30,12 +31,34 @@ export function registerMcpHandlers(): void {
   })
 
   ipcMain.handle(IPC.MCP_SERVERS_UPDATE, (_event, id: string, data: Record<string, unknown>) => {
-    return mcpServersRepo.update(id, data)
+    const existing = mcpServersRepo.findById(id)
+    const result = mcpServersRepo.update(id, data)
+
+    // Mark dirty if sync is enabled and config fields changed (not just reorder)
+    if (existing && existing.sync_enabled === 1) {
+      const configFields = ['name', 'transport_type', 'command', 'args', 'env', 'cwd', 'url', 'headers']
+      const hasConfigChange = configFields.some((f) => f in data)
+      if (hasConfigChange) {
+        mcpServersRepo.markDirty(id)
+      }
+    }
+
+    return result
   })
 
   ipcMain.handle(IPC.MCP_SERVERS_DELETE, async (_event, id: string) => {
+    const server = mcpServersRepo.findById(id)
+
     // Disconnect first if connected
     await mcpClient.disconnect(id)
+
+    // Delete from remote if it was synced
+    if (server?.remote_sha) {
+      deleteMcpServerRemote(server).catch((e) => {
+        console.error('Failed to delete remote MCP server:', e)
+      })
+    }
+
     return mcpServersRepo.remove(id)
   })
 

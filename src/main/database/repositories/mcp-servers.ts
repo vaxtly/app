@@ -70,6 +70,11 @@ export function update(
       url = ?,
       headers = ?,
       "order" = ?,
+      sync_enabled = ?,
+      is_dirty = ?,
+      remote_sha = ?,
+      remote_synced_at = ?,
+      file_shas = ?,
       updated_at = ?
     WHERE id = ?
   `).run(
@@ -82,6 +87,11 @@ export function update(
     data.url !== undefined ? data.url : existing.url,
     data.headers !== undefined ? data.headers : existing.headers,
     data.order ?? existing.order,
+    data.sync_enabled ?? existing.sync_enabled,
+    data.is_dirty ?? existing.is_dirty,
+    data.remote_sha !== undefined ? data.remote_sha : existing.remote_sha,
+    data.remote_synced_at !== undefined ? data.remote_synced_at : existing.remote_synced_at,
+    data.file_shas !== undefined ? data.file_shas : existing.file_shas,
     new Date().toISOString(),
     id
   )
@@ -93,6 +103,44 @@ export function remove(id: string): boolean {
   const db = getDatabase()
   const result = db.prepare('DELETE FROM mcp_servers WHERE id = ?').run(id)
   return result.changes > 0
+}
+
+export function markDirty(id: string): void {
+  const db = getDatabase()
+  db.prepare('UPDATE mcp_servers SET is_dirty = 1, updated_at = ? WHERE id = ?')
+    .run(new Date().toISOString(), id)
+}
+
+export function findDirtyOrNew(workspaceId?: string): McpServer[] {
+  const db = getDatabase()
+  if (workspaceId) {
+    return db.prepare(`
+      SELECT * FROM mcp_servers
+      WHERE sync_enabled = 1 AND workspace_id = ?
+        AND (is_dirty = 1 OR remote_sha IS NULL)
+      ORDER BY "order" ASC
+    `).all(workspaceId) as McpServer[]
+  }
+  return db.prepare(`
+    SELECT * FROM mcp_servers
+    WHERE sync_enabled = 1
+      AND (is_dirty = 1 OR remote_sha IS NULL)
+    ORDER BY "order" ASC
+  `).all() as McpServer[]
+}
+
+export function findSyncEnabled(workspaceId?: string): McpServer[] {
+  const db = getDatabase()
+  if (workspaceId) {
+    return db.prepare(`
+      SELECT * FROM mcp_servers
+      WHERE sync_enabled = 1 AND workspace_id = ?
+      ORDER BY "order" ASC
+    `).all(workspaceId) as McpServer[]
+  }
+  return db.prepare(`
+    SELECT * FROM mcp_servers WHERE sync_enabled = 1 ORDER BY "order" ASC
+  `).all() as McpServer[]
 }
 
 export function reorder(ids: string[]): void {

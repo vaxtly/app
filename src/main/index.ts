@@ -248,6 +248,9 @@ async function runAutoSync(): Promise<void> {
           if (result.refreshed) parts.push(`${result.refreshed} refreshed`)
           logVault('auto-sync', ws.name, parts.length > 0 ? `Pulled: ${parts.join(', ')}` : 'Everything up to date')
         }
+        if (result.created || result.refreshed) {
+          mainWindow?.webContents.send(IPC.SYNC_PULL_COMPLETE, ws.id)
+        }
       } catch (e) {
         logVault('auto-sync', ws.name, `Failed: ${e instanceof Error ? e.message : String(e)}`, false)
       }

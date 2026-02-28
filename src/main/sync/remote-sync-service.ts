@@ -16,16 +16,25 @@ import * as collectionsRepo from '../database/repositories/collections'
 import * as requestsRepo from '../database/repositories/requests'
 import * as settingsRepo from '../database/repositories/settings'
 import * as workspacesRepo from '../database/repositories/workspaces'
+import * as mcpServersRepo from '../database/repositories/mcp-servers'
 import type { Collection, FileState } from '../../shared/types/models'
+import type { McpServer } from '../../shared/types/mcp'
 import type { FileContent, SyncResult, SyncConflict, ConflictChange } from '../../shared/types/sync'
 import type { GitProvider, DirectoryItem } from './git-provider.interface'
 import { GitHubProvider } from './github-provider'
 import { GitLabProvider } from './gitlab-provider'
 import yaml from 'js-yaml'
 import { serializeToDirectory, serializeRequest, importFromDirectory } from '../services/yaml-serializer'
+import {
+  serializeMcpServer,
+  serializeMcpServersDirectory,
+  importMcpServerFromYaml,
+  importMcpServersFromDirectory,
+} from '../services/mcp-yaml-serializer'
 import { logSync } from '../services/session-log'
 
 const COLLECTIONS_PATH = 'collections'
+const MCP_SERVERS_PATH = 'mcp-servers'
 
 // --- Provider management ---
 
@@ -358,10 +367,25 @@ export async function pull(workspaceId?: string): Promise<SyncResult> {
     }
   }
 
+  // --- Also pull MCP servers ---
+  let mcpPulled = 0
+  try {
+    const mcpResult = await pullMcpServers(provider, workspaceId)
+    mcpPulled = mcpResult.pulled
+    result.pulled! += mcpPulled
+  } catch (e) {
+    // Non-fatal: log but don't fail the whole pull
+    logSync('pull', 'MCP servers', `Failed: ${(e as Error).message}`, false)
+  }
+
+  const collectionsPulled = result.pulled! - mcpPulled
   if (errors.length > 0) {
     result.message = `Failed to process ${errors.length} collection(s): ${errors.join('; ')}`
   } else if (result.pulled! > 0 || result.conflicts!.length > 0) {
-    result.message = `Pulled ${result.pulled} collection(s)` +
+    const parts: string[] = []
+    if (collectionsPulled > 0) parts.push(`${collectionsPulled} collection(s)`)
+    if (mcpPulled > 0) parts.push(`${mcpPulled} server(s)`)
+    result.message = `Pulled ${parts.join(', ')}` +
       (result.conflicts!.length > 0 ? `, ${result.conflicts!.length} conflict(s)` : '')
   } else {
     result.message = 'Everything up to date'
@@ -552,10 +576,23 @@ export async function pushAll(workspaceId?: string): Promise<SyncResult> {
     }
   }
 
-  if (result.pushed! > 0 || result.conflicts!.length > 0) {
-    result.message = `Pushed ${result.pushed} collection(s)` +
+  // --- Also push MCP servers ---
+  let mcpPushed = 0
+  try {
+    const mcpResult = await pushAllMcpServers(workspaceId)
+    mcpPushed = mcpResult.pushed
+  } catch (e) {
+    result.success = false
+    result.message += `Failed to push MCP servers: ${(e as Error).message}. `
+  }
+
+  if (result.pushed! > 0 || mcpPushed > 0 || result.conflicts!.length > 0) {
+    const parts: string[] = []
+    if (result.pushed! > 0) parts.push(`${result.pushed} collection(s)`)
+    if (mcpPushed > 0) parts.push(`${mcpPushed} server(s)`)
+    result.message = `Pushed ${parts.join(', ')}` +
       (result.conflicts!.length > 0 ? `, ${result.conflicts!.length} conflict(s)` : '')
-  } else {
+  } else if (!result.message) {
     result.message = 'Everything up to date'
   }
 
@@ -750,6 +787,220 @@ function buildFolderPath(folderId: string | null): string {
 
   return segments.map((s) => `${s}/`).join('')
 }
+
+// --- MCP Server Sync ---
+
+export async function pullMcpServers(
+  provider: GitProvider,
+  workspaceId?: string,
+): Promise<{ pulled: number }> {
+  let items: DirectoryItem[]
+  try {
+    items = await provider.listDirectoryRecursive(MCP_SERVERS_PATH)
+  } catch {
+    // Directory doesn't exist yet — nothing to pull
+    return { pulled: 0 }
+  }
+
+  if (items.length === 0) return { pulled: 0 }
+
+  // Get all YAML files from the directory
+  const files = await provider.getDirectoryTree(MCP_SERVERS_PATH, items)
+  if (files.length === 0) return { pulled: 0 }
+
+  let pulled = 0
+
+  for (const file of files) {
+    // Skip manifest
+    const fileName = file.path.split('/').pop() ?? ''
+    if (fileName === '_manifest.yaml' || !fileName.endsWith('.yaml')) continue
+
+    const serverId = fileName.replace('.yaml', '')
+    if (!UUID_RE.test(serverId)) continue
+
+    const localServer = mcpServersRepo.findById(serverId)
+
+    if (!localServer) {
+      // New from remote: import
+      const id = importMcpServerFromYaml(file.content, workspaceId ?? '')
+      const fileState = buildSingleFileState(file)
+      mcpServersRepo.update(id, {
+        sync_enabled: 1,
+        is_dirty: 0,
+        remote_sha: file.sha ?? null,
+        remote_synced_at: new Date().toISOString(),
+        file_shas: JSON.stringify(fileState),
+      })
+      pulled++
+      logSync('pull', fileName, 'New MCP server imported from remote')
+    } else {
+      // Check if remote changed
+      const storedSha = localServer.remote_sha
+      if (file.sha && file.sha === storedSha) continue // No changes
+
+      if (!localServer.is_dirty) {
+        // Remote wins — update local
+        importMcpServerFromYaml(file.content, workspaceId ?? '')
+        const fileState = buildSingleFileState(file)
+        mcpServersRepo.update(localServer.id, {
+          remote_sha: file.sha ?? null,
+          remote_synced_at: new Date().toISOString(),
+          is_dirty: 0,
+          file_shas: JSON.stringify(fileState),
+        })
+        pulled++
+        logSync('pull', localServer.name, 'MCP server updated from remote')
+      } else {
+        // Conflict: both sides changed — skip with warning (no modal for MCP MVP)
+        logSync('pull', localServer.name, 'MCP server conflict — local changes preserved', false)
+      }
+    }
+  }
+
+  return { pulled }
+}
+
+export async function pushMcpServer(
+  server: McpServer,
+  sanitize = false,
+  workspaceId?: string,
+): Promise<void> {
+  const provider = getProvider(workspaceId)
+  if (!provider) throw new Error('Remote not configured')
+
+  const content = serializeMcpServer(server, { sanitize })
+  const filePath = `${MCP_SERVERS_PATH}/${server.id}.yaml`
+
+  // Simple push: commit the file
+  const filesToPush: Record<string, string> = { [filePath]: content }
+
+  // Also update manifest with all sync-enabled servers
+  const allSyncEnabled = mcpServersRepo.findSyncEnabled(workspaceId)
+  const manifestContent = yaml.dump({
+    items: allSyncEnabled.map((s) => ({ id: s.id })),
+  }, { indent: 2, lineWidth: -1, noRefs: true })
+  filesToPush[`${MCP_SERVERS_PATH}/_manifest.yaml`] = manifestContent
+
+  await provider.commitMultipleFiles(filesToPush, `Sync MCP server: ${server.name}`)
+
+  // Compute blob SHA locally
+  const blobSha = createHash('sha1')
+    .update(`blob ${Buffer.byteLength(content)}\0${content}`)
+    .digest('hex')
+
+  mcpServersRepo.update(server.id, {
+    remote_sha: blobSha,
+    remote_synced_at: new Date().toISOString(),
+    is_dirty: 0,
+    file_shas: JSON.stringify({
+      [filePath]: {
+        content_hash: createHash('sha256').update(content).digest('hex'),
+        remote_sha: blobSha,
+        commit_sha: null,
+      },
+    }),
+  })
+
+  logSync('push', server.name, 'MCP server pushed to remote')
+}
+
+export async function pushAllMcpServers(
+  workspaceId?: string,
+): Promise<{ pushed: number }> {
+  const provider = getProvider(workspaceId)
+  if (!provider) return { pushed: 0 }
+
+  const servers = mcpServersRepo.findDirtyOrNew(workspaceId)
+  if (servers.length === 0) return { pushed: 0 }
+
+  // Build all files to push in a single commit
+  const filesToPush: Record<string, string> = {}
+
+  for (const server of servers) {
+    const content = serializeMcpServer(server)
+    filesToPush[`${MCP_SERVERS_PATH}/${server.id}.yaml`] = content
+  }
+
+  // Include manifest with ALL sync-enabled servers
+  const allSyncEnabled = mcpServersRepo.findSyncEnabled(workspaceId)
+  const manifestContent = yaml.dump({
+    items: allSyncEnabled.map((s) => ({ id: s.id })),
+  }, { indent: 2, lineWidth: -1, noRefs: true })
+  filesToPush[`${MCP_SERVERS_PATH}/_manifest.yaml`] = manifestContent
+
+  await provider.commitMultipleFiles(filesToPush, `Sync ${servers.length} MCP server(s)`)
+
+  // Update sync state for each pushed server
+  for (const server of servers) {
+    const content = filesToPush[`${MCP_SERVERS_PATH}/${server.id}.yaml`]
+    const blobSha = createHash('sha1')
+      .update(`blob ${Buffer.byteLength(content)}\0${content}`)
+      .digest('hex')
+    const filePath = `${MCP_SERVERS_PATH}/${server.id}.yaml`
+
+    mcpServersRepo.update(server.id, {
+      remote_sha: blobSha,
+      remote_synced_at: new Date().toISOString(),
+      is_dirty: 0,
+      file_shas: JSON.stringify({
+        [filePath]: {
+          content_hash: createHash('sha256').update(content).digest('hex'),
+          remote_sha: blobSha,
+          commit_sha: null,
+        },
+      }),
+    })
+  }
+
+  logSync('push', `${servers.length} server(s)`, 'MCP servers pushed to remote')
+  return { pushed: servers.length }
+}
+
+export async function deleteMcpServerRemote(
+  server: McpServer,
+  workspaceId?: string,
+): Promise<void> {
+  if (!server.remote_sha) return
+
+  const provider = getProvider(workspaceId)
+  if (!provider) return
+
+  const filePath = `${MCP_SERVERS_PATH}/${server.id}.yaml`
+
+  try {
+    // Delete file and update manifest in a single commit
+    const allSyncEnabled = mcpServersRepo.findSyncEnabled(workspaceId)
+      .filter((s) => s.id !== server.id)
+    const manifestContent = yaml.dump({
+      items: allSyncEnabled.map((s) => ({ id: s.id })),
+    }, { indent: 2, lineWidth: -1, noRefs: true })
+
+    const filesToPush: Record<string, string> = {
+      [`${MCP_SERVERS_PATH}/_manifest.yaml`]: manifestContent,
+    }
+
+    await provider.commitMultipleFiles(
+      filesToPush,
+      `Delete MCP server: ${server.name}`,
+      [filePath],
+    )
+    logSync('push', server.name, 'MCP server deleted from remote')
+  } catch (e) {
+    logSync('push', server.name, `Failed to delete from remote: ${(e as Error).message}`, false)
+  }
+}
+
+function buildSingleFileState(file: FileContent): Record<string, FileState> {
+  return {
+    [file.path]: {
+      content_hash: createHash('sha256').update(file.content).digest('hex'),
+      remote_sha: file.sha ?? null,
+      commit_sha: file.commitSha ?? null,
+    },
+  }
+}
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 // --- Error types ---
 
