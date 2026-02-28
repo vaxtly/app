@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- Sidebar mode selector dropdown — the header label is now a clickable dropdown (matching WorkspaceSwitcher style) for switching between Collections, Environments, and MCP Servers directly from the header; footer mode buttons remain as well
+- MCP server export/import — export individual MCP servers via right-click → Export in the sidebar, export all MCP servers from Settings → Data, and import MCP server configs from any Vaxtly export file (single server, all servers, or full data export)
+- "MCP Servers" export option in Settings → Data alongside the existing Collections, Environments, and Config options
 - MCP server testing — connect to MCP servers and inspect their capabilities natively within Vaxtly, like the MCP Inspector but built into the app
   - Three transport types: stdio (local process), Streamable HTTP, and legacy SSE
   - Per-workspace server configurations stored in the database
