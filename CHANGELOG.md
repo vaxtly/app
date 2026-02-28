@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.9] - 2026-02-27
+
+### Added
+- SSE streaming response support — auto-detects `text/event-stream` responses and streams them in real-time with a live status bar, Events tab, and real-time body accumulation
+- SSE parser service with spec-compliant handling of multi-line data, event types, comments, and partial chunk buffering
+- Events tab in response viewer with auto-scrolling event table, scroll-lock, and event count badge
+- CodeEditor append-only mode for efficient streaming content updates
+- SSE parser unit tests (22 test cases including OpenAI/Anthropic streaming formats)
+
 ## [0.4.8] - 2026-02-27
 
 ### Fixed
