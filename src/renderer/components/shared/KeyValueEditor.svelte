@@ -104,16 +104,16 @@
             <Checkbox checked={entry.enabled} onchange={(v) => update(i, 'enabled', v)} />
           </span>
         {/if}
-        {#if entry.generated}
-          <span class="kv-auto-badge">auto</span>
-        {/if}
-        <span class="kv-cell--key flex min-w-0 flex-1 items-center">
+        <span class="kv-cell--key relative flex min-w-0 flex-1 items-center">
+          {#if entry.generated}
+            <span class="kv-auto-badge">auto</span>
+          {/if}
           <VarInput
             value={entry.key}
             oninput={(value) => update(i, 'key', value)}
             placeholder={keyPlaceholder}
             {readonly}
-            class="kv-input"
+            class="kv-input {entry.generated ? 'kv-input--has-badge' : ''}"
           />
         </span>
         <span class="flex min-w-0 flex-1 items-center">
@@ -168,7 +168,11 @@
 
 <style>
   .kv-auto-badge {
-    flex-shrink: 0;
+    position: absolute;
+    left: 6px;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 1;
     padding: 0 4px;
     font-size: 9px;
     font-weight: 600;
@@ -177,6 +181,11 @@
     border-radius: var(--radius-sm);
     text-transform: uppercase;
     letter-spacing: 0.03em;
+    pointer-events: none;
+  }
+
+  :global(.kv-input--has-badge) {
+    padding-left: 42px !important;
   }
 
   .kv-row--disabled :global(.kv-input) {
