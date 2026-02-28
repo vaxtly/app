@@ -1,7 +1,7 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { IPC } from '../shared/types/ipc'
 import type { Workspace, Collection, Folder, Request, Environment, AppSetting, WindowState } from '../shared/types/models'
-import type { RequestConfig, ResponseData } from '../shared/types/http'
+import type { RequestConfig, ResponseData, SSEStreamStart, SSEChunk, SSEStreamEnd } from '../shared/types/http'
 import type { SyncResult, SyncConflict, SessionLogEntry } from '../shared/types/sync'
 import type { SensitiveFinding } from './services/sensitive-data-scanner'
 import type { CodeLanguage, CodeGenRequest } from './services/code-generator'
@@ -290,6 +290,27 @@ const api = {
       }
       ipcRenderer.on(IPC.SYNC_PULL_COMPLETE, handler)
       return () => ipcRenderer.removeListener(IPC.SYNC_PULL_COMPLETE, handler)
+    },
+    sseStreamStart: (callback: (data: SSEStreamStart) => void): (() => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, data: SSEStreamStart): void => {
+        callback(data)
+      }
+      ipcRenderer.on(IPC.SSE_STREAM_START, handler)
+      return () => ipcRenderer.removeListener(IPC.SSE_STREAM_START, handler)
+    },
+    sseStreamChunk: (callback: (data: SSEChunk) => void): (() => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, data: SSEChunk): void => {
+        callback(data)
+      }
+      ipcRenderer.on(IPC.SSE_STREAM_CHUNK, handler)
+      return () => ipcRenderer.removeListener(IPC.SSE_STREAM_CHUNK, handler)
+    },
+    sseStreamEnd: (callback: (data: SSEStreamEnd) => void): (() => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, data: SSEStreamEnd): void => {
+        callback(data)
+      }
+      ipcRenderer.on(IPC.SSE_STREAM_END, handler)
+      return () => ipcRenderer.removeListener(IPC.SSE_STREAM_END, handler)
     },
   },
 }

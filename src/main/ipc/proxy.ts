@@ -1,9 +1,9 @@
-import { ipcMain, dialog } from 'electron'
+import { ipcMain, dialog, type BrowserWindow } from 'electron'
 import { readFileSync } from 'fs'
 import { basename } from 'path'
 import { Agent, fetch as undiciFetch, FormData as UndiciFormData } from 'undici'
 import { IPC } from '../../shared/types/ipc'
-import type { RequestConfig, ResponseData, FormDataEntry, ResponseCookie } from '../../shared/types/http'
+import type { RequestConfig, ResponseData, FormDataEntry, ResponseCookie, SSEEvent, SSEStreamStart, SSEChunk, SSEStreamEnd } from '../../shared/types/http'
 import { substitute } from '../services/variable-substitution'
 import { executePreRequestScripts, executePostResponseScripts } from '../services/script-execution'
 import { logHttp } from '../services/session-log'
@@ -16,6 +16,7 @@ import * as settingsRepo from '../database/repositories/settings'
 import * as vaultSyncService from '../vault/vault-sync-service'
 import { isTokenExpired, refreshAccessToken } from '../services/oauth2'
 import type { AuthConfig } from '../../shared/types/models'
+import { SSEParser } from '../services/sse-parser'
 
 function truncateBody(body: string | undefined): string | undefined {
   if (!body) return undefined
@@ -42,7 +43,7 @@ const ALLOWED_SCHEMES = new Set(['http:', 'https:'])
 const MAX_BODY_SIZE = 50 * 1024 * 1024 // 50 MB
 
 export function registerProxyHandlers(): void {
-  ipcMain.handle(IPC.PROXY_SEND, async (_event, requestId: string, config: RequestConfig): Promise<ResponseData> => {
+  ipcMain.handle(IPC.PROXY_SEND, async (event, requestId: string, config: RequestConfig): Promise<ResponseData> => {
     const startTime = performance.now()
     let ttfb = 0
 
@@ -195,6 +196,18 @@ export function registerProxyHandlers(): void {
       clearTimeout(timeoutId)
       ttfb = performance.now() - startTime
 
+      // Detect SSE content-type
+      const contentType = response.headers.get('content-type') ?? ''
+      const isSSE = contentType.includes('text/event-stream')
+
+      if (isSSE && response.body) {
+        // SSE: stream events to renderer in real-time
+        return await handleSSEStream(
+          response, requestId, startTime, ttfb, method, resolvedUrl,
+          fetchHeaders, fetchBody, config, event.sender
+        )
+      }
+
       // Check content-length before downloading body
       const contentLength = parseInt(response.headers.get('content-length') ?? '', 10)
       if (contentLength > MAX_BODY_SIZE) {
@@ -327,6 +340,143 @@ export function deleteHeader(headers: Record<string, string>, name: string): voi
   }
 }
 
+
+async function handleSSEStream(
+  response: import('undici').Response,
+  requestId: string,
+  startTime: number,
+  ttfb: number,
+  method: string,
+  resolvedUrl: string,
+  fetchHeaders: Record<string, string>,
+  fetchBody: any,
+  config: RequestConfig,
+  sender: Electron.WebContents,
+): Promise<ResponseData> {
+  const respHeaders: Record<string, string> = {}
+  response.headers.forEach((value, key) => {
+    respHeaders[key] = value
+  })
+  const cookies = parseCookies(response.headers)
+
+  // Send stream start to renderer
+  const startPayload: SSEStreamStart = {
+    requestId,
+    status: response.status,
+    statusText: response.statusText,
+    headers: respHeaders,
+    cookies,
+    timing: { start: startTime, ttfb },
+  }
+  sender.send(IPC.SSE_STREAM_START, startPayload)
+
+  const parser = new SSEParser(startTime)
+  const decoder = new TextDecoder()
+  const allEvents: SSEEvent[] = []
+  let accumulatedBody = ''
+  let accumulatedSize = 0
+  let streamError: string | undefined
+
+  try {
+    // Use async iterator on the ReadableStream body
+    for await (const chunk of response.body!) {
+      const text = decoder.decode(chunk as Buffer, { stream: true })
+      accumulatedBody += text
+      accumulatedSize += (chunk as Buffer).byteLength
+
+      const events = parser.push(text)
+      for (const evt of events) {
+        allEvents.push(evt)
+        const chunkPayload: SSEChunk = {
+          requestId,
+          event: evt,
+          accumulatedSize,
+        }
+        sender.send(IPC.SSE_STREAM_CHUNK, chunkPayload)
+      }
+    }
+
+    // Flush any remaining decoded bytes
+    const finalText = decoder.decode()
+    if (finalText) {
+      accumulatedBody += finalText
+      const events = parser.push(finalText)
+      for (const evt of events) {
+        allEvents.push(evt)
+        const chunkPayload: SSEChunk = {
+          requestId,
+          event: evt,
+          accumulatedSize,
+        }
+        sender.send(IPC.SSE_STREAM_CHUNK, chunkPayload)
+      }
+    }
+  } catch (error) {
+    // AbortError from cancel is expected
+    if (error instanceof Error && error.name !== 'AbortError') {
+      streamError = error.message
+    }
+  }
+
+  const total = performance.now() - startTime
+
+  const result: ResponseData = {
+    status: response.status,
+    statusText: response.statusText,
+    headers: respHeaders,
+    body: accumulatedBody,
+    size: accumulatedSize,
+    timing: { start: startTime, ttfb, total },
+    cookies,
+    isSSE: true,
+    sseEvents: allEvents,
+  }
+
+  // Send stream end to renderer
+  const endPayload: SSEStreamEnd = {
+    requestId,
+    body: accumulatedBody,
+    size: accumulatedSize,
+    timing: { start: startTime, ttfb, total },
+    eventCount: allEvents.length,
+    error: streamError,
+  }
+  sender.send(IPC.SSE_STREAM_END, endPayload)
+
+  // Execute post-response scripts
+  if (config.collectionId) {
+    try {
+      executePostResponseScripts(requestId, config.collectionId, result, config.workspaceId)
+    } catch (error) {
+      logHttp('post-script', resolvedUrl, `Post-response script failed: ${error instanceof Error ? error.message : String(error)}`, false)
+    }
+  }
+
+  // Log to session log
+  const detail: HttpLogDetail = {
+    request: {
+      method,
+      url: resolvedUrl,
+      headers: fetchHeaders,
+      ...(typeof fetchBody === 'string' && { body: truncateBody(fetchBody) }),
+      ...(config.bodyType && config.bodyType !== 'none' && { bodyType: config.bodyType }),
+      ...({ queryParams: parseQueryParams(resolvedUrl) }),
+    },
+    response: {
+      status: response.status,
+      statusText: response.statusText,
+      headers: respHeaders,
+      body: truncateBody(accumulatedBody),
+      size: accumulatedSize,
+      timing: { ttfb: Math.round(ttfb), total: Math.round(total) },
+      ...(cookies.length > 0 && { cookies: cookies.map(c => ({ name: c.name, value: c.value })) }),
+    },
+  }
+
+  logHttp('request', resolvedUrl, `${method} ${response.status} SSE stream (${allEvents.length} events, ${Math.round(total)}ms)`, true, detail)
+
+  return result
+}
 
 export function parseCookies(headers: Headers): ResponseCookie[] {
   const cookies: ResponseCookie[] = []

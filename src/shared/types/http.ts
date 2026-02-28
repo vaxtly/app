@@ -34,12 +34,46 @@ export interface ResponseData {
   size: number
   timing: ResponseTiming
   cookies: ResponseCookie[]
+  isSSE?: boolean
+  sseEvents?: SSEEvent[]
 }
 
 export interface ResponseTiming {
   start: number
   ttfb: number
   total: number
+}
+
+/** A single parsed SSE event */
+export interface SSEEvent {
+  id?: string
+  event: string
+  data: string
+  timestamp: number
+}
+
+export interface SSEChunk {
+  requestId: string
+  event: SSEEvent
+  accumulatedSize: number
+}
+
+export interface SSEStreamStart {
+  requestId: string
+  status: number
+  statusText: string
+  headers: Record<string, string>
+  cookies: ResponseCookie[]
+  timing: { start: number; ttfb: number }
+}
+
+export interface SSEStreamEnd {
+  requestId: string
+  body: string
+  size: number
+  timing: ResponseTiming
+  eventCount: number
+  error?: string
 }
 
 export interface ResponseCookie {

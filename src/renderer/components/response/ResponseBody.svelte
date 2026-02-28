@@ -5,14 +5,18 @@
   interface Props {
     body: string
     headers: Record<string, string>
+    streamingBody?: string
   }
 
-  let { body, headers }: Props = $props()
+  let { body, headers, streamingBody }: Props = $props()
 
   let language = $derived(detectLanguage(headers))
   let formattedBody = $derived(formatBody(body, language))
+
+  let displayBody = $derived(streamingBody != null ? streamingBody : formattedBody)
+  let isStreaming = $derived(streamingBody != null)
 </script>
 
 <div class="h-full p-2">
-  <CodeEditor value={formattedBody} {language} readonly />
+  <CodeEditor value={displayBody} language={isStreaming ? 'text' : language} readonly appendOnly={isStreaming} />
 </div>

@@ -3,7 +3,7 @@
  * Uses Svelte 5 runes for fine-grained reactivity.
  */
 
-import type { Request, ResponseData, Workspace } from '../../lib/types'
+import type { Request, ResponseData, Workspace, SSEEvent } from '../../lib/types'
 
 // --- Types ---
 
@@ -35,6 +35,15 @@ export interface TabRequestState {
   response: ResponseData | null
   loading: boolean
   activeSubTab?: string
+  streaming?: boolean
+  sseEvents?: SSEEvent[]
+  sseBody?: string
+  sseMetrics?: {
+    eventCount: number
+    duration: number
+    size: number
+    startTime: number
+  }
 }
 
 export interface TabEnvironmentState {

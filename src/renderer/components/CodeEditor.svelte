@@ -19,6 +19,7 @@
     enableVariableHighlight?: boolean
     getResolvedVariables?: () => Record<string, ResolvedVariable>
     onchange?: (value: string) => void
+    appendOnly?: boolean
   }
 
   let {
@@ -29,6 +30,7 @@
     enableVariableHighlight = false,
     getResolvedVariables,
     onchange,
+    appendOnly = false,
   }: Props = $props()
 
   let container: HTMLDivElement
@@ -110,7 +112,17 @@
   $effect(() => {
     const v = value   // always access to track as dependency
     if (!view) return
-    if (v !== view.state.doc.toString()) {
+    const currentDoc = view.state.doc.toString()
+    if (v === currentDoc) return
+
+    if (appendOnly && v.startsWith(currentDoc)) {
+      // Append-only: insert just the new content at the end and scroll to bottom
+      const newContent = v.slice(currentDoc.length)
+      view.dispatch({
+        changes: { from: view.state.doc.length, insert: newContent },
+        effects: EditorView.scrollIntoView(view.state.doc.length + newContent.length, { y: 'end' }),
+      })
+    } else {
       view.dispatch({
         changes: { from: 0, to: view.state.doc.length, insert: v }
       })

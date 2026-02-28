@@ -75,6 +75,7 @@ vaxtly/
 │   │   │   ├── yaml-serializer.ts      # Collection ↔ YAML directory serialization/import
 │   │   │   ├── fetch-error.ts            # Shared formatFetchError (SSL, DNS, timeout, etc.)
 │   │   │   ├── sensitive-data-scanner.ts # Scan/sanitize sensitive data in requests & variables
+│   │   │   ├── sse-parser.ts           # Stateful SSE text parser (spec-compliant, handles partial chunks)
 │   │   │   ├── data-export-import.ts  # Export/import collections, environments, config
 │   │   │   ├── postman-import.ts      # Import Postman collections/environments (3 formats)
 │   │   │   └── updater.ts            # electron-updater: init, check, quit-and-install, install-source detection
@@ -133,10 +134,11 @@ vaxtly/
 │           ├── environment/
 │           │   └── EnvironmentEditor.svelte # Name, active toggle, variables, Save button, vault sync (toggle clears variables in both directions)
 │           ├── response/
-│           │   ├── ResponseViewer.svelte  # Status bar + Body/Headers/Cookies/Preview tabs
-│           │   ├── ResponseBody.svelte    # Read-only CodeMirror, auto-detect language
+│           │   ├── ResponseViewer.svelte  # Status bar + Body/Headers/Cookies/Preview/Events tabs + SSE streaming UI
+│           │   ├── ResponseBody.svelte    # Read-only CodeMirror, auto-detect language, streaming body support
 │           │   ├── ResponseHeaders.svelte # Key-value list
 │           │   ├── ResponseCookies.svelte # Cookie cards with attributes
+│           │   ├── SSEEventsTab.svelte    # SSE events debug table with auto-scroll
 │           │   └── HtmlPreview.svelte     # Sandboxed iframe (blob: URL, empty sandbox) HTML response preview
 │           ├── settings/
 │           │   ├── SettingsModal.svelte   # 4-tab bespoke modal (General/Data/Remote/Vault)
@@ -187,7 +189,8 @@ vaxtly/
 │   │   ├── fetch-error.test.ts         # 13 tests: all error branches (SSL, DNS, timeout, etc.)
 │   │   ├── session-log.test.ts         # 6 tests: ring buffer, categories, copy safety
 │   │   ├── proxy-handler.test.ts       # 22 tests: HTTP proxy dispatch, auth, body, scripts
-│   │   └── proxy-helpers.test.ts       # 8 tests: parseCookies + setDefaultHeader + deleteHeader
+│   │   ├── proxy-helpers.test.ts       # 8 tests: parseCookies + setDefaultHeader + deleteHeader
+│   │   └── sse-parser.test.ts          # 22 tests: SSE parsing, multi-line, partial chunks, OpenAI/Anthropic formats
 │   └── e2e/
 │       ├── fixtures/
 │       │   ├── electron-app.ts         # Shared fixture: temp userData, app launch, cleanup
@@ -363,9 +366,12 @@ Pattern: `ipcMain.handle('domain:action', handler)` in main, `ipcRenderer.invoke
 | `environments:reorder` | ipc/environments.ts | `reorder(ids)` | `api.environments.reorder(ids)` |
 | `environments:activate` | ipc/environments.ts | `activate(id, wsId?)` + vault pre-fetch | `api.environments.activate(id, wsId?)` → `{ vaultFailed }?` |
 | `environments:deactivate` | ipc/environments.ts | `deactivate(id)` | `api.environments.deactivate(id)` |
-| `proxy:send` | ipc/proxy.ts | native fetch + var substitution | `api.proxy.send(reqId, config)` |
+| `proxy:send` | ipc/proxy.ts | native fetch + var substitution (auto-detects SSE) | `api.proxy.send(reqId, config)` |
 | `proxy:cancel` | ipc/proxy.ts | AbortController | `api.proxy.cancel(reqId)` |
 | `proxy:pick-file` | ipc/proxy.ts | dialog.showOpenDialog | `api.proxy.pickFile()` |
+| `sse:stream-start` | — (main→renderer push) | — | `api.on.sseStreamStart(cb)` |
+| `sse:stream-chunk` | — (main→renderer push) | — | `api.on.sseStreamChunk(cb)` |
+| `sse:stream-end` | — (main→renderer push) | — | `api.on.sseStreamEnd(cb)` |
 | `variables:resolve` | ipc/variables.ts | `ensureLoaded()` + `getResolvedVariables()` | `api.variables.resolve(wsId?, colId?)` |
 | `variables:resolve-with-source` | ipc/variables.ts | `ensureLoaded()` + `getResolvedVariablesWithSource()` | `api.variables.resolveWithSource(wsId?, colId?)` |
 | `code:generate` | ipc/code-generator.ts | `generateCode(lang, data, ...)` | `api.codeGenerator.generate(...)` |
@@ -574,6 +580,7 @@ Pause/resume supports hover-to-hold: `pauseToast` clears the JS timeout and reco
 - **Post-response scripts**: extracts values and sets collection variables after response
 - **Logs** template URL (not resolved URL with secrets) to session log; error bodies use `error.message` (not stack traces)
 - **HTTP detail capture**: Builds `HttpLogDetail` on both success and failure paths — captures request method/URL/headers/body/queryParams and response status/headers/body/size/timing/cookies. String bodies truncated to `SESSION_LOG_BODY_MAX_SIZE` (50KB); form-data bodies (UndiciFormData) skipped. Passed to `logHttp()` for expandable detail in the session log UI
+- **SSE streaming**: Auto-detects `Content-Type: text/event-stream` responses. Reads body via async iterator, parses events with `SSEParser`, and pushes `sse:stream-start/chunk/end` IPC events to the renderer in real-time. The `proxy:send` invoke still resolves with the complete `ResponseData` (including `isSSE: true` and `sseEvents[]`) when the stream finishes. Timeout is cleared for SSE streams (user cancels manually via AbortController)
 - **Security validation**: URL scheme whitelist (http/https only), HTTP method whitelist, timeout clamped 1-300s, response body size limit 50MB (content-length check), form-data file paths validated against dialog-approved set
 
 ### Variable Substitution (`services/variable-substitution.ts`)
@@ -636,6 +643,12 @@ Pause/resume supports hover-to-hold: `pauseToast` clears the JS timeout and reco
 - `sanitize` option strips sensitive data via `sanitizeRequestData()`/`sanitizeCollectionData()`
 - Strips local file references from form-data before sync
 - `parseYaml()` validates non-null/non-empty returns; `serializeRequest()` wraps JSON.parse of scripts/auth in try/catch
+
+### SSE Parser (`services/sse-parser.ts`)
+- Stateful text parser per the [SSE spec](https://html.spec.whatwg.org/multipage/server-sent-events.html#event-stream-interpretation)
+- `push(chunk: string): SSEEvent[]` — returns 0+ complete events per chunk, buffers partial lines across boundaries
+- Handles: multi-line `data:` fields (joined with `\n`), `event:` field (defaults to `'message'`), `id:` field (persists across events), comment lines (`:` prefix ignored), all line ending styles (`\n`, `\r\n`, `\r`)
+- Used by `handleSSEStream()` in `ipc/proxy.ts`
 
 ### Sensitive Data Scanner (`services/sensitive-data-scanner.ts`)
 - `scanRequest(request)` → `SensitiveFinding[]` — scans auth, headers, params, body

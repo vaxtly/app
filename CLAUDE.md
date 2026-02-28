@@ -13,10 +13,11 @@ See `ARCHITECTURE.md` for the complete technical reference.
 | Shared types | `src/shared/types/*.ts` + `src/shared/constants.ts` |
 | Database schema | `src/main/database/migrations/001_initial_schema.ts` |
 | All IPC handlers | `src/main/ipc/*.ts` |
+| Main services | `src/main/services/*.ts` |
 | All repositories | `src/main/database/repositories/*.ts` |
 | Preload (full API) | `src/main/preload.ts` |
 | Stores | `src/renderer/lib/stores/*.svelte.ts` |
-| Tests | `tests/unit/repositories.test.ts` |
+| Tests | `tests/unit/*.test.ts` |
 
 ## Commands
 
@@ -25,6 +26,7 @@ npm run dev          # Hot-reload dev server
 npm run build        # Production build (electron-vite build)
 npm run test         # Vitest single run
 npm run test:watch   # Vitest watch mode
+npx electron-rebuild -f -w better-sqlite3  # Rebuild native module for Electron (run after npm install)
 ```
 
 ## Conventions
@@ -54,6 +56,7 @@ npm run test:watch   # Vitest watch mode
 ### IPC
 - Pattern: `ipcMain.handle('domain:action', handler)` in main.
 - Preload exposes typed API: `window.api.domain.action()`.
+- **Push channels** (main→renderer): use `event.sender.send(IPC.CHANNEL, data)` in handlers + `ipcRenderer.on` listeners in preload's `on` namespace. Return cleanup function `() => void`.
 - Domain prefixes: workspaces, collections, folders, requests, environments, histories, proxy, sync, vault, settings, window.
 
 ### Testing

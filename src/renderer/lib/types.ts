@@ -6,6 +6,10 @@ export type {
   ResponseCookie,
   ResponseTiming,
   BodyType,
+  SSEEvent,
+  SSEChunk,
+  SSEStreamStart,
+  SSEStreamEnd,
 } from '../../shared/types/http'
 
 export type {

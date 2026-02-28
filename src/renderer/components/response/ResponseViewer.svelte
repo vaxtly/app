@@ -1,20 +1,37 @@
 <script lang="ts">
-  import type { ResponseData } from '../../lib/types'
+  import type { ResponseData, SSEEvent } from '../../lib/types'
   import HtmlPreview from './HtmlPreview.svelte'
   import ResponseBody from './ResponseBody.svelte'
   import ResponseHeaders from './ResponseHeaders.svelte'
   import ResponseCookies from './ResponseCookies.svelte'
+  import SSEEventsTab from './SSEEventsTab.svelte'
 
   import { formatSize, formatTime } from '../../lib/utils/formatters'
 
   interface Props {
     response: ResponseData | null
     loading: boolean
+    streaming?: boolean
+    sseEvents?: SSEEvent[]
+    sseBody?: string
+    sseMetrics?: {
+      eventCount: number
+      duration: number
+      size: number
+      startTime: number
+    }
   }
 
-  let { response, loading }: Props = $props()
+  let { response, loading, streaming = false, sseEvents, sseBody, sseMetrics }: Props = $props()
 
-  let activeTab = $state<'body' | 'headers' | 'cookies' | 'preview'>('body')
+  let activeTab = $state<'body' | 'headers' | 'cookies' | 'preview' | 'events'>('body')
+
+  // Auto-switch to Events tab when SSE streaming starts
+  $effect(() => {
+    if (streaming && response?.isSSE) {
+      activeTab = 'events'
+    }
+  })
 
   let headerCount = $derived(response ? Object.keys(response.headers).length : 0)
   let cookieCount = $derived(response?.cookies?.length ?? 0)
@@ -62,7 +79,7 @@
       </div>
     </div>
 
-  {:else if loading}
+  {:else if loading && !streaming}
     <!-- Loading state -->
     <div class="flex flex-1 items-center justify-center">
       <div class="text-center">
@@ -90,7 +107,29 @@
           <span class="text-xs text-surface-300 whitespace-nowrap overflow-hidden text-ellipsis">{response.statusText}</span>
         {/if}
       </div>
-      {#if !isError}
+      {#if streaming && sseMetrics}
+        <div class="flex items-center gap-2 shrink-0">
+          <span class="flex items-center gap-1.5">
+            <span class="sse-pulse w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+            <span class="text-[9px] uppercase tracking-widest font-semibold text-emerald-400">STREAMING</span>
+          </span>
+          <span class="w-px h-2.5 bg-surface-700"></span>
+          <span class="flex items-baseline gap-1">
+            <span class="text-[9px] uppercase tracking-widest text-surface-500">Events</span>
+            <span class="font-mono text-[11px] text-surface-300" style="font-feature-settings: var(--font-feature-mono)">{sseMetrics.eventCount}</span>
+          </span>
+          <span class="w-px h-2.5 bg-surface-700"></span>
+          <span class="flex items-baseline gap-1">
+            <span class="text-[9px] uppercase tracking-widest text-surface-500">Duration</span>
+            <span class="font-mono text-[11px] text-surface-300" style="font-feature-settings: var(--font-feature-mono)">{formatTime(sseMetrics.duration)}</span>
+          </span>
+          <span class="w-px h-2.5 bg-surface-700"></span>
+          <span class="flex items-baseline gap-1">
+            <span class="text-[9px] uppercase tracking-widest text-surface-500">Size</span>
+            <span class="font-mono text-[11px] text-surface-300" style="font-feature-settings: var(--font-feature-mono)">{formatSize(sseMetrics.size)}</span>
+          </span>
+        </div>
+      {:else if !isError}
         <div class="flex items-center gap-2 shrink-0">
           <span class="flex items-baseline gap-1">
             <span class="text-[9px] uppercase tracking-widest text-surface-500">TTFB</span>
@@ -162,18 +201,32 @@
             Preview
           </button>
         {/if}
+        {#if response?.isSSE}
+          <button
+            class="rv-tab flex items-center gap-[5px] px-2.5 my-1 border-none bg-transparent text-surface-400 text-xs font-medium cursor-pointer relative whitespace-nowrap rounded-lg transition-all duration-150 hover:text-surface-200 hover:bg-[var(--tint-subtle)]"
+            class:rv-tab--active={activeTab === 'events'}
+            onclick={() => activeTab = 'events'}
+          >
+            Events
+            {#if sseEvents?.length}
+              <span class="rv-tab-badge text-[10px] leading-none py-0.5 px-[5px] rounded-full bg-surface-600/60 text-surface-300 font-medium">{sseEvents.length}</span>
+            {/if}
+          </button>
+        {/if}
       </div>
 
       <!-- Content -->
       <div class="flex-1 overflow-hidden">
         {#if activeTab === 'body'}
-          <ResponseBody body={response.body} headers={response.headers} />
+          <ResponseBody body={response.body} headers={response.headers} streamingBody={streaming ? sseBody : undefined} />
         {:else if activeTab === 'headers'}
           <ResponseHeaders headers={response.headers} />
         {:else if activeTab === 'cookies'}
           <ResponseCookies cookies={response.cookies ?? []} />
         {:else if activeTab === 'preview'}
           <HtmlPreview body={response.body} />
+        {:else if activeTab === 'events'}
+          <SSEEventsTab events={sseEvents} {streaming} />
         {/if}
       </div>
     {/if}
@@ -230,6 +283,16 @@
   .rv-status--client-error .rv-status-code { color: var(--color-status-client-error); }
   .rv-status--server-error .rv-status-code { color: var(--color-danger-light); }
   .rv-status--error .rv-status-code { color: var(--color-danger-light); }
+
+  /* --- SSE streaming pulse --- */
+  .sse-pulse {
+    animation: sse-pulse 1.5s ease-in-out infinite;
+  }
+
+  @keyframes sse-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
 
   /* --- Active tab indicator (glass pill) --- */
   .rv-tab--active {

@@ -112,6 +112,11 @@ export const IPC = {
   SYNC_CONFLICT: 'sync:conflict',
   SYNC_PULL_COMPLETE: 'sync:pull-complete',
 
+  // SSE streaming (main→renderer push)
+  SSE_STREAM_START: 'sse:stream-start',
+  SSE_STREAM_CHUNK: 'sse:stream-chunk',
+  SSE_STREAM_END: 'sse:stream-end',
+
   // Session Log (main→renderer push)
   LOG_PUSH: 'log:push',
   LOG_LIST: 'log:list',

@@ -13,7 +13,7 @@
   import { collectionsStore } from '../../lib/stores/collections.svelte'
   import { environmentsStore } from '../../lib/stores/environments.svelte'
   import { settingsStore } from '../../lib/stores/settings.svelte'
-  import type { KeyValueEntry, AuthConfig, ScriptsConfig, FormDataEntry, ResponseData } from '../../lib/types'
+  import type { KeyValueEntry, AuthConfig, ScriptsConfig, FormDataEntry, ResponseData, SSEStreamStart, SSEChunk, SSEStreamEnd } from '../../lib/types'
   import type { ResolvedVariable } from '../../lib/utils/variable-highlight'
 
   interface Props {
@@ -236,7 +236,7 @@
   async function sendRequest(): Promise<void> {
     if (!state?.url?.trim()) return
 
-    update({ loading: true, response: null })
+    update({ loading: true, response: null, streaming: false, sseEvents: undefined, sseBody: undefined, sseMetrics: undefined })
 
     // Build headers map (generated + user headers are already merged)
     const headerMap: Record<string, string> = {}
@@ -267,6 +267,60 @@
       bodyContent = JSON.stringify({ query: state.body ?? '', variables: {} })
     }
 
+    // Register SSE listeners before sending (filtered by requestId)
+    const cleanups: Array<() => void> = []
+
+    cleanups.push(window.api.on.sseStreamStart((data: SSEStreamStart) => {
+      if (data.requestId !== requestId) return
+      update({
+        streaming: true,
+        sseEvents: [],
+        sseBody: '',
+        sseMetrics: { eventCount: 0, duration: 0, size: 0, startTime: data.timing.start },
+        response: {
+          status: data.status,
+          statusText: data.statusText,
+          headers: data.headers,
+          body: '',
+          size: 0,
+          timing: { start: data.timing.start, ttfb: data.timing.ttfb, total: 0 },
+          cookies: data.cookies,
+          isSSE: true,
+        },
+      })
+    }))
+
+    cleanups.push(window.api.on.sseStreamChunk((data: SSEChunk) => {
+      if (data.requestId !== requestId) return
+      const current = appStore.getTabState(tabId)
+      if (!current) return
+      const events = [...(current.sseEvents ?? []), data.event]
+      const body = (current.sseBody ?? '') + data.event.data
+      update({
+        sseEvents: events,
+        sseBody: body,
+        sseMetrics: {
+          eventCount: events.length,
+          duration: data.event.timestamp,
+          size: data.accumulatedSize,
+          startTime: current.sseMetrics?.startTime ?? 0,
+        },
+      })
+    }))
+
+    cleanups.push(window.api.on.sseStreamEnd((data: SSEStreamEnd) => {
+      if (data.requestId !== requestId) return
+      update({
+        streaming: false,
+        sseMetrics: {
+          eventCount: data.eventCount,
+          duration: data.timing.total,
+          size: data.size,
+          startTime: data.timing.start,
+        },
+      })
+    }))
+
     try {
       const response = await window.api.proxy.send(requestId, {
         method: state.method,
@@ -278,7 +332,7 @@
         workspaceId: appStore.activeWorkspaceId ?? undefined,
         collectionId: collectionsStore.getRequestById(requestId)?.collection_id,
       })
-      update({ response, loading: false })
+      update({ response, loading: false, streaming: false })
 
       // Refresh resolved variables and environment store — post-response scripts may have set new values
       refreshResolvedVars()
@@ -288,6 +342,7 @@
     } catch (error) {
       update({
         loading: false,
+        streaming: false,
         response: {
           status: 0,
           statusText: error instanceof Error ? error.message : 'Unknown error',
@@ -298,12 +353,14 @@
           cookies: [],
         },
       })
+    } finally {
+      for (const cleanup of cleanups) cleanup()
     }
   }
 
   function cancelRequest(): void {
     window.api.proxy.cancel(requestId)
-    update({ loading: false })
+    update({ loading: false, streaming: false })
   }
 
   /** Persist current state to DB only (no sync). Fast path for send. */
@@ -576,7 +633,14 @@
 
       <!-- Response section -->
       <div class="flex flex-col min-w-0 min-h-0 overflow-hidden" style="flex: {100 - splitPercent} 0 0%;">
-        <ResponseViewer response={state.response} loading={state.loading} />
+        <ResponseViewer
+          response={state.response}
+          loading={state.loading}
+          streaming={state.streaming}
+          sseEvents={state.sseEvents}
+          sseBody={state.sseBody}
+          sseMetrics={state.sseMetrics}
+        />
       </div>
     </div>
   </div>
