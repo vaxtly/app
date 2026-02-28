@@ -83,7 +83,7 @@ vaxtly/
 │   │   │   ├── fetch-error.ts            # Shared formatFetchError (SSL, DNS, timeout, etc.)
 │   │   │   ├── sensitive-data-scanner.ts # Scan/sanitize sensitive data in requests, variables & MCP servers
 │   │   │   ├── sse-parser.ts           # Stateful SSE text parser (spec-compliant, handles partial chunks)
-│   │   │   ├── data-export-import.ts  # Export/import collections, environments, config
+│   │   │   ├── data-export-import.ts  # Export/import collections, environments, MCP servers, config
 │   │   │   ├── postman-import.ts      # Import Postman collections/environments (3 formats)
 │   │   │   ├── mcp-yaml-serializer.ts # MCP server ↔ YAML directory serialization/import
 │   │   │   └── updater.ts            # electron-updater: init, check, quit-and-install, install-source detection
@@ -162,7 +162,7 @@ vaxtly/
 │           ├── settings/
 │           │   ├── SettingsModal.svelte   # 4-tab bespoke modal (General/Data/Remote/Vault)
 │           │   ├── GeneralTab.svelte      # Layout, timeout, SSL, redirects, about
-│           │   ├── DataTab.svelte         # Export (type pills) + Import (Vaxtly/Postman/Insomnia)
+│           │   ├── DataTab.svelte         # Export (type pills: all/collections/environments/mcp/config) + Import (Vaxtly/Postman/Insomnia)
 │           │   ├── RemoteSyncTab.svelte   # Git provider config, test/pull/push (conflicts handled by centralized ConflictModal in App.svelte)
 │           │   └── VaultTab.svelte        # Vault URL, auth, namespace, actions
 │           ├── modals/
@@ -445,7 +445,8 @@ Pattern: `ipcMain.handle('domain:action', handler)` in main, `ipcRenderer.invoke
 | `vault:push-variables` | ipc/vault.ts | `vaultService.pushVariables(envId, vars)` | `api.vault.pushVariables(envId, vars)` |
 | `vault:delete-secrets` | ipc/vault.ts | `vaultService.deleteSecrets(envId)` | `api.vault.deleteSecrets(envId)` |
 | `vault:migrate` | ipc/vault.ts | `vaultService.migrateEnvironment(...)` | `api.vault.migrate(envId, old, new)` |
-| `data:export` | ipc/data-import-export.ts | `dataService.export{All,Collections,...}()` | `api.data.export(type, wsId?)` |
+| `data:export` | ipc/data-import-export.ts | `dataService.export{All,Collections,Environments,McpServers,Config}()` | `api.data.export(type, wsId?)` |
+| `data:export-mcp-server` | ipc/data-import-export.ts | `dataService.exportSingleMcpServer(id)` | `api.data.exportMcpServer(id)` |
 | `data:pick-and-read` | ipc/data-import-export.ts | `dialog.showOpenDialog()` + `readFileSync()` | `api.data.pickAndRead()` |
 | `data:import` | ipc/data-import-export.ts | `dataService.importData(json, wsId?)` | `api.data.import(json, wsId?)` |
 | `postman:import` | ipc/data-import-export.ts | `importPostman(json, wsId?)` | `api.data.importPostman(json, wsId?)` |
@@ -849,12 +850,14 @@ Pause/resume supports hover-to-hold: `pauseToast` clears the JS timeout and reco
 - `ensureLoaded(envId, wsId?)` → fetch from Vault if not already cached (used by proxy handler before variable substitution)
 
 ### Data Export/Import (`services/data-export-import.ts`)
-- Export: `exportAll(wsId?)`, `exportCollections(wsId?)`, `exportEnvironments(wsId?)`, `exportConfig()`
+- Export: `exportAll(wsId?)`, `exportCollections(wsId?)`, `exportEnvironments(wsId?)`, `exportMcpServers(wsId?)`, `exportConfig()`
+- Single-item export: `exportSingleCollection(id)`, `exportSingleMcpServer(id)` (used by sidebar context menus)
 - All exports return: `{ vaxtly_export: true, version: 1, type, exported_at, data }`
-- `importData(json, wsId?)` → detects type, dispatches to importCollections/Environments/Config
+- `importData(json, wsId?)` → detects type, dispatches to importCollections/Environments/McpServers/Config
 - Collections exported with nested folder tree + requests; vault-synced environments export with empty variables
+- MCP servers exported with transport config (command/args/env/cwd for stdio; url/headers for http/sse)
 - Config export covers `sync.*` and `vault.*` settings (tokens NOT exported)
-- Unique name generation for duplicate collections/environments
+- Unique name generation for duplicate collections/environments/MCP servers
 
 ### Postman Import (`services/postman-import.ts`)
 - `importPostman(json, wsId?)` → `PostmanImportResult`
