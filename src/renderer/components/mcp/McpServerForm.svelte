@@ -91,22 +91,12 @@
     const data: Record<string, unknown> = {
       name,
       transport_type: transportType,
-    }
-
-    if (transportType === 'stdio') {
-      data.command = command || null
-      data.args = args.trim() ? JSON.stringify(args.trim().split(/\s+/)) : null
-      data.env = entriesToJson(envEntries)
-      data.cwd = cwd.trim() || null
-      data.url = null
-      data.headers = null
-    } else {
-      data.url = url || null
-      data.headers = entriesToJson(headerEntries)
-      data.command = null
-      data.args = null
-      data.env = null
-      data.cwd = null
+      command: command || null,
+      args: args.trim() ? JSON.stringify(args.trim().split(/\s+/)) : null,
+      env: entriesToJson(envEntries),
+      cwd: cwd.trim() || null,
+      url: url || null,
+      headers: entriesToJson(headerEntries),
     }
 
     const updated = await mcpStore.updateServer(serverId, data)
