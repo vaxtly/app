@@ -5,6 +5,7 @@
  * and transports. Pushes status/traffic/notification events to the renderer.
  */
 
+import { existsSync } from 'node:fs'
 import { v4 as uuid } from 'uuid'
 import { BrowserWindow } from 'electron'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
@@ -110,10 +111,19 @@ async function createTransportWithVars(server: McpServer): Promise<Transport> {
       }
       const resolvedCwd = server.cwd ? sub(server.cwd) : undefined
 
+      // Validate cwd exists before spawning — child_process.spawn throws a
+      // cryptic "spawn cmd.exe ENOENT" on Windows when the cwd is invalid.
+      if (resolvedCwd && !existsSync(resolvedCwd)) {
+        throw new Error(`Working directory does not exist: ${resolvedCwd}`)
+      }
+
+      // Always pass the full process.env so the child gets all system vars
+      // (COMSPEC, PATHEXT, WINDIR, etc.). The SDK's getDefaultEnvironment()
+      // only inherits a small subset which can cause spawn failures on Windows.
       return new StdioClientTransport({
         command: resolvedCommand,
         args: resolvedArgs,
-        env: resolvedEnv ? { ...process.env, ...resolvedEnv } as Record<string, string> : undefined,
+        env: { ...process.env, ...(resolvedEnv ?? {}) } as Record<string, string>,
         cwd: resolvedCwd,
       })
     }

@@ -1,18 +1,18 @@
 <script lang="ts">
   import { mcpStore } from '../../lib/stores/mcp.svelte'
-  import type { McpResourceReadResult } from '../../lib/types'
+  import type { McpLastResponse } from '../../lib/stores/app.svelte'
 
   interface Props {
     serverId: string
+    onreadresult?: (response: McpLastResponse) => void
   }
 
-  let { serverId }: Props = $props()
+  let { serverId, onreadresult }: Props = $props()
 
   let connectionState = $derived(mcpStore.connectionStates[serverId])
   let resources = $derived(connectionState?.resources ?? [])
   let resourceTemplates = $derived(connectionState?.resourceTemplates ?? [])
 
-  let readResults = $state<Record<string, McpResourceReadResult | null>>({})
   let readErrors = $state<Record<string, string | null>>({})
   let readLoading = $state<Record<string, boolean>>({})
   let expandedUri = $state<string | null>(null)
@@ -21,15 +21,18 @@
     expandedUri = expandedUri === uri ? null : uri
   }
 
-  async function readResource(uri: string): Promise<void> {
+  async function readResource(uri: string, name: string): Promise<void> {
     readLoading[uri] = true
     readErrors[uri] = null
+    onreadresult?.({ type: 'resource', name, loading: true, timestamp: Date.now() })
 
     try {
       const result = await mcpStore.readResource(serverId, uri)
-      readResults[uri] = result
+      onreadresult?.({ type: 'resource', name, result, loading: false, timestamp: Date.now() })
     } catch (err) {
-      readErrors[uri] = err instanceof Error ? err.message : String(err)
+      const error = err instanceof Error ? err.message : String(err)
+      readErrors[uri] = error
+      onreadresult?.({ type: 'resource', name, error, loading: false, timestamp: Date.now() })
     } finally {
       readLoading[uri] = false
     }
@@ -74,7 +77,7 @@
               {/if}
 
               <button
-                onclick={() => readResource(resource.uri)}
+                onclick={() => readResource(resource.uri, resource.name)}
                 disabled={readLoading[resource.uri]}
                 class="self-start rounded-md border border-brand-500/30 bg-brand-500/15 px-3 py-1.5 text-xs text-brand-300 transition-colors hover:bg-brand-500/25 disabled:opacity-50"
               >
@@ -84,21 +87,6 @@
               {#if readErrors[resource.uri]}
                 <div class="rounded-md bg-red-500/10 px-3 py-2 text-xs text-red-300">
                   {readErrors[resource.uri]}
-                </div>
-              {/if}
-
-              {#if readResults[resource.uri]}
-                <div class="flex flex-col gap-1">
-                  <span class="text-[10px] uppercase tracking-wider text-surface-500">Content</span>
-                  {#each readResults[resource.uri]?.contents ?? [] as content}
-                    <div class="rounded-md bg-[var(--tint-subtle)] p-3">
-                      {#if content.text}
-                        <pre class="whitespace-pre-wrap font-mono text-xs text-surface-300">{content.text}</pre>
-                      {:else if content.blob}
-                        <p class="text-xs text-surface-400">Binary content ({content.mimeType ?? 'unknown type'})</p>
-                      {/if}
-                    </div>
-                  {/each}
                 </div>
               {/if}
             </div>

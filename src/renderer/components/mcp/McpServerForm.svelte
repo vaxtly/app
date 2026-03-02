@@ -88,15 +88,21 @@
   })
 
   async function handleSave(): Promise<void> {
+    // Only send fields for the active transport — omitted fields keep their
+    // existing DB values (the repo's !== undefined check preserves them).
     const data: Record<string, unknown> = {
       name,
       transport_type: transportType,
-      command: command || null,
-      args: args.trim() ? JSON.stringify(args.trim().split(/\s+/)) : null,
-      env: entriesToJson(envEntries),
-      cwd: cwd.trim() || null,
-      url: url || null,
-      headers: entriesToJson(headerEntries),
+    }
+
+    if (transportType === 'stdio') {
+      data.command = command || null
+      data.args = args.trim() ? JSON.stringify(args.trim().split(/\s+/)) : null
+      data.env = entriesToJson(envEntries)
+      data.cwd = cwd.trim() || null
+    } else {
+      data.url = url || null
+      data.headers = entriesToJson(headerEntries)
     }
 
     const updated = await mcpStore.updateServer(serverId, data)

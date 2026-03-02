@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.5.3] - 2026-03-02
+
+### Added
+- MCP inspector split-panel layout — resizable two-column view with input (Tools, Resources, Prompts) on the left and output (Response, Traffic, Notifications) on the right, matching the HTTP request builder's split layout
+- Dedicated response pane showing tool call results, resource contents, and prompt messages alongside the input that triggered them
+
+### Fixed
+- MCP server HTTP/SSE connections failing with "TypeError: fetch failed" when both stdio and HTTP transport configs are saved — form now only sends active transport fields, preventing stale stdio values from overwriting HTTP config
+- MCP stdio server failing to spawn on Windows with "spawn cmd.exe ENOENT" — now passes the full process environment to the child process (instead of the SDK's minimal subset missing COMSPEC, PATHEXT, etc.) and validates the working directory exists before spawning with a clear error message
+
 ## [0.5.2] - 2026-03-02
 
 ### Fixed

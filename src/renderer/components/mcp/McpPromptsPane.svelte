@@ -1,19 +1,19 @@
 <script lang="ts">
   import { mcpStore } from '../../lib/stores/mcp.svelte'
-  import type { McpPromptGetResult } from '../../lib/types'
+  import type { McpLastResponse } from '../../lib/stores/app.svelte'
 
   interface Props {
     serverId: string
+    ongetresult?: (response: McpLastResponse) => void
   }
 
-  let { serverId }: Props = $props()
+  let { serverId, ongetresult }: Props = $props()
 
   let connectionState = $derived(mcpStore.connectionStates[serverId])
   let prompts = $derived(connectionState?.prompts ?? [])
 
   let expandedPrompt = $state<string | null>(null)
   let promptArgs = $state<Record<string, Record<string, string>>>({})
-  let promptResults = $state<Record<string, McpPromptGetResult | null>>({})
   let promptErrors = $state<Record<string, string | null>>({})
   let promptLoading = $state<Record<string, boolean>>({})
 
@@ -32,14 +32,17 @@
   async function getPrompt(name: string): Promise<void> {
     promptLoading[name] = true
     promptErrors[name] = null
+    ongetresult?.({ type: 'prompt', name, loading: true, timestamp: Date.now() })
 
     try {
       const args = getArgs(name)
       const hasArgs = Object.keys(args).length > 0
       const result = await mcpStore.getPrompt(serverId, name, hasArgs ? args : undefined)
-      promptResults[name] = result
+      ongetresult?.({ type: 'prompt', name, result, loading: false, timestamp: Date.now() })
     } catch (err) {
-      promptErrors[name] = err instanceof Error ? err.message : String(err)
+      const error = err instanceof Error ? err.message : String(err)
+      promptErrors[name] = error
+      ongetresult?.({ type: 'prompt', name, error, loading: false, timestamp: Date.now() })
     } finally {
       promptLoading[name] = false
     }
@@ -116,29 +119,6 @@
               {#if promptErrors[prompt.name]}
                 <div class="rounded-md bg-red-500/10 px-3 py-2 text-xs text-red-300">
                   {promptErrors[prompt.name]}
-                </div>
-              {/if}
-
-              {#if promptResults[prompt.name]}
-                <div class="flex flex-col gap-2">
-                  {#if promptResults[prompt.name]?.description}
-                    <p class="text-xs text-surface-400">{promptResults[prompt.name]?.description}</p>
-                  {/if}
-                  <span class="text-[10px] uppercase tracking-wider text-surface-500">Messages</span>
-                  {#each promptResults[prompt.name]?.messages ?? [] as message, i}
-                    <div class="rounded-md bg-[var(--tint-subtle)] p-3">
-                      <div class="mb-1 text-[10px] font-medium uppercase text-surface-500">{message.role}</div>
-                      {#if message.content.type === 'text'}
-                        <pre class="whitespace-pre-wrap font-mono text-xs text-surface-300">{message.content.text}</pre>
-                      {:else if message.content.type === 'image'}
-                        <img
-                          src="data:{message.content.mimeType ?? 'image/png'};base64,{message.content.data}"
-                          alt="Prompt message {i}"
-                          class="max-h-48 rounded"
-                        />
-                      {/if}
-                    </div>
-                  {/each}
                 </div>
               {/if}
             </div>

@@ -3,7 +3,7 @@
  * Uses Svelte 5 runes for fine-grained reactivity.
  */
 
-import type { Request, ResponseData, Workspace, SSEEvent } from '../../lib/types'
+import type { Request, ResponseData, Workspace, SSEEvent, McpToolCallResult, McpResourceReadResult, McpPromptGetResult } from '../../lib/types'
 
 // --- Types ---
 
@@ -53,11 +53,23 @@ export interface TabEnvironmentState {
   initialized: boolean
 }
 
-export type McpSubTab = 'tools' | 'resources' | 'prompts' | 'traffic' | 'notifications'
+export type McpLeftTab = 'tools' | 'resources' | 'prompts'
+export type McpRightTab = 'response' | 'traffic' | 'notifications'
+
+export interface McpLastResponse {
+  type: 'tool' | 'resource' | 'prompt'
+  name: string
+  result?: McpToolCallResult | McpResourceReadResult | McpPromptGetResult
+  error?: string
+  loading: boolean
+  timestamp: number
+}
 
 export interface TabMcpState {
   serverId: string
-  activeSubTab: McpSubTab
+  activeLeftTab: McpLeftTab
+  activeRightTab: McpRightTab
+  lastResponse: McpLastResponse | null
 }
 
 type SidebarMode = 'collections' | 'environments' | 'mcp'
@@ -420,7 +432,9 @@ function openMcpTab(server: { id: string; name: string }): void {
 
   mcpTabStates[tab.id] = {
     serverId: server.id,
-    activeSubTab: 'tools',
+    activeLeftTab: 'tools',
+    activeRightTab: 'response',
+    lastResponse: null,
   }
 }
 

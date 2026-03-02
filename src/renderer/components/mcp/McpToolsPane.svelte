@@ -1,20 +1,20 @@
 <script lang="ts">
   import { mcpStore } from '../../lib/stores/mcp.svelte'
   import McpJsonSchemaForm from './McpJsonSchemaForm.svelte'
-  import type { McpToolCallResult } from '../../lib/types'
+  import type { McpLastResponse } from '../../lib/stores/app.svelte'
 
   interface Props {
     serverId: string
+    oncallresult?: (response: McpLastResponse) => void
   }
 
-  let { serverId }: Props = $props()
+  let { serverId, oncallresult }: Props = $props()
 
   let connectionState = $derived(mcpStore.connectionStates[serverId])
   let tools = $derived(connectionState?.tools ?? [])
 
   let expandedTool = $state<string | null>(null)
   let toolArgs = $state<Record<string, Record<string, unknown>>>({})
-  let toolResults = $state<Record<string, McpToolCallResult | null>>({})
   let toolErrors = $state<Record<string, string | null>>({})
   let toolLoading = $state<Record<string, boolean>>({})
 
@@ -33,13 +33,15 @@
   async function callTool(name: string): Promise<void> {
     toolLoading[name] = true
     toolErrors[name] = null
-    toolResults[name] = null
+    oncallresult?.({ type: 'tool', name, loading: true, timestamp: Date.now() })
 
     try {
       const result = await mcpStore.callTool(serverId, name, getArgs(name))
-      toolResults[name] = result
+      oncallresult?.({ type: 'tool', name, result, loading: false, timestamp: Date.now() })
     } catch (err) {
-      toolErrors[name] = err instanceof Error ? err.message : String(err)
+      const error = err instanceof Error ? err.message : String(err)
+      toolErrors[name] = error
+      oncallresult?.({ type: 'tool', name, error, loading: false, timestamp: Date.now() })
     } finally {
       toolLoading[name] = false
     }
@@ -103,35 +105,6 @@
               {#if toolErrors[tool.name]}
                 <div class="rounded-md bg-red-500/10 px-3 py-2 text-xs text-red-300">
                   {toolErrors[tool.name]}
-                </div>
-              {/if}
-
-              <!-- Result -->
-              {#if toolResults[tool.name]}
-                <div class="flex flex-col gap-1">
-                  <span class="text-[10px] uppercase tracking-wider text-surface-500">
-                    Result {toolResults[tool.name]?.isError ? '(error)' : ''}
-                  </span>
-                  <div class="rounded-md bg-[var(--tint-subtle)] p-3">
-                    {#each toolResults[tool.name]?.content ?? [] as block}
-                      {#if block.type === 'text'}
-                        <pre class="whitespace-pre-wrap font-mono text-xs text-surface-300">{block.text}</pre>
-                      {:else if block.type === 'image'}
-                        <img
-                          src="data:{block.mimeType ?? 'image/png'};base64,{block.data}"
-                          alt="Tool result"
-                          class="max-h-64 rounded"
-                        />
-                      {:else if block.type === 'resource'}
-                        <div class="text-xs text-surface-400">
-                          <span class="font-medium">{block.resource?.uri}</span>
-                          {#if block.resource?.text}
-                            <pre class="mt-1 whitespace-pre-wrap font-mono text-surface-300">{block.resource.text}</pre>
-                          {/if}
-                        </div>
-                      {/if}
-                    {/each}
-                  </div>
                 </div>
               {/if}
             </div>
