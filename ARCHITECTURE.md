@@ -134,12 +134,13 @@ vaxtly/
 │           │   ├── McpServerList.svelte   # MCP server list with status dots + sync indicators + context menu (connect, edit, sync toggle, push)
 │           │   └── WorkspaceSwitcher.svelte # Dropdown workspace selector + rename/delete/create
 │           ├── mcp/
-│           │   ├── McpInspector.svelte    # Main tab: header + sub-tabs (Tools/Resources/Prompts/Traffic/Notifications)
+│           │   ├── McpInspector.svelte    # Split-panel: left (Tools/Resources/Prompts) + resizable divider + right (Response/Traffic/Notifications)
 │           │   ├── McpServerForm.svelte   # Server config form (transport, command/URL, env vars, headers) + {{variable}} highlighting via VarInput
 │           │   ├── McpJsonSchemaForm.svelte # Dynamic JSON Schema form for tool args
-│           │   ├── McpToolsPane.svelte    # Tool list + call + results
-│           │   ├── McpResourcesPane.svelte # Resource list + read
-│           │   ├── McpPromptsPane.svelte  # Prompt list + get with arguments
+│           │   ├── McpToolsPane.svelte    # Tool list + call (emits results via callback)
+│           │   ├── McpResourcesPane.svelte # Resource list + read (emits results via callback)
+│           │   ├── McpPromptsPane.svelte  # Prompt list + get with arguments (emits results via callback)
+│           │   ├── McpResponsePane.svelte # Response display: tool/resource/prompt results, loading, errors
 │           │   ├── McpTrafficPane.svelte  # JSON-RPC traffic log
 │           │   └── McpNotificationsPane.svelte # Server notifications log
 │           ├── request/
@@ -582,7 +583,7 @@ All stores use this pattern: module-level `$state` + `$derived` + exported objec
 
 **Key types**:
 - `Tab { id, type: 'request'|'environment'|'mcp', entityId, label, method?, pinned, isUnsaved, isDraft }`
-- `TabMcpState { serverId, activeSubTab: 'tools'|'resources'|'prompts'|'traffic'|'notifications' }`
+- `TabMcpState { serverId, activeLeftTab: 'tools'|'resources'|'prompts', activeRightTab: 'response'|'traffic'|'notifications', lastResponse: McpLastResponse | null }`
 - `TabRequestState { name, method, url, headers, query_params, body, body_type, auth, scripts, response, loading, activeSubTab? }`
 - `TabEnvironmentState { name, variables, isDirty, initialized }`
 
@@ -636,7 +637,9 @@ Pause/resume supports hover-to-hold: `pauseToast` clears the JS timeout and reco
 
 **State**: `allSettings: Record<string, string>`
 
-**Actions**: `loadAll`, `get(key)`, `set(key, value)` — typed settings keys with IPC persistence. Used for app-wide preferences (layout orientation, timeout, SSL, theme, etc.).
+**Actions**: `loadAll`, `get(key)`, `set(key, value)` — typed settings keys with IPC persistence. Used for app-wide preferences (layout orientation, timeout, SSL, theme, split percentages, etc.).
+
+**Settings keys**: `request.layout`, `request.timeout`, `request.verify_ssl`, `request.follow_redirects`, `request.splitPercent`, `mcp.splitPercent`, `app.version`, `app.welcomed`, `app.theme`, `sidebar.width`
 
 ---
 
