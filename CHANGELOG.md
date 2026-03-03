@@ -7,9 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.5.6] - 2026-03-03
+
 ### Added
 - Custom HTTP method support — method selector is now a combobox; type any method (PURGE, LOCK, etc.) and press Enter to use it
 - LIST added as a standard method preset with its own color (amber)
+- Variable highlighting in environment editor — `{{var}}` references in variable values now show green/red text
 
 ### Changed
 - Custom syntax highlighting theme (Tokyo Night-inspired) — blue/amber palette replaces default red/green to avoid clashing with variable highlighting colors
