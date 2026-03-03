@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.5.7] - 2026-03-03
+
+### Fixed
+- VarInput selection — double-click word selection, click-and-drag, and Cmd+A now work correctly in URL bar, headers, params, auth fields, and environment editor
+- Variable tooltip hover — tooltip text is now selectable without disappearing on mouse movement
+
 ## [0.5.6] - 2026-03-03
 
 ### Added
