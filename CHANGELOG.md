@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.5.5] - 2026-03-03
+
+### Added
+- Synced delete prompt for MCP servers — when deleting a sync-enabled MCP server, a modal asks "Delete locally only" vs "Delete everywhere" (also deletes from remote repository)
+- Synced delete prompt for environments — when deleting a vault-synced environment, a modal asks "Delete locally only" vs "Delete everywhere" (also deletes secrets from vault)
+- Orphaned MCP server detection — on pull/auto-sync, locally-synced MCP servers missing from the remote repository are detected and prompt "Delete locally" vs "Keep locally" (disables sync)
+
 ## [0.5.4] - 2026-03-03
 
 ### Added
