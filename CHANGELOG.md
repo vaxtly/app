@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+- Custom HTTP method support — method selector is now a combobox; type any method (PURGE, LOCK, etc.) and press Enter to use it
+- LIST added as a standard method preset with its own color (amber)
+
+### Changed
+- Removed HTTP method whitelist from proxy — `undici.fetch()` accepts any method string
+
 ## [0.5.5] - 2026-03-03
 
 ### Added

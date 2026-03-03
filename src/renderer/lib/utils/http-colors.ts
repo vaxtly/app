@@ -6,6 +6,7 @@ const METHOD_KEYS: Record<string, string> = {
   DELETE: 'delete',
   HEAD: 'head',
   OPTIONS: 'options',
+  LIST: 'list',
 }
 
 /** CSS variable value for an HTTP method color (theme-aware) */

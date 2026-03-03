@@ -22,26 +22,61 @@
 
   // Method dropdown state
   let methodOpen = $state(false)
+  let methodFilter = $state('')
+  let methodInputEl = $state<HTMLInputElement | null>(null)
   let triggerEl = $state<HTMLButtonElement | null>(null)
   let dropdownEl = $state<HTMLDivElement | null>(null)
   let dropdownPos = $state({ top: 0, left: 0 })
+
+  let filteredMethods = $derived(
+    methodFilter
+      ? HTTP_METHODS.filter((m) => m.startsWith(methodFilter.toUpperCase()))
+      : [...HTTP_METHODS]
+  )
 
   function openMethodDropdown(): void {
     if (!triggerEl) return
     const rect = triggerEl.getBoundingClientRect()
     dropdownPos = { top: rect.bottom + 4, left: rect.left }
+    methodFilter = ''
     methodOpen = true
     requestAnimationFrame(() => {
-      // Focus first item or selected item for keyboard nav
-      const selected = dropdownEl?.querySelector('[data-selected]') as HTMLElement
-      selected?.focus()
+      methodInputEl?.focus()
     })
+  }
+
+  function commitMethod(): void {
+    const value = methodFilter.trim().toUpperCase()
+    if (value) {
+      onmethodchange(value)
+    }
+    methodOpen = false
+    triggerEl?.focus()
   }
 
   function selectMethod(m: string): void {
     onmethodchange(m)
     methodOpen = false
     triggerEl?.focus()
+  }
+
+  function handleMethodInputKeydown(e: KeyboardEvent): void {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      commitMethod()
+      return
+    }
+    if (e.key === 'Escape') {
+      e.preventDefault()
+      methodOpen = false
+      triggerEl?.focus()
+      return
+    }
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      const items = [...(dropdownEl?.querySelectorAll('[role="option"]') ?? [])] as HTMLElement[]
+      items[0]?.focus()
+    }
   }
 
   function handleDropdownKeydown(e: KeyboardEvent): void {
@@ -54,6 +89,10 @@
       e.preventDefault()
       const items = [...(dropdownEl?.querySelectorAll('[role="option"]') ?? [])] as HTMLElement[]
       const current = items.findIndex((el) => el === document.activeElement)
+      if (e.key === 'ArrowUp' && current <= 0) {
+        methodInputEl?.focus()
+        return
+      }
       const next = e.key === 'ArrowDown'
         ? (current + 1) % items.length
         : (current - 1 + items.length) % items.length
@@ -191,7 +230,17 @@
     aria-label="HTTP Method"
     onkeydown={handleDropdownKeydown}
   >
-    {#each HTTP_METHODS as m (m)}
+    <input
+      bind:this={methodInputEl}
+      bind:value={methodFilter}
+      onkeydown={handleMethodInputKeydown}
+      class="method-input w-full py-1.5 px-2.5 mb-1 border-none rounded-lg bg-transparent outline-none font-mono text-xs font-bold tracking-[0.02em] text-surface-100"
+      style="font-feature-settings: var(--font-feature-mono); background: var(--tint-subtle)"
+      placeholder="Type method..."
+      spellcheck="false"
+      autocomplete="off"
+    />
+    {#each filteredMethods as m (m)}
       <button
         role="option"
         aria-selected={m === method}
@@ -252,6 +301,13 @@
   .method-led.DELETE { background: var(--color-method-delete); box-shadow: 0 0 6px color-mix(in srgb, var(--color-method-delete) 50%, transparent); }
   .method-led.HEAD { background: var(--color-method-head); box-shadow: 0 0 6px color-mix(in srgb, var(--color-method-head) 40%, transparent); }
   .method-led.OPTIONS { background: var(--color-method-options); box-shadow: none; }
+  .method-led.LIST { background: var(--color-method-list); box-shadow: 0 0 6px color-mix(in srgb, var(--color-method-list) 40%, transparent); }
+
+  /* --- Method input in dropdown --- */
+  .method-input::placeholder {
+    color: var(--color-surface-500);
+    font-weight: 500;
+  }
 
   /* --- Method dropdown active item --- */
   .method-item--active {

@@ -1,7 +1,7 @@
 /** Application-wide constants */
 
 export const HTTP_METHODS = [
-  'GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS'
+  'GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS', 'LIST'
 ] as const
 
 export type HttpMethod = (typeof HTTP_METHODS)[number]

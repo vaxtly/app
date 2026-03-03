@@ -702,7 +702,7 @@ Pause/resume supports hover-to-hold: `pauseToast` clears the JS timeout and reco
 - **Logs** template URL (not resolved URL with secrets) to session log; error bodies use `error.message` (not stack traces)
 - **HTTP detail capture**: Builds `HttpLogDetail` on both success and failure paths — captures request method/URL/headers/body/queryParams and response status/headers/body/size/timing/cookies. String bodies truncated to `SESSION_LOG_BODY_MAX_SIZE` (50KB); form-data bodies (UndiciFormData) skipped. Passed to `logHttp()` for expandable detail in the session log UI
 - **SSE streaming**: Auto-detects `Content-Type: text/event-stream` responses. Reads body via async iterator, parses events with `SSEParser`, and pushes `sse:stream-start/chunk/end` IPC events to the renderer in real-time. The `proxy:send` invoke still resolves with the complete `ResponseData` (including `isSSE: true` and `sseEvents[]`) when the stream finishes. Timeout is cleared for SSE streams (user cancels manually via AbortController)
-- **Security validation**: URL scheme whitelist (http/https only), HTTP method whitelist, timeout clamped 1-300s, response body size limit 50MB (content-length check), form-data file paths validated against dialog-approved set
+- **Security validation**: URL scheme whitelist (http/https only), timeout clamped 1-300s, response body size limit 50MB (content-length check), form-data file paths validated against dialog-approved set. Any HTTP method string is accepted (uppercased before sending)
 
 ### Variable Substitution (`services/variable-substitution.ts`)
 - `getResolvedVariables(wsId?, colId?)` → flat `Record<string, string>` (env vars + collection overrides)
@@ -967,6 +967,7 @@ All method colors are theme-aware via `--color-method-*` CSS variables. Componen
 | DELETE | `#f87171` | `#dc2626` | `--color-method-delete` |
 | HEAD | `#c084fc` | `#9333ea` | `--color-method-head` |
 | OPTIONS | `#94a3b8` | `#64748b` | `--color-method-options` |
+| LIST | `#fbbf24` | `#d97706` | `--color-method-list` |
 
 ### Status Code Colors (CSS Variables)
 - 2xx: `--color-status-success`
@@ -1010,7 +1011,7 @@ All method colors are theme-aware via `--color-method-*` CSS variables. Componen
 
 ### IPC Validation
 - **Settings**: readonly key denylist (`encryption.*`, `app.version`), sensitive keys (`vault.token`, etc.) filtered from `getAll`
-- **Proxy**: URL scheme whitelist (http/https), HTTP method whitelist, timeout clamped 1-300s, response body 50MB limit, form-data file paths checked against dialog-approved set
+- **Proxy**: URL scheme whitelist (http/https), timeout clamped 1-300s, response body 50MB limit, form-data file paths checked against dialog-approved set. Any HTTP method string accepted (uppercased)
 - **Data import**: replaced arbitrary `data:read-file` with dialog-based `data:pick-and-read`, JSON import size capped at 50MB
 - **Vault migrate**: path traversal blocked (`..`, leading `/`)
 - **Sync**: conflict resolution value strictly validated

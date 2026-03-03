@@ -120,6 +120,7 @@ html.light {
   --color-method-delete: #dc2626;
   --color-method-head: #9333ea;
   --color-method-options: #64748b;
+  --color-method-list: #d97706;
 
   --color-success: #16a34a;
   --color-success-muted: #059669;
@@ -220,6 +221,7 @@ html.light {
   --color-method-delete: #fb7185;
   --color-method-head: #c084fc;
   --color-method-options: #94a3b8;
+  --color-method-list: #fbbf24;
 
   /* ── Status response colors ─────────────────────────────────────── */
   --color-status-success: #34d399;

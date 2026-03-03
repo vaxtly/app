@@ -38,7 +38,6 @@ function parseQueryParams(url: string): Record<string, string> | undefined {
 const activeRequests = new Map<string, AbortController>()
 const approvedFilePaths = new Set<string>()
 
-const ALLOWED_METHODS = new Set(['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'])
 const ALLOWED_SCHEMES = new Set(['http:', 'https:'])
 const MAX_BODY_SIZE = 50 * 1024 * 1024 // 50 MB
 
@@ -97,11 +96,7 @@ export function registerProxyHandlers(): void {
     }
     const resolvedBody = sub(config.body)
 
-    // Validate HTTP method
     const method = config.method.toUpperCase()
-    if (!ALLOWED_METHODS.has(method)) {
-      throw new Error(`Unsupported HTTP method: ${config.method}`)
-    }
 
     // Validate URL scheme
     try {
