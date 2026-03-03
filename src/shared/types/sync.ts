@@ -18,10 +18,16 @@ export interface FileContent {
   commitSha?: string // Commit SHA (GitLab compatibility)
 }
 
+export interface OrphanedCollection {
+  collectionId: string
+  collectionName: string
+}
+
 export interface SyncResult {
   success: boolean
   message: string
   conflicts?: SyncConflict[]
+  orphaned?: OrphanedCollection[]
   pulled?: number
   pushed?: number
 }

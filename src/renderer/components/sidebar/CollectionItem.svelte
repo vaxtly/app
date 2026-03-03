@@ -3,6 +3,7 @@
   import { appStore } from '../../lib/stores/app.svelte'
   import { dragStore } from '../../lib/stores/drag.svelte'
   import ContextMenu from '../shared/ContextMenu.svelte'
+  import DeleteSyncedModal from '../modals/DeleteSyncedModal.svelte'
   import EnvironmentAssociationModal from '../modals/EnvironmentAssociationModal.svelte'
   import SensitiveDataModal from '../modals/SensitiveDataModal.svelte'
   import FolderItem from './FolderItem.svelte'
@@ -15,6 +16,7 @@
 
   let { node, onrequestclick }: Props = $props()
 
+  let showDeleteSyncedModal = $state(false)
   let showEnvModal = $state(false)
   let sensitiveFindings = $state<{ source: string; requestName: string | null; requestId: string | null; field: string; key: string; maskedValue: string }[]>([])
   let showSensitiveModal = $state(false)
@@ -61,6 +63,19 @@
   }
 
   async function handleDelete(): Promise<void> {
+    if (syncEnabled) {
+      showDeleteSyncedModal = true
+      return
+    }
+    await collectionsStore.deleteCollection(node.id)
+  }
+
+  async function handleDeleteSynced(resolution: 'local-only' | 'everywhere'): Promise<void> {
+    showDeleteSyncedModal = false
+    if (resolution === 'everywhere') {
+      const wsId = appStore.activeWorkspaceId ?? undefined
+      await window.api.sync.deleteRemote(node.id, wsId)
+    }
     await collectionsStore.deleteCollection(node.id)
   }
 
@@ -282,6 +297,14 @@
 
 {#if showEnvModal}
   <EnvironmentAssociationModal targetId={node.id} targetType="collection" onclose={() => { showEnvModal = false }} />
+{/if}
+
+{#if showDeleteSyncedModal}
+  <DeleteSyncedModal
+    collectionName={node.name}
+    ondelete={handleDeleteSynced}
+    onclose={() => { showDeleteSyncedModal = false }}
+  />
 {/if}
 
 {#if showSensitiveModal}

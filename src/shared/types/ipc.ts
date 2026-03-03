@@ -114,7 +114,11 @@ export const IPC = {
 
   // Sync events (main→renderer push)
   SYNC_CONFLICT: 'sync:conflict',
+  SYNC_ORPHANED_COLLECTIONS: 'sync:orphaned-collections',
   SYNC_PULL_COMPLETE: 'sync:pull-complete',
+
+  // Sync resolve (renderer→main invoke)
+  SYNC_RESOLVE_ORPHAN: 'sync:resolve-orphan',
 
   // SSE streaming (main→renderer push)
   SSE_STREAM_START: 'sse:stream-start',

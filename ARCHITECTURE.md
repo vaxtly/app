@@ -32,7 +32,7 @@ vaxtly/
 │   │   │   ├── ipc.ts                  # IPC channel constants
 │   │   │   ├── http.ts                 # RequestConfig, ResponseData, etc.
 │   │   │   ├── mcp.ts                  # MCP types: McpServer, McpServerState, McpTool, McpResource, McpPrompt, traffic/notifications
-│   │   │   └── sync.ts                 # SyncConfig, VaultConfig, ConflictChange, SessionLogEntry, HttpLogDetail
+│   │   │   └── sync.ts                 # SyncConfig, VaultConfig, ConflictChange, OrphanedCollection, SessionLogEntry, HttpLogDetail
 │   │   └── constants.ts                # HTTP_METHODS, BODY_TYPES, AUTH_TYPES, SENSITIVE_*
 │   ├── main/
 │   │   ├── index.ts                    # App lifecycle, window, boot sequence
@@ -100,7 +100,7 @@ vaxtly/
 │   └── renderer/
 │       ├── index.html
 │       ├── main.ts                     # Svelte mount point
-│       ├── App.svelte                  # Root: sidebar + tabs + content + session persistence + auto-reveal + default env
+│       ├── App.svelte                  # Root: sidebar + tabs + content + session persistence + auto-reveal + default env + conflict/orphan queues
 │       ├── env.d.ts                    # window.api type declaration
 │       ├── styles/app.css              # Tailwind + theme + scrollbars + CodeMirror
 │       ├── lib/
@@ -127,7 +127,7 @@ vaxtly/
 │           │   └── SystemLog.svelte    # Collapsible bottom panel: session logs + expandable HTTP detail
 │           ├── sidebar/
 │           │   ├── CollectionTree.svelte # Recursive tree with search filter
-│           │   ├── CollectionItem.svelte # Expand/collapse, rename, sync, drag-drop target + auto-sync on move
+│           │   ├── CollectionItem.svelte # Expand/collapse, rename, sync, drag-drop target + auto-sync on move + gated delete for synced collections
 │           │   ├── FolderItem.svelte    # Same pattern, self-recursive, drag-drop target + auto-sync on move
 │           │   ├── RequestItem.svelte   # Method badge, active state, draggable
 │           │   ├── EnvironmentList.svelte # Env list + active toggle + context menu
@@ -170,6 +170,8 @@ vaxtly/
 │           │   ├── CodeSnippetModal.svelte # Language tabs + generated code + copy
 │           │   ├── CollectionPickerModal.svelte # Save draft to collection: search + create new + pick existing
 │           │   ├── ConflictModal.svelte    # Sync conflict resolution with local/remote change details
+│           │   ├── DeleteSyncedModal.svelte # Delete synced collection: local-only vs everywhere (remote)
+│           │   ├── OrphanedCollectionModal.svelte # Orphaned collection: delete locally vs keep unsynced
 │           │   ├── SensitiveDataModal.svelte # Sensitive data findings before push
 │           │   ├── EnvironmentAssociationModal.svelte # Env checkbox list + default star + reloads store on save
 │           │   └── WelcomeGuide.svelte    # 5-step onboarding modal
@@ -426,13 +428,15 @@ Pattern: `ipcMain.handle('domain:action', handler)` in main, `ipcRenderer.invoke
 | `log:clear` | ipc/session-log.ts | `clearLogs()` | `api.log.clear()` |
 | `log:push` | — (main→renderer push) | — | `api.on.logPush(cb)` |
 | `sync:test-connection` | ipc/sync.ts | `syncService.testConnection()` | `api.sync.testConnection()` |
-| `sync:pull` | ipc/sync.ts | `syncService.pull(wsId?)` — pushes conflicts via `sync:conflict` | `api.sync.pull(wsId?)` |
+| `sync:pull` | ipc/sync.ts | `syncService.pull(wsId?)` — pushes conflicts via `sync:conflict`, orphans via `sync:orphaned-collections` | `api.sync.pull(wsId?)` |
 | `sync:push-collection` | ipc/sync.ts | `syncService.pushCollection()` — pushes conflicts via `sync:conflict` | `api.sync.pushCollection(id, sanitize?)` |
 | `sync:push-all` | ipc/sync.ts | `syncService.pushAll(wsId?)` — pushes conflicts via `sync:conflict` | `api.sync.pushAll(wsId?)` |
 | `sync:resolve-conflict` | ipc/sync.ts | `syncService.forceKeep{Local,Remote}()` | `api.sync.resolveConflict(id, res, wsId?)` |
 | `sync:delete-remote` | ipc/sync.ts | `syncService.deleteRemoteCollection()` | `api.sync.deleteRemote(id)` |
 | `sync:scan-sensitive` | ipc/sync.ts | `scanCollection(reqs, vars)` | `api.sync.scanSensitive(id)` |
+| `sync:resolve-orphan` | ipc/sync.ts | Delete or unlink-sync orphaned collection | `api.sync.resolveOrphan(id, res)` |
 | `sync:conflict` | — (main→renderer push) | — | `api.on.syncConflict(cb)` |
+| `sync:orphaned-collections` | — (main→renderer push) | — | `api.on.syncOrphanedCollections(cb)` |
 | `sync:push-request` | ipc/sync.ts | `syncService.pushSingleRequest()` | `api.sync.pushRequest(colId, reqId, sanitize?)` |
 | `sync:push-mcp-server` | ipc/sync.ts | `syncService.pushMcpServer()` | `api.sync.pushMcpServer(serverId, sanitize?, wsId?)` |
 | `sync:pull-mcp-server` | ipc/sync.ts | `syncService.pullSingleMcpServer()` | `api.sync.pullMcpServer(serverId, wsId?)` |
@@ -927,6 +931,7 @@ Four `$effect` hooks and three `onMount` listeners in `App.svelte` drive cross-c
 5. **Toast notifications**: `onMount` listener on `logPush` — filters `success: false` entries with `category === 'vault' || 'sync'` and calls `toastsStore.addToast()`. Also replays recent failures (within 30s) from `log.list()` on mount to catch auto-sync errors that fired before the renderer mounted. `<ToastContainer />` is mounted at root level.
 6. **Vault health LED**: `environmentsStore.vaultHealthy` drives the EnvironmentSelector LED color — green when vault secrets loaded successfully, red when fetch failed, gray when no environment is active.
 7. **Centralized conflict queue**: `onMount` listener on `syncConflict` — all sync IPC handlers (`sync:pull`, `sync:push-collection`, `sync:push-all`) push detected conflicts via `event.sender.send('sync:conflict', conflicts)`. App.svelte queues them in `conflictQueue` and renders a single `ConflictModal` for the first conflict, resolving sequentially. This replaces per-component conflict modals (e.g., RemoteSyncTab no longer handles conflicts locally).
+8. **Orphaned collection queue**: `onMount` listener on `syncOrphanedCollections` — when `sync:pull` or auto-sync detects locally-synced collections missing from remote, they are queued in `orphanQueue`. `OrphanedCollectionModal` prompts to delete locally or keep unsynced (deferred while conflicts are being resolved).
 
 ---
 

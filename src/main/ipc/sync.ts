@@ -20,6 +20,9 @@ export function registerSyncHandlers(): void {
     if (result.conflicts && result.conflicts.length > 0) {
       event.sender.send(IPC.SYNC_CONFLICT, result.conflicts)
     }
+    if (result.orphaned && result.orphaned.length > 0) {
+      event.sender.send(IPC.SYNC_ORPHANED_COLLECTIONS, result.orphaned)
+    }
     return result
   })
 
@@ -105,6 +108,26 @@ export function registerSyncHandlers(): void {
       } catch (e) {
         return { success: false, message: (e as Error).message, pulled: 0, pushed: 0 }
       }
+    },
+  )
+
+  ipcMain.handle(
+    IPC.SYNC_RESOLVE_ORPHAN,
+    async (_event, collectionId: string, resolution: 'delete' | 'keep'): Promise<SyncResult> => {
+      if (resolution !== 'delete' && resolution !== 'keep') {
+        return { success: false, message: 'Invalid resolution', pulled: 0, pushed: 0 }
+      }
+      const collection = collectionsRepo.findById(collectionId)
+      if (!collection) {
+        return { success: false, message: 'Collection not found', pulled: 0, pushed: 0 }
+      }
+
+      if (resolution === 'delete') {
+        collectionsRepo.remove(collectionId)
+      } else {
+        collectionsRepo.unlinkSync(collectionId)
+      }
+      return { success: true, message: `Orphan resolved (${resolution})`, pulled: 0, pushed: 0 }
     },
   )
 

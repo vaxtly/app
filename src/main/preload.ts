@@ -2,7 +2,7 @@ import { contextBridge, ipcRenderer } from 'electron'
 import { IPC } from '../shared/types/ipc'
 import type { Workspace, Collection, Folder, Request, Environment, AppSetting, WindowState } from '../shared/types/models'
 import type { RequestConfig, ResponseData, SSEStreamStart, SSEChunk, SSEStreamEnd } from '../shared/types/http'
-import type { SyncResult, SyncConflict, SessionLogEntry } from '../shared/types/sync'
+import type { SyncResult, SyncConflict, OrphanedCollection, SessionLogEntry } from '../shared/types/sync'
 import type { SensitiveFinding } from './services/sensitive-data-scanner'
 import type { CodeLanguage, CodeGenRequest } from './services/code-generator'
 import type { EnvironmentVariable } from '../shared/types/models'
@@ -129,6 +129,8 @@ const api = {
       ipcRenderer.invoke(IPC.SYNC_PULL_MCP_SERVER, serverId, workspaceId),
     scanMcpSensitive: (serverId: string): Promise<SensitiveFinding[]> =>
       ipcRenderer.invoke(IPC.SYNC_SCAN_MCP_SENSITIVE, serverId),
+    resolveOrphan: (collectionId: string, resolution: 'delete' | 'keep'): Promise<SyncResult> =>
+      ipcRenderer.invoke(IPC.SYNC_RESOLVE_ORPHAN, collectionId, resolution),
   },
 
   vault: {
@@ -331,6 +333,13 @@ const api = {
       }
       ipcRenderer.on(IPC.SYNC_CONFLICT, handler)
       return () => ipcRenderer.removeListener(IPC.SYNC_CONFLICT, handler)
+    },
+    syncOrphanedCollections: (callback: (orphaned: OrphanedCollection[]) => void): (() => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, orphaned: OrphanedCollection[]): void => {
+        callback(orphaned)
+      }
+      ipcRenderer.on(IPC.SYNC_ORPHANED_COLLECTIONS, handler)
+      return () => ipcRenderer.removeListener(IPC.SYNC_ORPHANED_COLLECTIONS, handler)
     },
     syncPullComplete: (callback: (workspaceId: string) => void): (() => void) => {
       const handler = (_event: Electron.IpcRendererEvent, workspaceId: string): void => {

@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.5.4] - 2026-03-03
+
+### Added
+- Synced collection delete prompt — when deleting a sync-enabled collection, a modal asks "Delete locally only" (remote copy preserved) vs "Delete everywhere" (remote directory also deleted)
+- Orphaned collection detection — on pull/auto-sync, locally-synced collections missing from the remote repository are detected and prompt "Delete locally" vs "Keep locally" (disables sync)
+
 ## [0.5.3] - 2026-03-02
 
 ### Added

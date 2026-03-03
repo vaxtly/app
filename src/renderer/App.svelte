@@ -10,7 +10,8 @@
   import WelcomeGuide from './components/modals/WelcomeGuide.svelte'
   import ToastContainer from './components/shared/ToastContainer.svelte'
   import ConflictModal from './components/modals/ConflictModal.svelte'
-  import type { SyncConflict } from './lib/types'
+  import OrphanedCollectionModal from './components/modals/OrphanedCollectionModal.svelte'
+  import type { SyncConflict, OrphanedCollection } from './lib/types'
   import { appStore } from './lib/stores/app.svelte'
   import { collectionsStore } from './lib/stores/collections.svelte'
   import { environmentsStore } from './lib/stores/environments.svelte'
@@ -35,6 +36,10 @@
   // --- Sync conflict state ---
   let conflictQueue = $state<SyncConflict[]>([])
   let activeConflict = $derived(conflictQueue.length > 0 ? conflictQueue[0] : null)
+
+  // --- Orphaned collection state ---
+  let orphanQueue = $state<OrphanedCollection[]>([])
+  let activeOrphan = $derived(orphanQueue.length > 0 ? orphanQueue[0] : null)
 
   function dismissUpdate(): void {
     updateDismissed = true
@@ -85,6 +90,25 @@
 
   function dismissConflict(): void {
     conflictQueue = conflictQueue.slice(1)
+  }
+
+  async function handleOrphanResolve(resolution: 'delete' | 'keep'): Promise<void> {
+    if (!activeOrphan) return
+    try {
+      const result = await window.api.sync.resolveOrphan(activeOrphan.collectionId, resolution)
+      if (result.success) {
+        await collectionsStore.loadAll(appStore.activeWorkspaceId ?? undefined)
+      } else {
+        toastsStore.addToast('sync', `Git sync: Orphan resolution failed — ${result.message}`)
+      }
+    } catch (err) {
+      toastsStore.addToast('sync', `Git sync: ${err instanceof Error ? err.message : 'Resolution failed'}`)
+    }
+    orphanQueue = orphanQueue.slice(1)
+  }
+
+  function dismissOrphan(): void {
+    orphanQueue = orphanQueue.slice(1)
   }
 
   // Active state for current environment tab (computed here so store
@@ -347,6 +371,9 @@
       window.api.on.syncConflict((conflicts) => {
         conflictQueue = [...conflictQueue, ...conflicts]
       }),
+      window.api.on.syncOrphanedCollections((orphaned) => {
+        orphanQueue = [...orphanQueue, ...orphaned]
+      }),
       window.api.on.syncPullComplete((workspaceId) => {
         if (workspaceId === appStore.activeWorkspaceId) {
           collectionsStore.loadAll(workspaceId)
@@ -559,6 +586,14 @@
       conflict={activeConflict}
       onresolve={handleConflictResolve}
       onclose={dismissConflict}
+    />
+  {/if}
+
+  {#if activeOrphan && !activeConflict}
+    <OrphanedCollectionModal
+      collectionName={activeOrphan.collectionName}
+      onresolve={handleOrphanResolve}
+      onclose={dismissOrphan}
     />
   {/if}
 </div>

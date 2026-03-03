@@ -19,7 +19,7 @@ import * as workspacesRepo from '../database/repositories/workspaces'
 import * as mcpServersRepo from '../database/repositories/mcp-servers'
 import type { Collection, FileState } from '../../shared/types/models'
 import type { McpServer } from '../../shared/types/mcp'
-import type { FileContent, SyncResult, SyncConflict, ConflictChange } from '../../shared/types/sync'
+import type { FileContent, SyncResult, SyncConflict, ConflictChange, OrphanedCollection } from '../../shared/types/sync'
 import type { GitProvider, DirectoryItem } from './git-provider.interface'
 import { GitHubProvider } from './github-provider'
 import { GitLabProvider } from './gitlab-provider'
@@ -365,6 +365,18 @@ export async function pull(workspaceId?: string): Promise<SyncResult> {
         errors.push(`${batch[j][0]}: ${(r.reason as Error).message}`)
       }
     }
+  }
+
+  // --- Detect orphaned collections (synced locally but missing from remote) ---
+  const localSynced = collectionsRepo.findSyncEnabled(workspaceId)
+  const orphaned: OrphanedCollection[] = []
+  for (const local of localSynced) {
+    if (local.remote_sha && !collectionDirs[local.id]) {
+      orphaned.push({ collectionId: local.id, collectionName: local.name })
+    }
+  }
+  if (orphaned.length > 0) {
+    result.orphaned = orphaned
   }
 
   // --- Also pull MCP servers ---

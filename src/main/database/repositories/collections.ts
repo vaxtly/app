@@ -94,6 +94,23 @@ export function reorder(ids: string[]): void {
   run()
 }
 
+export function findSyncEnabled(workspaceId?: string): Collection[] {
+  const db = getDatabase()
+  if (workspaceId) {
+    return db.prepare('SELECT * FROM collections WHERE sync_enabled = 1 AND workspace_id = ? ORDER BY "order" ASC').all(workspaceId) as Collection[]
+  }
+  return db.prepare('SELECT * FROM collections WHERE sync_enabled = 1 AND workspace_id IS NULL ORDER BY "order" ASC').all() as Collection[]
+}
+
+export function unlinkSync(id: string): void {
+  const db = getDatabase()
+  db.prepare(`
+    UPDATE collections
+    SET sync_enabled = 0, remote_sha = NULL, file_shas = NULL, remote_synced_at = NULL, is_dirty = 0, updated_at = ?
+    WHERE id = ?
+  `).run(new Date().toISOString(), id)
+}
+
 export function markDirty(id: string): void {
   const db = getDatabase()
   db.prepare('UPDATE collections SET is_dirty = 1, updated_at = ? WHERE id = ?')
