@@ -118,6 +118,7 @@ vaxtly/
 │       │       ├── http-colors.ts      # getMethodColor(), getStatusColor() → CSS variable strings
 │       │       ├── formatters.ts       # formatSize, formatTime, detectLanguage, formatBody
 │       │       ├── bulk-edit.ts        # Bulk-edit serialize/parse for key-value and form-data entries
+│       │       ├── syntax-theme.ts    # Custom CodeMirror syntax highlight styles (dark + light)
 │       │       └── variable-highlight.ts # CodeMirror {{var}} decoration + hover tooltip
 │       └── components/
 │           ├── CodeEditor.svelte       # CodeMirror 6 wrapper + optional variable highlight
@@ -895,10 +896,14 @@ Pause/resume supports hover-to-hold: `pauseToast` clears the JS timeout and reco
 - **CI**: `update-scoop` job in `build.yml` computes SHA256 of `Vaxtly-{version}-setup.exe` and pushes manifest to `vaxtly/scoop-bucket/bucket/vaxtly.json` (mirrors the `update-homebrew` pattern)
 - **Snap Store**: Linux snap built by electron-builder and published to the `stable` channel on snapcraft.io during the build step (via `SNAPCRAFT_STORE_CREDENTIALS` secret). Snap updates are handled automatically by `snapd` on user machines.
 
+### Custom Syntax Theme (`lib/utils/syntax-theme.ts`)
+- Tokyo Night-inspired blue/amber palette — avoids green/red to not clash with variable highlighting
+- `darkSyntaxHighlight` / `lightSyntaxHighlight` — `HighlightStyle` instances used alongside `oneDarkTheme` (editor chrome only)
+- Keys: blue, strings: amber, numbers: orange, booleans: cyan, keywords: lavender
+
 ### CodeMirror Variable Highlighting (`lib/utils/variable-highlight.ts`)
 - `variableHighlight(getResolved)` → CodeMirror `Extension` (decoration + tooltip)
-- Resolved variables: green text + green bg (`cm-var-resolved`)
-- Unresolved variables: red text + red bg (`cm-var-unresolved`)
+- Resolved variables: green text (`cm-var-resolved`), unresolved: red text (`cm-var-unresolved`)
 - Hover tooltip shows value and source label
 
 ---

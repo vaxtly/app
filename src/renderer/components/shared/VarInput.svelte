@@ -287,18 +287,12 @@
 {/if}
 
 <style>
-  .vi-editable :global(.vi-var) {
-    border-radius: 2px;
-  }
-
   .vi-editable :global(.vi-var--resolved) {
     color: var(--color-var-resolved);
-    background: var(--color-var-resolved-bg);
   }
 
   .vi-editable :global(.vi-var--unresolved) {
     color: var(--color-var-unresolved);
-    background: var(--color-var-unresolved-bg);
   }
 
   .vi-placeholder {

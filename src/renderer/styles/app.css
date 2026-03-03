@@ -359,17 +359,15 @@ html.light {
   background: color-mix(in srgb, var(--color-surface-700) 30%, transparent) !important;
 }
 
-/* Variable highlighting: {{resolved}} green, {{unresolved}} red */
-.cm-var-resolved {
-  color: var(--color-var-resolved);
-  background: var(--color-var-resolved-bg);
-  border-radius: var(--radius-xs);
+/* Variable highlighting: {{resolved}} green, {{unresolved}} red — override nested syntax spans */
+.cm-var-resolved,
+.cm-var-resolved * {
+  color: var(--color-var-resolved) !important;
 }
 
-.cm-var-unresolved {
-  color: var(--color-var-unresolved);
-  background: var(--color-var-unresolved-bg);
-  border-radius: var(--radius-xs);
+.cm-var-unresolved,
+.cm-var-unresolved * {
+  color: var(--color-var-unresolved) !important;
 }
 
 /* Variable hover tooltip */

@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - LIST added as a standard method preset with its own color (amber)
 
 ### Changed
+- Custom syntax highlighting theme (Tokyo Night-inspired) — blue/amber palette replaces default red/green to avoid clashing with variable highlighting colors
+- Variable highlighting is now text-color only (no background pill) across all editors, URL bar, headers, auth fields, environment variables, and MCP server config
 - Removed HTTP method whitelist from proxy — `undici.fetch()` accepts any method string
 
 ## [0.5.5] - 2026-03-03

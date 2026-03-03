@@ -5,7 +5,9 @@
   import { json } from '@codemirror/lang-json'
   import { html } from '@codemirror/lang-html'
   import { xml } from '@codemirror/lang-xml'
-  import { oneDark } from '@codemirror/theme-one-dark'
+  import { oneDarkTheme } from '@codemirror/theme-one-dark'
+  import { syntaxHighlighting } from '@codemirror/language'
+  import { darkSyntaxHighlight, lightSyntaxHighlight } from '../lib/utils/syntax-theme'
   import { defaultKeymap, history, historyKeymap } from '@codemirror/commands'
   import { basicSetup } from 'codemirror'
   import { variableHighlight, type ResolvedVariable } from '../lib/utils/variable-highlight'
@@ -64,7 +66,10 @@
     idleHandle = schedule(() => {
       const extensions: Extension[] = [
         basicSetup,
-        themeCompartment.of(resolveIsDark() ? oneDark : []),
+        themeCompartment.of(resolveIsDark()
+          ? [oneDarkTheme, syntaxHighlighting(darkSyntaxHighlight)]
+          : [syntaxHighlighting(lightSyntaxHighlight)]
+        ),
         getLanguageExtension(language),
         EditorView.lineWrapping,
         keymap.of([...defaultKeymap, ...historyKeymap]),
@@ -135,7 +140,10 @@
     if (!view) return
     const isDark = resolveIsDark()
     view.dispatch({
-      effects: themeCompartment.reconfigure(isDark ? oneDark : [])
+      effects: themeCompartment.reconfigure(isDark
+        ? [oneDarkTheme, syntaxHighlighting(darkSyntaxHighlight)]
+        : [syntaxHighlighting(lightSyntaxHighlight)]
+      )
     })
   })
 </script>
