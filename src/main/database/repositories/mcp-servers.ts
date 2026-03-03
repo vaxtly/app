@@ -110,6 +110,15 @@ export function remove(id: string): boolean {
   return result.changes > 0
 }
 
+export function unlinkSync(id: string): void {
+  const db = getDatabase()
+  db.prepare(`
+    UPDATE mcp_servers
+    SET sync_enabled = 0, remote_sha = NULL, file_shas = NULL, remote_synced_at = NULL, is_dirty = 0, updated_at = ?
+    WHERE id = ?
+  `).run(new Date().toISOString(), id)
+}
+
 export function markDirty(id: string): void {
   const db = getDatabase()
   db.prepare('UPDATE mcp_servers SET is_dirty = 1, updated_at = ? WHERE id = ?')

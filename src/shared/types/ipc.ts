@@ -112,9 +112,14 @@ export const IPC = {
   // Code Generator
   CODE_GENERATE: 'code:generate',
 
+  // Sync — MCP server delete/orphan
+  SYNC_DELETE_MCP_SERVER_REMOTE: 'sync:delete-mcp-server-remote',
+  SYNC_RESOLVE_MCP_ORPHAN: 'sync:resolve-mcp-orphan',
+
   // Sync events (main→renderer push)
   SYNC_CONFLICT: 'sync:conflict',
   SYNC_ORPHANED_COLLECTIONS: 'sync:orphaned-collections',
+  SYNC_ORPHANED_MCP_SERVERS: 'sync:orphaned-mcp-servers',
   SYNC_PULL_COMPLETE: 'sync:pull-complete',
 
   // Sync resolve (renderer→main invoke)

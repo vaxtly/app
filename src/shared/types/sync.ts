@@ -23,11 +23,17 @@ export interface OrphanedCollection {
   collectionName: string
 }
 
+export interface OrphanedMcpServer {
+  serverId: string
+  serverName: string
+}
+
 export interface SyncResult {
   success: boolean
   message: string
   conflicts?: SyncConflict[]
   orphaned?: OrphanedCollection[]
+  orphanedMcpServers?: OrphanedMcpServer[]
   pulled?: number
   pushed?: number
 }

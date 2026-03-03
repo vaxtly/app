@@ -2,12 +2,12 @@
   import Modal from '../shared/Modal.svelte'
 
   interface Props {
-    collectionName: string
+    name: string
     onresolve: (resolution: 'delete' | 'keep') => void
     onclose: () => void
   }
 
-  let { collectionName, onresolve, onclose }: Props = $props()
+  let { name, onresolve, onclose }: Props = $props()
 
   let resolving = $state<'delete' | 'keep' | null>(null)
 
@@ -24,7 +24,7 @@
       <svg class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
         <path d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" />
       </svg>
-      <span><strong>{collectionName}</strong> was synced but the remote copy no longer exists.</span>
+      <span><strong>{name}</strong> was synced but the remote copy no longer exists.</span>
     </div>
   </div>
 

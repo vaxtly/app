@@ -273,6 +273,9 @@ async function runAutoSync(): Promise<void> {
         if (result.orphaned && result.orphaned.length > 0) {
           mainWindow?.webContents.send(IPC.SYNC_ORPHANED_COLLECTIONS, result.orphaned)
         }
+        if (result.orphanedMcpServers && result.orphanedMcpServers.length > 0) {
+          mainWindow?.webContents.send(IPC.SYNC_ORPHANED_MCP_SERVERS, result.orphanedMcpServers)
+        }
       } catch (e) {
         logSync('auto-sync', ws.name, `Failed: ${e instanceof Error ? e.message : String(e)}`, false)
       }

@@ -2,6 +2,7 @@
   import { environmentsStore } from '../../lib/stores/environments.svelte'
   import { appStore } from '../../lib/stores/app.svelte'
   import ContextMenu from '../shared/ContextMenu.svelte'
+  import DeleteSyncedModal from '../modals/DeleteSyncedModal.svelte'
 
   interface Props {
     onenvironmentclick: (environmentId: string) => void
@@ -10,6 +11,7 @@
 
   let { onenvironmentclick, searchFilter = '' }: Props = $props()
   let contextMenu = $state<{ x: number; y: number; envId: string } | null>(null)
+  let deleteSyncedTarget = $state<{ id: string; name: string } | null>(null)
 
   let filteredEnvironments = $derived(
     searchFilter.trim()
@@ -30,6 +32,27 @@
     }
   }
 
+  function handleDelete(envId: string): void {
+    const env = environmentsStore.environments.find((e) => e.id === envId)
+    if (!env) return
+    if (env.vault_synced === 1) {
+      deleteSyncedTarget = { id: env.id, name: env.name }
+      return
+    }
+    environmentsStore.remove(envId)
+  }
+
+  async function handleDeleteSynced(resolution: 'local-only' | 'everywhere'): Promise<void> {
+    if (!deleteSyncedTarget) return
+    const envId = deleteSyncedTarget.id
+    deleteSyncedTarget = null
+    if (resolution === 'everywhere') {
+      const wsId = appStore.activeWorkspaceId ?? undefined
+      await window.api.vault.deleteSecrets(envId, wsId)
+    }
+    await environmentsStore.remove(envId)
+  }
+
   function handleContextMenu(e: MouseEvent, envId: string): void {
     e.preventDefault()
     contextMenu = { x: e.clientX, y: e.clientY, envId }
@@ -41,7 +64,7 @@
       { label: 'Edit', action: () => onenvironmentclick(envId), icon: 'm16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Z' },
       { label: active ? 'Deactivate' : 'Activate', action: () => toggleActive(envId), icon: 'M5.636 5.636a9 9 0 1 0 12.728 0M12 3v9' },
       { label: '', action: () => {}, separator: true },
-      { label: 'Delete', action: () => environmentsStore.remove(envId), danger: true, icon: 'm14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0' },
+      { label: 'Delete', action: () => handleDelete(envId), danger: true, icon: 'm14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0' },
     ]
   }
 </script>
@@ -97,5 +120,13 @@
     y={contextMenu.y}
     items={getContextMenuItems(contextMenu.envId)}
     onclose={() => contextMenu = null}
+  />
+{/if}
+
+{#if deleteSyncedTarget}
+  <DeleteSyncedModal
+    name={deleteSyncedTarget.name}
+    ondelete={handleDeleteSynced}
+    onclose={() => { deleteSyncedTarget = null }}
   />
 {/if}

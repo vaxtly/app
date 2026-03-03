@@ -19,7 +19,7 @@ import * as workspacesRepo from '../database/repositories/workspaces'
 import * as mcpServersRepo from '../database/repositories/mcp-servers'
 import type { Collection, FileState } from '../../shared/types/models'
 import type { McpServer } from '../../shared/types/mcp'
-import type { FileContent, SyncResult, SyncConflict, ConflictChange, OrphanedCollection } from '../../shared/types/sync'
+import type { FileContent, SyncResult, SyncConflict, ConflictChange, OrphanedCollection, OrphanedMcpServer } from '../../shared/types/sync'
 import type { GitProvider, DirectoryItem } from './git-provider.interface'
 import { GitHubProvider } from './github-provider'
 import { GitLabProvider } from './gitlab-provider'
@@ -385,6 +385,9 @@ export async function pull(workspaceId?: string): Promise<SyncResult> {
     const mcpResult = await pullMcpServers(provider, workspaceId)
     mcpPulled = mcpResult.pulled
     result.pulled! += mcpPulled
+    if (mcpResult.orphanedMcpServers.length > 0) {
+      result.orphanedMcpServers = mcpResult.orphanedMcpServers
+    }
   } catch (e) {
     // Non-fatal: log but don't fail the whole pull
     logSync('pull', 'MCP servers', `Failed: ${(e as Error).message}`, false)
@@ -805,21 +808,23 @@ function buildFolderPath(folderId: string | null): string {
 export async function pullMcpServers(
   provider: GitProvider,
   workspaceId?: string,
-): Promise<{ pulled: number }> {
+): Promise<{ pulled: number; orphanedMcpServers: OrphanedMcpServer[] }> {
   let items: DirectoryItem[]
   try {
     items = await provider.listDirectoryRecursive(MCP_SERVERS_PATH)
   } catch {
     // Directory doesn't exist yet — nothing to pull
-    return { pulled: 0 }
+    return { pulled: 0, orphanedMcpServers: [] }
   }
 
-  if (items.length === 0) return { pulled: 0 }
+  if (items.length === 0) return { pulled: 0, orphanedMcpServers: [] }
 
   // Get all YAML files from the directory
   const files = await provider.getDirectoryTree(MCP_SERVERS_PATH, items)
-  if (files.length === 0) return { pulled: 0 }
+  if (files.length === 0) return { pulled: 0, orphanedMcpServers: [] }
 
+  // Build set of remote server IDs for orphan detection
+  const remoteServerIds = new Set<string>()
   let pulled = 0
 
   for (const file of files) {
@@ -830,6 +835,7 @@ export async function pullMcpServers(
     const serverId = fileName.replace('.yaml', '')
     if (!UUID_RE.test(serverId)) continue
 
+    remoteServerIds.add(serverId)
     const localServer = mcpServersRepo.findById(serverId)
 
     if (!localServer) {
@@ -869,7 +875,16 @@ export async function pullMcpServers(
     }
   }
 
-  return { pulled }
+  // --- Detect orphaned MCP servers (synced locally but missing from remote) ---
+  const localSynced = mcpServersRepo.findSyncEnabled(workspaceId)
+  const orphanedMcpServers: OrphanedMcpServer[] = []
+  for (const local of localSynced) {
+    if (local.remote_sha && !remoteServerIds.has(local.id)) {
+      orphanedMcpServers.push({ serverId: local.id, serverName: local.name })
+    }
+  }
+
+  return { pulled, orphanedMcpServers }
 }
 
 export async function pullSingleMcpServer(server: McpServer, workspaceId?: string): Promise<boolean> {

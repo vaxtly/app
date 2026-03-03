@@ -2,7 +2,7 @@ import { contextBridge, ipcRenderer } from 'electron'
 import { IPC } from '../shared/types/ipc'
 import type { Workspace, Collection, Folder, Request, Environment, AppSetting, WindowState } from '../shared/types/models'
 import type { RequestConfig, ResponseData, SSEStreamStart, SSEChunk, SSEStreamEnd } from '../shared/types/http'
-import type { SyncResult, SyncConflict, OrphanedCollection, SessionLogEntry } from '../shared/types/sync'
+import type { SyncResult, SyncConflict, OrphanedCollection, OrphanedMcpServer, SessionLogEntry } from '../shared/types/sync'
 import type { SensitiveFinding } from './services/sensitive-data-scanner'
 import type { CodeLanguage, CodeGenRequest } from './services/code-generator'
 import type { EnvironmentVariable } from '../shared/types/models'
@@ -131,6 +131,10 @@ const api = {
       ipcRenderer.invoke(IPC.SYNC_SCAN_MCP_SENSITIVE, serverId),
     resolveOrphan: (collectionId: string, resolution: 'delete' | 'keep'): Promise<SyncResult> =>
       ipcRenderer.invoke(IPC.SYNC_RESOLVE_ORPHAN, collectionId, resolution),
+    deleteMcpServerRemote: (serverId: string, workspaceId?: string): Promise<SyncResult> =>
+      ipcRenderer.invoke(IPC.SYNC_DELETE_MCP_SERVER_REMOTE, serverId, workspaceId),
+    resolveMcpOrphan: (serverId: string, resolution: 'delete' | 'keep'): Promise<SyncResult> =>
+      ipcRenderer.invoke(IPC.SYNC_RESOLVE_MCP_ORPHAN, serverId, resolution),
   },
 
   vault: {
@@ -340,6 +344,13 @@ const api = {
       }
       ipcRenderer.on(IPC.SYNC_ORPHANED_COLLECTIONS, handler)
       return () => ipcRenderer.removeListener(IPC.SYNC_ORPHANED_COLLECTIONS, handler)
+    },
+    syncOrphanedMcpServers: (callback: (orphaned: OrphanedMcpServer[]) => void): (() => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, orphaned: OrphanedMcpServer[]): void => {
+        callback(orphaned)
+      }
+      ipcRenderer.on(IPC.SYNC_ORPHANED_MCP_SERVERS, handler)
+      return () => ipcRenderer.removeListener(IPC.SYNC_ORPHANED_MCP_SERVERS, handler)
     },
     syncPullComplete: (callback: (workspaceId: string) => void): (() => void) => {
       const handler = (_event: Electron.IpcRendererEvent, workspaceId: string): void => {

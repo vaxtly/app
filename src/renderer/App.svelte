@@ -11,7 +11,7 @@
   import ToastContainer from './components/shared/ToastContainer.svelte'
   import ConflictModal from './components/modals/ConflictModal.svelte'
   import OrphanedCollectionModal from './components/modals/OrphanedCollectionModal.svelte'
-  import type { SyncConflict, OrphanedCollection } from './lib/types'
+  import type { SyncConflict, OrphanedCollection, OrphanedMcpServer } from './lib/types'
   import { appStore } from './lib/stores/app.svelte'
   import { collectionsStore } from './lib/stores/collections.svelte'
   import { environmentsStore } from './lib/stores/environments.svelte'
@@ -40,6 +40,10 @@
   // --- Orphaned collection state ---
   let orphanQueue = $state<OrphanedCollection[]>([])
   let activeOrphan = $derived(orphanQueue.length > 0 ? orphanQueue[0] : null)
+
+  // --- Orphaned MCP server state ---
+  let mcpOrphanQueue = $state<OrphanedMcpServer[]>([])
+  let activeMcpOrphan = $derived(mcpOrphanQueue.length > 0 ? mcpOrphanQueue[0] : null)
 
   function dismissUpdate(): void {
     updateDismissed = true
@@ -109,6 +113,25 @@
 
   function dismissOrphan(): void {
     orphanQueue = orphanQueue.slice(1)
+  }
+
+  async function handleMcpOrphanResolve(resolution: 'delete' | 'keep'): Promise<void> {
+    if (!activeMcpOrphan) return
+    try {
+      const result = await window.api.sync.resolveMcpOrphan(activeMcpOrphan.serverId, resolution)
+      if (result.success) {
+        await mcpStore.loadServers(appStore.activeWorkspaceId!)
+      } else {
+        toastsStore.addToast('sync', `Git sync: MCP orphan resolution failed — ${result.message}`)
+      }
+    } catch (err) {
+      toastsStore.addToast('sync', `Git sync: ${err instanceof Error ? err.message : 'Resolution failed'}`)
+    }
+    mcpOrphanQueue = mcpOrphanQueue.slice(1)
+  }
+
+  function dismissMcpOrphan(): void {
+    mcpOrphanQueue = mcpOrphanQueue.slice(1)
   }
 
   // Active state for current environment tab (computed here so store
@@ -374,6 +397,9 @@
       window.api.on.syncOrphanedCollections((orphaned) => {
         orphanQueue = [...orphanQueue, ...orphaned]
       }),
+      window.api.on.syncOrphanedMcpServers((orphaned) => {
+        mcpOrphanQueue = [...mcpOrphanQueue, ...orphaned]
+      }),
       window.api.on.syncPullComplete((workspaceId) => {
         if (workspaceId === appStore.activeWorkspaceId) {
           collectionsStore.loadAll(workspaceId)
@@ -591,9 +617,17 @@
 
   {#if activeOrphan && !activeConflict}
     <OrphanedCollectionModal
-      collectionName={activeOrphan.collectionName}
+      name={activeOrphan.collectionName}
       onresolve={handleOrphanResolve}
       onclose={dismissOrphan}
+    />
+  {/if}
+
+  {#if activeMcpOrphan && !activeConflict && !activeOrphan}
+    <OrphanedCollectionModal
+      name={activeMcpOrphan.serverName}
+      onresolve={handleMcpOrphanResolve}
+      onclose={dismissMcpOrphan}
     />
   {/if}
 </div>

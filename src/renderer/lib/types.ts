@@ -26,7 +26,7 @@ export type {
   EnvironmentVariable,
 } from '../../shared/types/models'
 
-export type { SyncResult, SyncConflict, ConflictChange, OrphanedCollection, SessionLogEntry, HttpLogDetail } from '../../shared/types/sync'
+export type { SyncResult, SyncConflict, ConflictChange, OrphanedCollection, OrphanedMcpServer, SessionLogEntry, HttpLogDetail } from '../../shared/types/sync'
 
 export type {
   McpTransportType,

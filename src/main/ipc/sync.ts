@@ -23,6 +23,9 @@ export function registerSyncHandlers(): void {
     if (result.orphaned && result.orphaned.length > 0) {
       event.sender.send(IPC.SYNC_ORPHANED_COLLECTIONS, result.orphaned)
     }
+    if (result.orphanedMcpServers && result.orphanedMcpServers.length > 0) {
+      event.sender.send(IPC.SYNC_ORPHANED_MCP_SERVERS, result.orphanedMcpServers)
+    }
     return result
   })
 
@@ -239,6 +242,39 @@ export function registerSyncHandlers(): void {
         env,
         headers,
       })
+    },
+  )
+
+  ipcMain.handle(
+    IPC.SYNC_DELETE_MCP_SERVER_REMOTE,
+    async (_event, serverId: string, workspaceId?: string): Promise<SyncResult> => {
+      const server = mcpServersRepo.findById(serverId)
+      if (!server) {
+        return { success: false, message: 'MCP server not found', pulled: 0, pushed: 0 }
+      }
+
+      try {
+        await syncService.deleteMcpServerRemote(server, workspaceId)
+        return { success: true, message: 'Deleted from remote', pulled: 0, pushed: 0 }
+      } catch (e) {
+        return { success: false, message: (e as Error).message, pulled: 0, pushed: 0 }
+      }
+    },
+  )
+
+  ipcMain.handle(
+    IPC.SYNC_RESOLVE_MCP_ORPHAN,
+    async (_event, serverId: string, resolution: 'delete' | 'keep'): Promise<SyncResult> => {
+      if (resolution !== 'delete' && resolution !== 'keep') {
+        return { success: false, message: 'Invalid resolution', pulled: 0, pushed: 0 }
+      }
+
+      if (resolution === 'delete') {
+        mcpServersRepo.remove(serverId)
+      } else {
+        mcpServersRepo.unlinkSync(serverId)
+      }
+      return { success: true, message: `Orphan resolved (${resolution})`, pulled: 0, pushed: 0 }
     },
   )
 }

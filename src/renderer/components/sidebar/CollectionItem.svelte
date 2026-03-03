@@ -301,7 +301,7 @@
 
 {#if showDeleteSyncedModal}
   <DeleteSyncedModal
-    collectionName={node.name}
+    name={node.name}
     ondelete={handleDeleteSynced}
     onclose={() => { showDeleteSyncedModal = false }}
   />
