@@ -205,6 +205,7 @@ vaxtly/
 │   │   ├── vault-handlers.test.ts     # 20 tests: vault IPC handlers + cache-first push
 │   │   ├── hashicorp-vault-provider.test.ts # 17 tests: KV v2/v1, AppRole auth, namespace, SSL bypass
 │   │   ├── aws-secrets-manager-provider.test.ts # 17 tests: CRUD, pagination, credential resolution
+│   │   ├── aws-localstack.test.ts        # 5 tests: real CRUD against LocalStack (auto-skips when unavailable)
 │   │   ├── data-export-import.test.ts  # 15 tests: export + import + nested + workspace
 │   │   ├── postman-import.test.ts      # 14 tests: 3 formats + form-data + URL objects + XML
 │   │   ├── mcp-servers-repository.test.ts # MCP server CRUD, cascade, reorder
@@ -836,12 +837,13 @@ Pause/resume supports hover-to-hold: `pauseToast` clears the JS timeout and reco
 - `deleteSecrets(path)` → `DeleteSecretCommand` with `ForceDeleteWithoutRecovery: true`, ignores 404
 - `testConnection()` → `ListSecretsCommand({ MaxResults: 1 })`, returns boolean
 - Credential resolution order: (1) explicit `accessKeyId` + `secretAccessKey`, (2) `fromIni({ profile })` for named profiles, (3) SDK default credential chain
+- Optional `endpoint` override for LocalStack or other AWS-compatible services
 - Private constructor; use static factory `AwsSecretsManagerProvider.create(opts)`
 
 ### Vault Sync Service (`vault/vault-sync-service.ts`)
 - **In-memory only**: vault secrets are never written to the local SQLite DB. The DB stores vault metadata (`vault_synced`, `vault_path`, `name`) but `variables` is always `'[]'` for vault-synced environments. Secrets live in a session-lifetime in-memory cache (`Map<string, EnvironmentVariable[]>`)
 - Settings keys (HashiCorp): `vault.provider`, `vault.url`, `vault.auth_method`, `vault.token`, `vault.role_id`, `vault.secret_id`, `vault.namespace`, `vault.mount`, `vault.verify_ssl`
-- Settings keys (AWS): `vault.provider`, `vault.aws_region`, `vault.aws_access_key_id`, `vault.aws_secret_access_key`, `vault.aws_profile`
+- Settings keys (AWS): `vault.provider`, `vault.aws_region`, `vault.aws_access_key_id`, `vault.aws_secret_access_key`, `vault.aws_profile`, `vault.aws_endpoint`
 - All settings read from workspace settings with global fallback
 - `vault.verify_ssl` parsed as boolean: `'0'` and `'false'` both mean SSL verification off (UI stores `String(boolean)`)
 - `getProvider(workspaceId?)` → reads vault config, dispatches to HashiCorp or AWS based on `vault.provider`, returns cached `SecretsProvider` (cache keyed by `workspaceId ?? '__global__'`)

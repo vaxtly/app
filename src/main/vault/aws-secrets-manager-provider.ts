@@ -24,6 +24,7 @@ export interface AwsSecretsManagerOptions {
   accessKeyId?: string
   secretAccessKey?: string
   profile?: string
+  endpoint?: string
 }
 
 export class AwsSecretsManagerProvider implements SecretsProvider {
@@ -50,6 +51,7 @@ export class AwsSecretsManagerProvider implements SecretsProvider {
     const client = new SecretsManagerClient({
       region: opts.region,
       ...(credentials ? { credentials } : {}),
+      ...(opts.endpoint ? { endpoint: opts.endpoint } : {}),
     })
 
     return new AwsSecretsManagerProvider(client)

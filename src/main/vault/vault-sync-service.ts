@@ -74,6 +74,7 @@ export async function getProvider(workspaceId?: string): Promise<SecretsProvider
     const accessKeyId = getVaultSetting('vault.aws_access_key_id', workspaceId)
     const secretAccessKey = getVaultSetting('vault.aws_secret_access_key', workspaceId)
     const profile = getVaultSetting('vault.aws_profile', workspaceId)
+    const endpoint = getVaultSetting('vault.aws_endpoint', workspaceId)
 
     // Validate required fields per auth method
     if (authMethod === 'keys' && (!accessKeyId || !secretAccessKey)) return null
@@ -85,6 +86,7 @@ export async function getProvider(workspaceId?: string): Promise<SecretsProvider
       accessKeyId: accessKeyId || undefined,
       secretAccessKey: secretAccessKey || undefined,
       profile: profile || undefined,
+      endpoint: endpoint || undefined,
     })
   }
 

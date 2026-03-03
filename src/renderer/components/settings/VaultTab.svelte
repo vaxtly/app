@@ -16,6 +16,7 @@
   let verifySsl = $state(true)
 
   // AWS fields
+  let awsEndpoint = $state('')
   let awsAuthMethod = $state<'keys' | 'profile' | 'default'>('keys')
   let awsRegion = $state('us-east-1')
   let awsProfile = $state('')
@@ -66,7 +67,7 @@
       hasWorkspaceConfig = false
     }
 
-    const [p, u, am, t, ri, si, ns, ep, vs, as_, aam, ar, ap, aak, asak] = await Promise.all([
+    const [p, u, am, t, ri, si, ns, ep, vs, as_, aam, ar, ap, aak, asak, aep] = await Promise.all([
       getSetting('vault.provider'),
       getSetting('vault.url'),
       getSetting('vault.auth_method'),
@@ -82,6 +83,7 @@
       getSetting('vault.aws_profile'),
       getSetting('vault.aws_access_key_id'),
       getSetting('vault.aws_secret_access_key'),
+      getSetting('vault.aws_endpoint'),
     ])
     provider = p === 'aws' ? 'aws' : 'hashicorp'
     url = u ?? ''
@@ -100,6 +102,7 @@
     awsProfile = ap ?? ''
     awsAccessKeyId = aak ?? ''
     awsSecretAccessKey = asak ?? ''
+    awsEndpoint = aep ?? ''
   }
 
   async function saveConfig(): Promise<void> {
@@ -126,6 +129,7 @@
         promises.push(
           setSetting('vault.aws_auth_method', awsAuthMethod),
           setSetting('vault.aws_region', awsRegion),
+          setSetting('vault.aws_endpoint', awsEndpoint),
         )
         if (awsAuthMethod === 'keys') {
           promises.push(
@@ -374,6 +378,19 @@
         <Toggle checked={verifySsl} onchange={toggleSsl} />
       </div>
     {:else}
+      <!-- AWS: Endpoint Override -->
+      <div class="field-group">
+        <span class="field-label">Endpoint Override</span>
+        <input
+          type="text"
+          value={awsEndpoint}
+          oninput={(e) => { awsEndpoint = (e.target as HTMLInputElement).value }}
+          placeholder="Optional — e.g. http://localhost:4566"
+          class="text-input"
+        />
+        <span class="field-hint">Custom endpoint URL for LocalStack or other AWS-compatible services. Leave empty for real AWS.</span>
+      </div>
+
       <!-- AWS: Region -->
       <div class="field-group">
         <span class="field-label">Region</span>
