@@ -1,8 +1,10 @@
 <script lang="ts">
+  import { setContext } from 'svelte'
   import { environmentsStore } from '../../lib/stores/environments.svelte'
   import { appStore } from '../../lib/stores/app.svelte'
   import KeyValueEditor from '../shared/KeyValueEditor.svelte'
   import type { EnvironmentVariable } from '@shared/types/models'
+  import type { ResolvedVariable } from '../../lib/utils/variable-highlight'
 
   interface Props {
     tabId: string
@@ -13,6 +15,23 @@
   let { tabId, environmentId, isActive = false }: Props = $props()
 
   let environment = $derived(environmentsStore.getById(environmentId))
+
+  // Resolved variables for highlighting {{var}} references in values
+  let resolvedVars = $state<Record<string, ResolvedVariable>>({})
+
+  $effect(() => {
+    void environmentsStore.activeEnvironmentId
+    let cancelled = false
+    window.api.variables.resolveWithSource(
+      appStore.activeWorkspaceId ?? undefined,
+      undefined,
+    ).then((result) => {
+      if (!cancelled) resolvedVars = result as Record<string, ResolvedVariable>
+    })
+    return () => { cancelled = true }
+  })
+
+  setContext('resolvedVars', () => resolvedVars)
 
   // Read from the tab state cache (survives tab switches)
   let envState = $derived(appStore.getEnvTabState(tabId))
