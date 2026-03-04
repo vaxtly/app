@@ -32,8 +32,9 @@ vaxtly/
 │   │   │   ├── ipc.ts                  # IPC channel constants
 │   │   │   ├── http.ts                 # RequestConfig, ResponseData, etc.
 │   │   │   ├── mcp.ts                  # MCP types: McpServer, McpServerState, McpTool, McpResource, McpPrompt, traffic/notifications
-│   │   │   └── sync.ts                 # SyncConfig, VaultConfig, ConflictChange, OrphanedCollection, SessionLogEntry, HttpLogDetail
-│   │   └── constants.ts                # HTTP_METHODS, BODY_TYPES, AUTH_TYPES, SENSITIVE_*
+│   │   │   ├── sync.ts                 # SyncConfig, VaultConfig, ConflictChange, OrphanedCollection, SessionLogEntry, HttpLogDetail
+│   │   │   └── websocket.ts            # WsConnectionStatus, WsConnectionConfig, WsConnectionState, WsMessage, WsStatusChanged, WsMessageReceived
+│   │   └── constants.ts                # HTTP_METHODS, BODY_TYPES, AUTH_TYPES, SENSITIVE_*, isWebSocketRequest(), WS_MESSAGE_LOG_MAX
 │   ├── main/
 │   │   ├── index.ts                    # App lifecycle, window, boot sequence
 │   │   ├── menu.ts                     # Native menu + accelerators
@@ -44,7 +45,8 @@ vaxtly/
 │   │   │   │   ├── types.ts            # MigrationFile interface
 │   │   │   │   ├── 001_initial_schema.ts
 │   │   │   │   ├── 002_mcp_servers.ts
-│   │   │   │   └── 003_mcp_sync_fields.ts
+│   │   │   │   ├── 003_mcp_sync_fields.ts
+│   │   │   │   └── 004_websocket.ts       # websocket_messages table
 │   │   │   └── repositories/
 │   │   │       ├── workspaces.ts
 │   │   │       ├── collections.ts
@@ -52,6 +54,7 @@ vaxtly/
 │   │   │       ├── requests.ts
 │   │   │       ├── environments.ts
 │   │   │       ├── mcp-servers.ts        # MCP server CRUD + reorder + sync (markDirty, findDirtyOrNew, findSyncEnabled)
+│   │   │       ├── websocket-messages.ts # WebSocket message log CRUD + trim
 │   │   │       └── settings.ts
 │   │   ├── ipc/                        # IPC handler registration per domain
 │   │   │   ├── workspaces.ts
@@ -68,6 +71,7 @@ vaxtly/
 │   │   │   ├── sync.ts                # Git sync: test, pull, push, resolve, scan
 │   │   │   ├── vault.ts               # Vault: test, pull, push, fetch/push vars, delete, migrate
 │   │   │   ├── data-import-export.ts  # Data export/import + Postman/Insomnia import
+│   │   │   ├── websocket.ts          # WebSocket: connect, disconnect, send, messages
 │   │   │   ├── updater.ts            # Auto-update: check, install, install-source
 │   │   │   └── settings.ts
 │   │   ├── services/
@@ -86,6 +90,7 @@ vaxtly/
 │   │   │   ├── data-export-import.ts  # Export/import collections, environments, MCP servers, config
 │   │   │   ├── postman-import.ts      # Import Postman collections/environments (3 formats)
 │   │   │   ├── mcp-yaml-serializer.ts # MCP server ↔ YAML directory serialization/import
+│   │   │   ├── websocket-client.ts   # WebSocket client: connect/disconnect/send, {{variable}} substitution, push events to renderer
 │   │   │   └── updater.ts            # electron-updater: init, check, quit-and-install, install-source detection
 │   │   ├── vault/
 │   │   │   ├── secrets-provider.interface.ts      # SecretsProvider interface
@@ -112,6 +117,7 @@ vaxtly/
 │       │   │   ├── environments.svelte.ts # Environment list, activation
 │       │   │   ├── mcp.svelte.ts       # MCP servers, connection states, traffic, notifications
 │       │   │   ├── settings.svelte.ts  # App settings with typed keys + IPC persistence
+│       │   │   ├── websocket.svelte.ts # WebSocket connection states + message logs
 │       │   │   ├── toasts.svelte.ts   # Toast notifications for vault/git failures
 │       │   │   └── drag.svelte.ts      # Drag-and-drop state for sidebar items
 │       │   └── utils/
@@ -144,6 +150,11 @@ vaxtly/
 │           │   ├── McpResponsePane.svelte # Response display: tool/resource/prompt results, loading, errors
 │           │   ├── McpTrafficPane.svelte  # JSON-RPC traffic log
 │           │   └── McpNotificationsPane.svelte # Server notifications log
+│           ├── websocket/
+│           │   ├── WsInspector.svelte   # Top-level WS view: connection bar + status + messages/headers sub-tabs
+│           │   ├── WsConnectionBar.svelte # VarInput URL + protocol badge + Connect/Disconnect + Save
+│           │   ├── WsMessageLog.svelte  # Scrollable message list with direction arrows, auto-scroll, CodeEditor for JSON
+│           │   └── WsMessageComposer.svelte # Text/JSON input with CodeEditor for JSON mode, Enter to send
 │           ├── request/
 │           │   ├── RequestBuilder.svelte # Container: URL + sub-tabs + response split
 │           │   ├── UrlBar.svelte        # Method select + URL input + Send/Cancel
@@ -255,6 +266,7 @@ workspaces 1──N collections
 workspaces 1──N environments
 workspaces 1──N mcp_servers
 collections 1──N folders
+requests 1──N websocket_messages (ON DELETE CASCADE)
 collections 1──N requests
 folders 1──N folders (self-referential, max ~3 levels)
 folders 1──N requests (ON DELETE SET NULL)
@@ -376,6 +388,20 @@ folders 1──N requests (ON DELETE SET NULL)
 | created_at | TEXT | datetime('now') | |
 | updated_at | TEXT | datetime('now') | |
 
+#### `websocket_messages`
+| Column | Type | Default | Notes |
+|--------|------|---------|-------|
+| id | TEXT PK | uuid | |
+| connection_id | TEXT NOT NULL | | FK → requests ON DELETE CASCADE |
+| direction | TEXT NOT NULL | | 'sent' \| 'received' |
+| data | TEXT NOT NULL | | Message payload |
+| timestamp | TEXT | datetime('now') | |
+| size | INTEGER | 0 | Byte length of data |
+
+Index: `idx_ws_messages_connection` on `connection_id`. Trimmed to `WS_MESSAGE_LOG_MAX` (500) per connection.
+
+**WebSocket requests**: Stored in the `requests` table with `method = 'WEBSOCKET'`. This reuses collections, folders, drag-and-drop, and sync for free.
+
 ---
 
 ## IPC Architecture
@@ -492,6 +518,13 @@ Pattern: `ipcMain.handle('domain:action', handler)` in main, `ipcRenderer.invoke
 | `mcp:tools-changed` | — (main→renderer push) | — | `api.on.mcpToolsChanged(cb)` |
 | `mcp:resources-changed` | — (main→renderer push) | — | `api.on.mcpResourcesChanged(cb)` |
 | `mcp:prompts-changed` | — (main→renderer push) | — | `api.on.mcpPromptsChanged(cb)` |
+| `ws:connect` | ipc/websocket.ts | `wsClient.connect(id, config)` | `api.ws.connect(id, config)` |
+| `ws:disconnect` | ipc/websocket.ts | `wsClient.disconnect(id)` | `api.ws.disconnect(id)` |
+| `ws:send` | ipc/websocket.ts | `wsClient.sendMessage(id, data)` | `api.ws.send(id, data)` |
+| `ws:messages-list` | ipc/websocket.ts | `wsMessagesRepo.findByConnection(id)` | `api.ws.messages.list(id)` |
+| `ws:messages-clear` | ipc/websocket.ts | `wsMessagesRepo.clearByConnection(id)` | `api.ws.messages.clear(id)` |
+| `ws:status-changed` | — (main→renderer push) | — | `api.on.wsStatusChanged(cb)` |
+| `ws:message-received` | — (main→renderer push) | — | `api.on.wsMessageReceived(cb)` |
 | `update:check` | ipc/updater.ts | `checkForUpdates()` | `api.updater.check()` |
 | `update:install` | ipc/updater.ts | `quitAndInstall()` | `api.updater.install()` |
 | `update:install-source` | ipc/updater.ts | `getInstallSource()` | `api.updater.installSource()` |
@@ -564,6 +597,17 @@ interface McpTrafficEntry { id, serverId, direction, method, params?, result?, e
 interface McpNotification { id, serverId, method, params?, timestamp }
 ```
 
+### `websocket.ts`
+
+```typescript
+type WsConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'error'
+interface WsConnectionConfig { url, headers?, protocols?, workspaceId?, collectionId? }
+interface WsConnectionState { connectionId, status, connectedAt?, error?, messageCount }
+interface WsMessage { id, connection_id, direction: 'sent'|'received', data, timestamp, size }
+interface WsStatusChanged { connectionId, status, error? }
+interface WsMessageReceived { connectionId, message: WsMessage }
+```
+
 ### `constants.ts`
 
 ```typescript
@@ -575,6 +619,8 @@ SENSITIVE_PARAM_KEYS = ['api_key','apikey','token','secret','password', ...]
 DEFAULTS = { REQUEST_TIMEOUT_MS: 30000, FOLLOW_REDIRECTS: true,
     VERIFY_SSL: true, MAX_SCRIPT_CHAIN_DEPTH: 3, MAX_VARIABLE_NESTING: 10,
     SESSION_LOG_MAX_ENTRIES: 100, SESSION_LOG_BODY_MAX_SIZE: 50 * 1024 }
+WS_MESSAGE_LOG_MAX = 500
+isWebSocketRequest(method) → boolean  // method === 'WEBSOCKET'
 ```
 
 ---
@@ -585,15 +631,16 @@ All stores use this pattern: module-level `$state` + `$derived` + exported objec
 
 ### `appStore` — `lib/stores/app.svelte.ts`
 
-**State**: `activeWorkspaceId`, `openTabs: Tab[]`, `activeTabId`, `sidebarCollapsed`, `sidebarMode`, `sidebarSearch`, `tabStates: Record<string, TabRequestState>`, `envTabStates: Record<string, TabEnvironmentState>`, `mcpTabStates: Record<string, TabMcpState>`
+**State**: `activeWorkspaceId`, `openTabs: Tab[]`, `activeTabId`, `sidebarCollapsed`, `sidebarMode`, `sidebarSearch`, `tabStates: Record<string, TabRequestState>`, `envTabStates: Record<string, TabEnvironmentState>`, `mcpTabStates: Record<string, TabMcpState>`, `wsTabStates: Record<string, TabWebSocketState>`
 
 **Key types**:
-- `Tab { id, type: 'request'|'environment'|'mcp', entityId, label, method?, pinned, isUnsaved, isDraft }`
+- `Tab { id, type: 'request'|'environment'|'mcp'|'websocket', entityId, label, method?, pinned, isUnsaved, isDraft }`
 - `TabMcpState { serverId, activeLeftTab: 'tools'|'resources'|'prompts', activeRightTab: 'response'|'traffic'|'notifications', lastResponse: McpLastResponse | null }`
+- `TabWebSocketState { name, url, headers, protocols, composerMessage, composerType }`
 - `TabRequestState { name, method, url, headers, query_params, body, body_type, auth, scripts, response, loading, activeSubTab? }`
 - `TabEnvironmentState { name, variables, isDirty, initialized }`
 
-**Actions**: `openRequestTab`, `openDraftTab`, `promoteDraft`, `openEnvironmentTab`, `openMcpTab`, `closeTab`, `closeOtherTabs`, `closeAllTabs`, `reorderTabs`, `togglePinTab`, `setActiveTab`, `nextTab`, `prevTab`, `toggleSidebar`, `getTabState`, `updateTabState`, `markTabSaved`, `updateTabLabel`, `getEnvTabState`, `updateEnvTabState`, `getMcpTabState`, `updateMcpTabState`
+**Actions**: `openRequestTab`, `openDraftTab`, `promoteDraft`, `openEnvironmentTab`, `openMcpTab`, `openWebSocketTab`, `closeTab`, `closeOtherTabs`, `closeAllTabs`, `reorderTabs`, `togglePinTab`, `setActiveTab`, `nextTab`, `prevTab`, `toggleSidebar`, `getTabState`, `updateTabState`, `markTabSaved`, `updateTabLabel`, `getEnvTabState`, `updateEnvTabState`, `getMcpTabState`, `updateMcpTabState`, `getWsTabState`, `updateWsTabState`, `markWsTabSaved`
 
 **Draft requests**: `openDraftTab()` creates a transient in-memory request tab (`isDraft: true`, entity ID `draft-{counter}-{timestamp}`) with no DB backing. Drafts can be sent (the proxy only needs the config object) but don't appear in the sidebar tree. `promoteDraft(tabId, request)` replaces a draft tab in-place with a persisted tab after the user saves to a collection. OAuth2 token operations are disabled on drafts (config fields remain editable).
 
@@ -605,7 +652,7 @@ All stores use this pattern: module-level `$state` + `$derived` + exported objec
 
 **`TreeNode`**: `{ type: 'collection'|'folder'|'request', id, name, children, expanded, collectionId, parentId, method? }`
 
-**Actions**: `loadAll`, `rebuildTree`, `toggleExpanded`, `expandAll`, `collapseAll`, `createCollection/Folder/Request`, `renameCollection/Folder/Request`, `deleteCollection/Folder/Request`, `reloadCollection`, `getRequestById`, `getCollectionById`, `revealRequest`, `resolveDefaultEnvironment`
+**Actions**: `loadAll`, `rebuildTree`, `toggleExpanded`, `expandAll`, `collapseAll`, `createCollection/Folder/Request/WebSocket`, `renameCollection/Folder/Request`, `deleteCollection/Folder/Request`, `reloadCollection`, `getRequestById`, `getCollectionById`, `revealRequest`, `resolveDefaultEnvironment`
 
 **`revealRequest(requestId)`**: Expands the collection and all ancestor folders so the request is visible in the sidebar tree.
 
@@ -638,6 +685,16 @@ Pause/resume supports hover-to-hold: `pauseToast` clears the JS timeout and reco
 **Push handlers**: `handleStatusChanged`, `handleToolsChanged`, `handleResourcesChanged`, `handlePromptsChanged`, `handleTrafficPush`, `handleNotification` — registered in `App.svelte` `onMount`
 
 **IPC serialization**: Uses `$state.snapshot()` before sending reactive proxy objects through Electron IPC (prevents "object could not be cloned" errors).
+
+### `wsStore` — `lib/stores/websocket.svelte.ts`
+
+**State**: `connectionStates: Record<string, WsConnectionState>`, `messageLogs: Record<string, WsMessage[]>`
+
+**Actions**: `connect`, `disconnect`, `sendMessage`, `loadMessages`, `clearMessages`, `getState`, `getMessages`
+
+**Push handlers**: `handleStatusChanged`, `handleMessageReceived` — registered in `App.svelte` `onMount`
+
+Mirrors the `mcpStore` pattern. Connection management happens in the main process (`websocket-client.ts`); the store receives push events and updates reactive state.
 
 ### `settingsStore` — `lib/stores/settings.svelte.ts`
 
@@ -898,6 +955,16 @@ Pause/resume supports hover-to-hold: `pauseToast` clears the JS timeout and reco
 - **CI**: `update-scoop` job in `build.yml` computes SHA256 of `Vaxtly-{version}-setup.exe` and pushes manifest to `vaxtly/scoop-bucket/bucket/vaxtly.json` (mirrors the `update-homebrew` pattern)
 - **Snap Store**: Linux snap built by electron-builder and published to the `stable` channel on snapcraft.io during the build step (via `SNAPCRAFT_STORE_CREDENTIALS` secret). Snap updates are handled automatically by `snapd` on user machines.
 
+### WebSocket Client (`services/websocket-client.ts`)
+- Mirrors `mcp-client.ts` pattern: `connections: Map<string, ManagedConnection>` keyed by request ID (= connection ID)
+- `connect(connectionId, config)` → resolves `{{variables}}` in URL and headers via active environment, creates `ws` WebSocket, pushes status events to renderer
+- Auto-corrects `https://` → `wss://` and `http://` → `ws://` URL schemes
+- `sendMessage(connectionId, data)` → substitutes `{{variables}}` in message data before sending, persists to `websocket_messages` table
+- `disconnect(connectionId)` / `disconnectAll()` — called on `app.will-quit`
+- Messages persisted to `websocket_messages` table, trimmed to `WS_MESSAGE_LOG_MAX` (500) per connection
+- SSL verification respects `request.verify_ssl` setting
+- Subprotocols parsed from comma-separated string
+
 ### Custom Syntax Theme (`lib/utils/syntax-theme.ts`)
 - Tokyo Night-inspired blue/amber palette — avoids green/red to not clash with variable highlighting
 - `darkSyntaxHighlight` / `lightSyntaxHighlight` — `HighlightStyle` instances used alongside `oneDarkTheme` (editor chrome only)
@@ -932,7 +999,7 @@ Pause/resume supports hover-to-hold: `pauseToast` clears the JS timeout and reco
 Four `$effect` hooks and three `onMount` listeners in `App.svelte` drive cross-cutting UX behaviors:
 
 1. **Session save**: Watches `openTabs.length` + `activeTabId`, debounce-writes to `session.tabs.{workspaceId}` setting (skipped until initial restore completes via `sessionRestored` flag). Sessions are scoped per workspace. Draft tabs (`isDraft: true`) are excluded from persistence — they are transient by design.
-2. **Sidebar auto-reveal**: When active tab changes — request tabs (non-draft): expands ancestor tree nodes + switches sidebar to "collections"; environment tabs: switches sidebar to "environments"; MCP tabs: switches sidebar to "mcp". Draft tabs skip sidebar reveal since they have no collection/folder backing.
+2. **Sidebar auto-reveal**: When active tab changes — request/websocket tabs (non-draft): expands ancestor tree nodes + switches sidebar to "collections"; environment tabs: switches sidebar to "environments"; MCP tabs: switches sidebar to "mcp". Draft tabs skip sidebar reveal since they have no collection/folder backing.
 3. **Default environment auto-activation**: When a request tab becomes active, resolves the nearest `default_environment_id` (folder chain → collection) and activates it if different from current.
 4. **Theme application**: Reads `app.theme` setting (`dark` | `light` | `system`), toggles `light` class on `<html>`. In `system` mode listens to `matchMedia('prefers-color-scheme: dark')` with cleanup.
 5. **Toast notifications**: `onMount` listener on `logPush` — filters `success: false` entries with `category === 'vault' || 'sync'` and calls `toastsStore.addToast()`. Also replays recent failures (within 30s) from `log.list()` on mount to catch auto-sync errors that fired before the renderer mounted. `<ToastContainer />` is mounted at root level.
@@ -975,6 +1042,7 @@ All method colors are theme-aware via `--color-method-*` CSS variables. Componen
 | HEAD | `#c084fc` | `#9333ea` | `--color-method-head` |
 | OPTIONS | `#94a3b8` | `#64748b` | `--color-method-options` |
 | LIST | `#fbbf24` | `#d97706` | `--color-method-list` |
+| WS | `#2dd4bf` | `#0d9488` | `--color-method-ws` |
 
 ### Status Code Colors (CSS Variables)
 - 2xx: `--color-status-success`
@@ -992,7 +1060,7 @@ All method colors are theme-aware via `--color-method-*` CSS variables. Componen
 2. openDatabase(dbPath)          — Open SQLite + run pending migrations
 3. migrateToEncryptedStorage()   — One-time: encrypt existing plaintext sensitive data
 4. ensureDefaultWorkspace()      — Create "Default Workspace" if table is empty
-5. registerAllIpcHandlers()      — Register all domain handlers (incl. workspace-settings, session-log, code-generator, oauth2, updater, mcp)
+5. registerAllIpcHandlers()      — Register all domain handlers (incl. workspace-settings, session-log, code-generator, oauth2, updater, mcp, ws)
 6. dropLegacyTables()            — DROP TABLE IF EXISTS request_histories (feature removed)
 7. scrubVaultSecrets()           — UPDATE environments SET variables='[]' WHERE vault_synced=1 AND variables!='[]' (safety net for orphaned secrets)
 8. buildMenu()                   — Set native application menu (using IPC.MENU_* constants)
