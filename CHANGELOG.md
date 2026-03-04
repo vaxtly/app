@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.5.8] - 2026-03-04
+
+### Added
+- AWS Secrets Manager endpoint override for LocalStack integration
+
+### Fixed
+- Vault sync toggle no longer wipes environment variables — enabling sync now pushes current values to vault before clearing the local database
+- Collection sync toggle now auto-pushes to remote when enabling (with sensitive data scan), matching MCP server behavior
+
 ## [0.5.7] - 2026-03-03
 
 ### Fixed

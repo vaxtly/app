@@ -200,18 +200,29 @@
   async function toggleVaultSync(): Promise<void> {
     if (!environment) return
     const newValue = vaultSynced ? 0 : 1
-    // Both directions clear variables:
-    // - Enabling: secrets move to vault, clear DB
-    // - Disabling: don't leak vault secrets into DB, start with empty env
-    await environmentsStore.update(environmentId, {
-      vault_synced: newValue,
-      variables: '[]',
-    })
-    // Reset the editor to an empty row
-    appStore.updateEnvTabState(tabId, {
-      variables: [{ key: '', value: '', enabled: true }],
-      isDirty: false,
-    })
+
+    if (newValue === 1) {
+      // Enabling: push current variables to vault first, then clear DB
+      const snapshot = $state.snapshot(variables)
+      const hasVars = snapshot.some((v) => v.key.trim() !== '')
+      if (hasVars) {
+        const wsId = appStore.activeWorkspaceId ?? undefined
+        const result = await window.api.vault.pushVariables(environmentId, snapshot, wsId)
+        if (!result.success) {
+          vaultStatus = { type: 'error', message: result.message ?? 'Failed to push to Vault' }
+          return
+        }
+      }
+      await environmentsStore.update(environmentId, { vault_synced: 1, variables: '[]' })
+      appStore.updateEnvTabState(tabId, { isDirty: false })
+    } else {
+      // Disabling: don't leak vault secrets into DB, start with empty env
+      await environmentsStore.update(environmentId, { vault_synced: 0, variables: '[]' })
+      appStore.updateEnvTabState(tabId, {
+        variables: [{ key: '', value: '', enabled: true }],
+        isDirty: false,
+      })
+    }
   }
 
   async function pullFromVault(): Promise<void> {

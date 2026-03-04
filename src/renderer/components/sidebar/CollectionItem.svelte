@@ -86,8 +86,12 @@
 
   async function toggleSync(): Promise<void> {
     if (!collection) return
-    await window.api.collections.update(node.id, { sync_enabled: syncEnabled ? 0 : 1 })
+    const enabling = !syncEnabled
+    await window.api.collections.update(node.id, { sync_enabled: enabling ? 1 : 0 })
     await collectionsStore.reloadCollection(node.id)
+    if (enabling) {
+      await pushCollection()
+    }
   }
 
   let isDropTarget = $derived(dragStore.dropTargetId === node.id)
