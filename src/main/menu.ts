@@ -125,6 +125,10 @@ export function buildMenu(): void {
       role: 'help',
       submenu: [
         {
+          label: 'Welcome Guide',
+          click: (): void => sendToFocused(IPC.MENU_SHOW_WELCOME),
+        },
+        {
           label: 'User Manual',
           accelerator: 'F1',
           click: (): void => {

@@ -42,6 +42,14 @@ export const SENSITIVE_PARAM_KEYS = [
   'auth',
 ] as const
 
+/** Check if a request method represents a WebSocket connection */
+export function isWebSocketRequest(method: string): boolean {
+  return method === 'WEBSOCKET'
+}
+
+/** Max messages stored per WebSocket connection */
+export const WS_MESSAGE_LOG_MAX = 500
+
 /** Default settings */
 export const DEFAULTS = {
   REQUEST_TIMEOUT_MS: 30000,

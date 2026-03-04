@@ -5,6 +5,7 @@
   import RequestBuilder from './components/request/RequestBuilder.svelte'
   import EnvironmentEditor from './components/environment/EnvironmentEditor.svelte'
   import McpInspector from './components/mcp/McpInspector.svelte'
+  import WsInspector from './components/websocket/WsInspector.svelte'
   import SystemLog from './components/layout/SystemLog.svelte'
   import SettingsModal from './components/settings/SettingsModal.svelte'
   import WelcomeGuide from './components/modals/WelcomeGuide.svelte'
@@ -16,6 +17,7 @@
   import { collectionsStore } from './lib/stores/collections.svelte'
   import { environmentsStore } from './lib/stores/environments.svelte'
   import { mcpStore } from './lib/stores/mcp.svelte'
+  import { wsStore } from './lib/stores/websocket.svelte'
   import { settingsStore } from './lib/stores/settings.svelte'
   import { toastsStore } from './lib/stores/toasts.svelte'
 
@@ -144,7 +146,7 @@
   // --- Session persistence ---
 
   interface PersistedSession {
-    tabs: Array<{ type: 'request' | 'environment' | 'mcp'; entityId: string; pinned: boolean }>
+    tabs: Array<{ type: 'request' | 'environment' | 'mcp' | 'websocket'; entityId: string; pinned: boolean }>
     activeEntityId: string | null
   }
 
@@ -213,6 +215,22 @@
       appStore.setSidebarMode('environments')
     } else if (tab.type === 'mcp') {
       appStore.setSidebarMode('mcp')
+    } else if (tab.type === 'websocket') {
+      appStore.setSidebarMode('collections')
+      collectionsStore.revealRequest(tab.entityId)
+
+      tick().then(() => {
+        const el = document.querySelector(`[data-request-id="${tab.entityId}"]`)
+        if (!el) return
+        const scrollParent = el.closest('.sidebar-scroll')
+        if (!scrollParent) return
+        const parentRect = scrollParent.getBoundingClientRect()
+        const elRect = el.getBoundingClientRect()
+        const isVisible = elRect.top >= parentRect.top && elRect.bottom <= parentRect.bottom
+        if (!isVisible) {
+          el.scrollIntoView({ behavior: 'instant', block: 'center' })
+        }
+      })
     }
   })
 
@@ -243,6 +261,12 @@
           if (server) {
             appStore.openMcpTab({ id: server.id, name: server.name })
             if (saved.pinned) appStore.togglePinTab(`tab-mcp-${saved.entityId}`)
+          }
+        } else if (saved.type === 'websocket') {
+          const req = collectionsStore.getRequestById(saved.entityId)
+          if (req) {
+            appStore.openWebSocketTab(req)
+            if (saved.pinned) appStore.togglePinTab(`tab-ws-${saved.entityId}`)
           }
         }
       }
@@ -287,7 +311,11 @@
   function handleRequestClick(requestId: string): void {
     const request = collectionsStore.getRequestById(requestId)
     if (request) {
-      appStore.openRequestTab(request)
+      if (request.method === 'WEBSOCKET') {
+        appStore.openWebSocketTab(request)
+      } else {
+        appStore.openRequestTab(request)
+      }
     }
   }
 
@@ -354,6 +382,7 @@
       window.api.on.menuNewRequest(handleNewRequest),
       window.api.on.menuSaveRequest(handleSave),
       window.api.on.menuOpenSettings(() => appStore.openSettings()),
+      window.api.on.menuShowWelcome(() => { showWelcome = true }),
       window.api.on.menuCheckUpdates(() => {
         menuUpdateCheck = true
         toastsStore.addToast('update', 'Checking for updates…')
@@ -414,6 +443,9 @@
       window.api.on.mcpToolsChanged((data) => mcpStore.handleToolsChanged(data)),
       window.api.on.mcpResourcesChanged((data) => mcpStore.handleResourcesChanged(data)),
       window.api.on.mcpPromptsChanged((data) => mcpStore.handlePromptsChanged(data)),
+      // WebSocket push events
+      window.api.on.wsStatusChanged((data) => wsStore.handleStatusChanged(data)),
+      window.api.on.wsMessageReceived((data) => wsStore.handleMessageReceived(data)),
     ]
 
     // Replay recent vault/git failures (covers auto-sync that fired before renderer mounted)
@@ -577,6 +609,11 @@
               <McpInspector
                 tabId={appStore.activeTab.id}
                 serverId={appStore.activeTab.entityId}
+              />
+            {:else if appStore.activeTab.type === 'websocket'}
+              <WsInspector
+                tabId={appStore.activeTab.id}
+                connectionId={appStore.activeTab.entityId}
               />
             {/if}
           {/key}

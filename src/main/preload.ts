@@ -9,6 +9,7 @@ import type { EnvironmentVariable } from '../shared/types/models'
 import type { PostmanImportResult } from './services/postman-import'
 import type { InsomniaImportResult } from './services/insomnia-import'
 import type { McpServer, McpServerState, McpTool, McpResource, McpResourceTemplate, McpPrompt, McpToolCallResult, McpResourceReadResult, McpPromptGetResult, McpTrafficEntry, McpNotification } from '../shared/types/mcp'
+import type { WsConnectionConfig, WsConnectionState, WsMessage, WsStatusChanged, WsMessageReceived } from '../shared/types/websocket'
 
 const api = {
   workspaces: {
@@ -244,6 +245,21 @@ const api = {
     },
   },
 
+  ws: {
+    connect: (connectionId: string, config: WsConnectionConfig): Promise<WsConnectionState> =>
+      ipcRenderer.invoke(IPC.WS_CONNECT, connectionId, config),
+    disconnect: (connectionId: string): Promise<void> =>
+      ipcRenderer.invoke(IPC.WS_DISCONNECT, connectionId),
+    send: (connectionId: string, data: string): Promise<WsMessage> =>
+      ipcRenderer.invoke(IPC.WS_SEND, connectionId, data),
+    messages: {
+      list: (connectionId: string): Promise<WsMessage[]> =>
+        ipcRenderer.invoke(IPC.WS_MESSAGES_LIST, connectionId),
+      clear: (connectionId: string): Promise<void> =>
+        ipcRenderer.invoke(IPC.WS_MESSAGES_CLEAR, connectionId),
+    },
+  },
+
   settings: {
     get: (key: string): Promise<string | undefined> =>
       ipcRenderer.invoke(IPC.SETTINGS_GET, key),
@@ -297,6 +313,11 @@ const api = {
       const handler = (): void => callback()
       ipcRenderer.on(IPC.MENU_CHECK_UPDATES, handler)
       return () => ipcRenderer.removeListener(IPC.MENU_CHECK_UPDATES, handler)
+    },
+    menuShowWelcome: (callback: () => void): (() => void) => {
+      const handler = (): void => callback()
+      ipcRenderer.on(IPC.MENU_SHOW_WELCOME, handler)
+      return () => ipcRenderer.removeListener(IPC.MENU_SHOW_WELCOME, handler)
     },
     updateAvailable: (callback: (data: { version: string; releaseName: string }) => void): (() => void) => {
       const handler = (_event: Electron.IpcRendererEvent, data: { version: string; releaseName: string }): void => {
@@ -421,6 +442,20 @@ const api = {
       }
       ipcRenderer.on(IPC.MCP_PROMPTS_CHANGED, handler)
       return () => ipcRenderer.removeListener(IPC.MCP_PROMPTS_CHANGED, handler)
+    },
+    wsStatusChanged: (callback: (data: WsStatusChanged) => void): (() => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, data: WsStatusChanged): void => {
+        callback(data)
+      }
+      ipcRenderer.on(IPC.WS_STATUS_CHANGED, handler)
+      return () => ipcRenderer.removeListener(IPC.WS_STATUS_CHANGED, handler)
+    },
+    wsMessageReceived: (callback: (data: WsMessageReceived) => void): (() => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, data: WsMessageReceived): void => {
+        callback(data)
+      }
+      ipcRenderer.on(IPC.WS_MESSAGE_RECEIVED, handler)
+      return () => ipcRenderer.removeListener(IPC.WS_MESSAGE_RECEIVED, handler)
     },
   },
 }

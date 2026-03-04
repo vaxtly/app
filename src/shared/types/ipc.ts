@@ -140,6 +140,7 @@ export const IPC = {
   MENU_SAVE_REQUEST: 'menu:save-request',
   MENU_OPEN_SETTINGS: 'menu:open-settings',
   MENU_CHECK_UPDATES: 'menu:check-updates',
+  MENU_SHOW_WELCOME: 'menu:show-welcome',
 
   // Auto-update (main→renderer push + renderer→main invoke)
   UPDATE_AVAILABLE: 'update:available',
@@ -182,6 +183,17 @@ export const IPC = {
   MCP_TOOLS_CHANGED: 'mcp:tools-changed',
   MCP_RESOURCES_CHANGED: 'mcp:resources-changed',
   MCP_PROMPTS_CHANGED: 'mcp:prompts-changed',
+
+  // WebSocket
+  WS_CONNECT: 'ws:connect',
+  WS_DISCONNECT: 'ws:disconnect',
+  WS_SEND: 'ws:send',
+  WS_MESSAGES_LIST: 'ws:messages-list',
+  WS_MESSAGES_CLEAR: 'ws:messages-clear',
+
+  // WebSocket — Push events (main→renderer)
+  WS_STATUS_CHANGED: 'ws:status-changed',
+  WS_MESSAGE_RECEIVED: 'ws:message-received',
 } as const
 
 export type IpcChannel = (typeof IPC)[keyof typeof IPC]

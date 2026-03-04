@@ -1,6 +1,6 @@
 {
   "name": "vaxtly",
-  "version": "0.5.8",
+  "version": "0.6.0",
   "description": "Vaxtly API Client",
   "author": {
     "name": "Vaxtly",
@@ -31,6 +31,7 @@
     "@types/better-sqlite3": "^7.6.13",
     "@types/js-yaml": "^4.0.9",
     "@types/uuid": "^10.0.0",
+    "@types/ws": "^8.18.1",
     "electron": "^35.0.0",
     "electron-builder": "^26.0.0",
     "electron-vite": "^3.0.0",
@@ -58,6 +59,7 @@
     "js-yaml": "^4.1.1",
     "undici": "^7.22.0",
     "uuid": "^9.0.1",
+    "ws": "^8.19.0",
     "zod": "^4.3.6"
   }
 }

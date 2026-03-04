@@ -188,6 +188,19 @@ async function createRequest(collectionId: string, name: string, folderId?: stri
   return req
 }
 
+async function createWebSocket(collectionId: string, folderId?: string): Promise<Request> {
+  const req = await window.api.requests.create({
+    collection_id: collectionId,
+    name: 'New WebSocket',
+    folder_id: folderId,
+    method: 'WEBSOCKET',
+    url: 'wss://',
+    body_type: 'none',
+  })
+  await reloadCollection(collectionId)
+  return req
+}
+
 async function renameCollection(id: string, name: string): Promise<void> {
   await window.api.collections.update(id, { name })
   const col = collections.find((c) => c.id === id)
@@ -353,6 +366,7 @@ export const collectionsStore = {
   createCollection,
   createFolder,
   createRequest,
+  createWebSocket,
   renameCollection,
   renameFolder,
   renameRequest,

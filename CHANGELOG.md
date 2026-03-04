@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-03-04
+
+### Added
+- WebSocket support — create WebSocket connections alongside HTTP requests in collections and folders
+- Connect to `ws://` and `wss://` endpoints with custom headers and subprotocols
+- Real-time message log with sent/received indicators, timestamps, and size
+- JSON message composer with CodeMirror syntax highlighting, pretty-print, and format button
+- JSON messages in the message log expand into syntax-highlighted CodeMirror viewers
+- Environment variable substitution in WebSocket URLs, headers, and message payloads
+- WebSocket messages persisted to database (up to 500 per connection)
+- MCP Servers and WebSocket steps added to the Welcome Guide
+- "Welcome Guide" option in Help menu to re-open the onboarding modal
+
 ## [0.5.8] - 2026-03-04
 
 ### Added

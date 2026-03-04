@@ -7,7 +7,7 @@ import type { Request, ResponseData, Workspace, SSEEvent, McpToolCallResult, Mcp
 
 // --- Types ---
 
-export type TabType = 'request' | 'environment' | 'mcp'
+export type TabType = 'request' | 'environment' | 'mcp' | 'websocket'
 
 export interface Tab {
   id: string
@@ -72,6 +72,15 @@ export interface TabMcpState {
   lastResponse: McpLastResponse | null
 }
 
+export interface TabWebSocketState {
+  name: string
+  url: string
+  headers: string | null
+  protocols: string | null
+  composerMessage: string
+  composerType: 'text' | 'json'
+}
+
 type SidebarMode = 'collections' | 'environments' | 'mcp'
 
 // --- State ---
@@ -94,6 +103,9 @@ let envTabStates = $state<Record<string, TabEnvironmentState>>({})
 
 // Per-tab MCP state cache
 let mcpTabStates = $state<Record<string, TabMcpState>>({})
+
+// Per-tab WebSocket state cache
+let wsTabStates = $state<Record<string, TabWebSocketState>>({})
 
 // --- Derived ---
 
@@ -237,6 +249,7 @@ function closeTab(tabId: string): void {
   delete tabStates[tabId]
   delete envTabStates[tabId]
   delete mcpTabStates[tabId]
+  delete wsTabStates[tabId]
 
   if (activeTabId === tabId) {
     // Activate the nearest tab
@@ -256,6 +269,7 @@ function closeOtherTabs(keepTabId: string): void {
     delete tabStates[t.id]
     delete envTabStates[t.id]
     delete mcpTabStates[t.id]
+    delete wsTabStates[t.id]
   }
   openTabs = keep
   if (!openTabs.find((t) => t.id === activeTabId)) {
@@ -269,6 +283,7 @@ function closeAllTabs(): void {
     delete tabStates[t.id]
     delete envTabStates[t.id]
     delete mcpTabStates[t.id]
+    delete wsTabStates[t.id]
   }
   openTabs = openTabs.filter((t) => t.pinned)
   if (openTabs.length > 0) {
@@ -448,6 +463,58 @@ function updateMcpTabState(tabId: string, partial: Partial<TabMcpState>): void {
   mcpTabStates[tabId] = { ...current, ...partial }
 }
 
+function openWebSocketTab(request: { id: string; name: string; url: string; headers: string | null }): void {
+  const existing = openTabs.find((t) => t.type === 'websocket' && t.entityId === request.id)
+  if (existing) {
+    activeTabId = existing.id
+    return
+  }
+
+  const tab: Tab = {
+    id: `tab-ws-${request.id}`,
+    type: 'websocket',
+    entityId: request.id,
+    label: request.name,
+    method: 'WEBSOCKET',
+    pinned: false,
+    isUnsaved: false,
+    isDraft: false,
+  }
+
+  openTabs = [...openTabs, tab]
+  activeTabId = tab.id
+
+  wsTabStates[tab.id] = {
+    name: request.name,
+    url: request.url,
+    headers: request.headers,
+    protocols: null,
+    composerMessage: '',
+    composerType: 'text',
+  }
+}
+
+function getWsTabState(tabId: string): TabWebSocketState | undefined {
+  return wsTabStates[tabId]
+}
+
+function updateWsTabState(tabId: string, partial: Partial<TabWebSocketState>): void {
+  const current = wsTabStates[tabId]
+  if (!current) return
+  wsTabStates[tabId] = { ...current, ...partial }
+
+  // Mark unsaved if URL or headers changed
+  if ('url' in partial || 'headers' in partial || 'protocols' in partial) {
+    openTabs = openTabs.map((t) =>
+      t.id === tabId ? { ...t, isUnsaved: true, label: partial.name ?? t.label } : t
+    )
+  }
+}
+
+function markWsTabSaved(tabId: string): void {
+  openTabs = openTabs.map((t) => (t.id === tabId ? { ...t, isUnsaved: false } : t))
+}
+
 // --- Export reactive getters + actions ---
 
 export const appStore = {
@@ -495,4 +562,8 @@ export const appStore = {
   openMcpTab,
   getMcpTabState,
   updateMcpTabState,
+  openWebSocketTab,
+  getWsTabState,
+  updateWsTabState,
+  markWsTabSaved,
 }

@@ -20,6 +20,16 @@
       icon: 'M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2',
     },
     {
+      title: 'WebSocket',
+      description: 'Create WebSocket connections right alongside your HTTP requests. Connect, send messages with JSON syntax highlighting, and inspect responses in real-time. Variables work in URLs and messages.',
+      icon: 'M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5',
+    },
+    {
+      title: 'MCP Servers',
+      description: 'Connect to Model Context Protocol servers to inspect tools, resources, and prompts. Supports stdio, HTTP, and SSE transports. View JSON-RPC traffic and server notifications in real-time.',
+      icon: 'M8.288 15.038a5.25 5.25 0 017.424 0M5.106 11.856c3.807-3.808 9.98-3.808 13.788 0M1.924 8.674c5.565-5.565 14.587-5.565 20.152 0M12.53 18.22l-.53.53-.53-.53a.75.75 0 011.06 0z',
+    },
+    {
       title: 'Git Sync',
       description: 'Sync your collections to GitHub or GitLab. Your requests are serialized to readable YAML files. Sensitive data is detected and flagged before pushing. Conflicts are resolved via a simple prompt.',
       icon: 'M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4',

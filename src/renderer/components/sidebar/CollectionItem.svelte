@@ -62,6 +62,11 @@
     onrequestclick(req.id)
   }
 
+  async function addWebSocket(): Promise<void> {
+    const req = await collectionsStore.createWebSocket(node.id)
+    onrequestclick(req.id)
+  }
+
   async function handleDelete(): Promise<void> {
     if (syncEnabled) {
       showDeleteSyncedModal = true
@@ -206,6 +211,7 @@
 
   let contextMenuItems = $derived([
     { label: 'Add Request', action: addRequest, icon: 'M12 4.5v15m7.5-7.5h-15' },
+    { label: 'Add WebSocket', action: addWebSocket, icon: 'M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5' },
     { label: 'Add Folder', action: addFolder, icon: 'M12 10.5v6m3-3H9m4.06-7.19l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z' },
     { label: 'Rename', action: startRename, icon: 'm16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Z' },
     { label: '', action: () => {}, separator: true },

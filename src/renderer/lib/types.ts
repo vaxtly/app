@@ -47,3 +47,12 @@ export type {
   McpTrafficEntry,
   McpNotification,
 } from '../../shared/types/mcp'
+
+export type {
+  WsConnectionStatus,
+  WsConnectionConfig,
+  WsConnectionState,
+  WsMessage,
+  WsStatusChanged,
+  WsMessageReceived,
+} from '../../shared/types/websocket'

@@ -7,6 +7,7 @@ const METHOD_KEYS: Record<string, string> = {
   HEAD: 'head',
   OPTIONS: 'options',
   LIST: 'list',
+  WEBSOCKET: 'ws',
 }
 
 /** CSS variable value for an HTTP method color (theme-aware) */

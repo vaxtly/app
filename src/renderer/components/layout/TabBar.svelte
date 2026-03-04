@@ -173,7 +173,11 @@
         </svg>
       {/if}
 
-      {#if tab.type === 'request' && tab.method}
+      {#if tab.type === 'websocket'}
+        <span class="font-mono text-[9px] font-bold" style:color={getMethodColor('WEBSOCKET')} style:font-feature-settings="'tnum' 1, 'zero' 1">
+          WS
+        </span>
+      {:else if tab.type === 'request' && tab.method}
         <span class="font-mono text-[9px] font-bold" style:color={getMethodColor(tab.method ?? 'GET')} style:font-feature-settings="'tnum' 1, 'zero' 1">
           {tab.method.slice(0, 3)}
         </span>

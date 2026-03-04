@@ -173,7 +173,7 @@
   >
     <!-- Method badge -->
     <span class="w-9 shrink-0 text-right font-mono text-[10px] font-bold" style:color={getMethodColor(node.method ?? 'GET')}>
-      {(node.method ?? 'GET').slice(0, 4)}
+      {node.method === 'WEBSOCKET' ? 'WS' : (node.method ?? 'GET').slice(0, 4)}
     </span>
 
     {#if renaming}

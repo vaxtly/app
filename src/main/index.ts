@@ -22,7 +22,9 @@ import { registerDataImportExportHandlers } from './ipc/data-import-export'
 import { registerOAuth2Handlers } from './ipc/oauth2'
 import { registerUpdaterHandlers } from './ipc/updater'
 import { registerMcpHandlers } from './ipc/mcp'
+import { registerWebSocketHandlers } from './ipc/websocket'
 import { disconnectAll as disconnectAllMcpServers } from './services/mcp-client'
+import { disconnectAll as disconnectAllWebSockets } from './services/websocket-client'
 import { initUpdater, checkForUpdates } from './services/updater'
 import * as workspacesRepo from './database/repositories/workspaces'
 import { getSetting, setSetting } from './database/repositories/settings'
@@ -216,6 +218,7 @@ function registerAllIpcHandlers(): void {
   registerOAuth2Handlers()
   registerUpdaterHandlers()
   registerMcpHandlers()
+  registerWebSocketHandlers()
 }
 
 function ensureDefaultWorkspace(): void {
@@ -439,5 +442,6 @@ app.on('window-all-closed', () => {
 
 app.on('will-quit', () => {
   disconnectAllMcpServers()
+  disconnectAllWebSockets()
   closeDatabase()
 })
