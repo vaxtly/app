@@ -176,6 +176,11 @@ const api = {
       ipcRenderer.invoke(IPC.INSOMNIA_IMPORT, json, workspaceId),
   },
 
+  graphql: {
+    introspect: (config: { url: string; headers?: Record<string, string>; workspaceId?: string; collectionId?: string }): Promise<unknown> =>
+      ipcRenderer.invoke(IPC.GRAPHQL_INTROSPECT, config),
+  },
+
   oauth2: {
     getToken: (requestId: string): Promise<import('../shared/types/models').AuthConfig> =>
       ipcRenderer.invoke(IPC.OAUTH2_GET_TOKEN, requestId),

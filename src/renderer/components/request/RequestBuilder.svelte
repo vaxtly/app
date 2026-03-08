@@ -13,6 +13,7 @@
   import { collectionsStore } from '../../lib/stores/collections.svelte'
   import { environmentsStore } from '../../lib/stores/environments.svelte'
   import { settingsStore } from '../../lib/stores/settings.svelte'
+  import { graphqlStore } from '../../lib/stores/graphql.svelte'
   import type { KeyValueEntry, AuthConfig, ScriptsConfig, FormDataEntry, ResponseData, SSEStreamStart, SSEChunk, SSEStreamEnd } from '../../lib/types'
   import type { ResolvedVariable } from '../../lib/utils/variable-highlight'
 
@@ -119,6 +120,26 @@
 
   // Provide resolved vars via context for VarInput and CodeEditor children
   setContext('resolvedVars', getResolvedVariables)
+
+  // --- GraphQL schema introspection ---
+  let gqlSchemaEntry = $derived(state?.url ? graphqlStore.getSchema(state.url) : undefined)
+  let graphqlSchema = $derived(gqlSchemaEntry?.schema ?? null)
+  let schemaLoading = $derived(gqlSchemaEntry?.loading ?? false)
+  let schemaError = $derived(gqlSchemaEntry?.error ?? null)
+
+  function fetchGraphqlSchema(): void {
+    if (!state?.url?.trim()) return
+    const headerMap: Record<string, string> = {}
+    for (const h of headers) {
+      if (h.enabled && h.key.trim()) headerMap[h.key.trim()] = h.value
+    }
+    graphqlStore.fetchSchema(
+      state.url.trim(),
+      headerMap,
+      appStore.activeWorkspaceId ?? undefined,
+      currentCollectionId,
+    )
+  }
 
   const defaultFormData: FormDataEntry[] = [{ key: '', value: '', type: 'text', enabled: true }]
 
@@ -263,8 +284,18 @@
         // Legacy URLSearchParams format — pass through as-is
       }
     } else if (state.body_type === 'graphql') {
-      // Wrap query + variables as JSON
-      bodyContent = JSON.stringify({ query: state.body ?? '', variables: {} })
+      // Body is already a JSON envelope {"query":"...","variables":{...}}
+      // Handle bare query string for backward compat
+      if (bodyContent) {
+        try {
+          const parsed = JSON.parse(bodyContent)
+          if (!parsed || typeof parsed.query !== 'string') throw 0
+        } catch {
+          bodyContent = JSON.stringify({ query: bodyContent, variables: {} })
+        }
+      } else {
+        bodyContent = JSON.stringify({ query: '', variables: {} })
+      }
     }
 
     // Register SSE listeners before sending (filtered by requestId)
@@ -598,9 +629,13 @@
               bodyType={state.body_type}
               body={state.body_type === 'form-data' ? '' : (state.body ?? '')}
               {formData}
+              {graphqlSchema}
+              {schemaLoading}
+              {schemaError}
               onbodytypechange={handleBodyTypeChange}
               onbodychange={(b) => update({ body: b })}
               onformdatachange={(d) => update({ body: JSON.stringify(d) })}
+              onfetchschema={fetchGraphqlSchema}
             />
           {:else if activeRequestTab === 'auth'}
             <AuthEditor

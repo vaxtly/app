@@ -6,6 +6,7 @@
   import Checkbox from '../shared/Checkbox.svelte'
   import type { KeyValueEntry, FormDataEntry } from '../../lib/types'
   import type { ResolvedVariable } from '../../lib/utils/variable-highlight'
+  import type { GraphQLSchema } from 'graphql'
   import { formDataToBulk, bulkToFormData } from '../../lib/utils/bulk-edit'
   import { BODY_TYPES } from '../../../shared/constants'
 
@@ -15,27 +16,91 @@
     bodyType: string
     body: string
     formData: FormDataEntry[]
-    graphqlVariables?: string
+    graphqlSchema?: GraphQLSchema | null
+    schemaLoading?: boolean
+    schemaError?: string | null
     onbodytypechange: (type: string) => void
     onbodychange: (body: string) => void
     onformdatachange: (data: FormDataEntry[]) => void
-    ongraphqlvarschange?: (vars: string) => void
+    onfetchschema?: () => void
   }
 
   let {
     bodyType,
     body,
     formData,
-    graphqlVariables = '',
+    graphqlSchema = null,
+    schemaLoading = false,
+    schemaError = null,
     onbodytypechange,
     onbodychange,
     onformdatachange,
-    ongraphqlvarschange,
+    onfetchschema,
   }: Props = $props()
 
   let formatFeedback = $state('')
   let formDataBulkMode = $state(false)
   let formDataBulkText = $state('')
+
+  // --- GraphQL body envelope: parse body JSON into query + variables ---
+  function parseGraphqlBody(raw: string): { query: string; variables: string } {
+    if (!raw) return { query: '', variables: '' }
+    try {
+      const parsed = JSON.parse(raw)
+      if (parsed && typeof parsed.query === 'string') {
+        const vars = parsed.variables && Object.keys(parsed.variables).length > 0
+          ? JSON.stringify(parsed.variables, null, 2)
+          : ''
+        return { query: parsed.query, variables: vars }
+      }
+    } catch { /* not JSON envelope — treat as bare query (backward compat) */ }
+    return { query: raw, variables: '' }
+  }
+
+  function serializeGraphqlBody(query: string, variables: string): string {
+    let vars: Record<string, unknown> = {}
+    if (variables.trim()) {
+      try { vars = JSON.parse(variables) } catch { /* keep empty */ }
+    }
+    return JSON.stringify({ query, variables: vars })
+  }
+
+  let gqlParsed = $derived(bodyType === 'graphql' ? parseGraphqlBody(body) : { query: '', variables: '' })
+
+  function handleGraphqlQueryChange(newQuery: string): void {
+    onbodychange(serializeGraphqlBody(newQuery, gqlParsed.variables))
+  }
+
+  function handleGraphqlVarsChange(newVars: string): void {
+    onbodychange(serializeGraphqlBody(gqlParsed.query, newVars))
+  }
+
+  // --- GraphQL draggable splitter (query / variables) ---
+  let gqlSplitPercent = $state(70)
+  let gqlDragging = $state(false)
+  let gqlSplitContainer = $state<HTMLElement | null>(null)
+
+  function onGqlDividerPointerDown(e: PointerEvent): void {
+    e.preventDefault()
+    gqlDragging = true
+    const target = e.currentTarget as HTMLElement
+    target.setPointerCapture(e.pointerId)
+  }
+
+  function onGqlDividerPointerMove(e: PointerEvent): void {
+    if (!gqlDragging || !gqlSplitContainer) return
+    const rect = gqlSplitContainer.getBoundingClientRect()
+    const pct = ((e.clientY - rect.top) / rect.height) * 100
+    gqlSplitPercent = Math.min(90, Math.max(25, pct))
+  }
+
+  function onGqlDividerPointerUp(): void {
+    gqlDragging = false
+  }
+
+  function onGqlDividerPointerCancel(): void {
+    gqlDragging = false
+  }
 
   function enterFormDataBulkMode(): void {
     formDataBulkText = formDataToBulk(formData)
@@ -214,17 +279,52 @@
         <CodeEditor value={body} language="text" placeholder="Raw body..." onchange={onbodychange} enableVariableHighlight={!!getResolvedVars} getResolvedVariables={getResolvedVars} />
       </div>
     {:else if bodyType === 'graphql'}
-      <div class="flex flex-col h-full">
-        <div class="flex-1 flex flex-col border-b border-[var(--glass-border)] p-2">
-          <div class="text-[10px] font-medium uppercase tracking-[0.06em] text-surface-500 mb-1 shrink-0">Query</div>
+      <div class="flex flex-col h-full" bind:this={gqlSplitContainer}>
+        <!-- Query pane -->
+        <div class="flex flex-col p-2 min-h-0" style="flex: {gqlSplitPercent} 0 0%">
+          <div class="flex items-center mb-1 shrink-0 gap-1.5">
+            <div class="text-[10px] font-medium uppercase tracking-[0.06em] text-surface-500">Query</div>
+            <span class="flex-1"></span>
+            {#if schemaError}
+              <span class="text-[10px] text-status-client-error truncate max-w-48" title={schemaError}>Schema error</span>
+            {:else if graphqlSchema}
+              <span class="text-[10px] text-success">Schema loaded</span>
+            {/if}
+            {#if onfetchschema}
+              <button
+                onclick={onfetchschema}
+                disabled={schemaLoading}
+                class="flex items-center gap-1 px-1.5 py-0.5 border-none rounded bg-transparent text-surface-400 text-[10px] cursor-pointer transition-[color,background] duration-[0.12s] whitespace-nowrap hover:text-surface-200 hover:bg-surface-700/40 disabled:opacity-40 disabled:cursor-default"
+                title={graphqlSchema ? 'Refresh schema' : 'Fetch schema from endpoint for autocomplete'}
+              >
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class:gql-spin={schemaLoading}>
+                  <path d="M21 12a9 9 0 1 1-9-9c2.5 0 4.8 1 6.5 2.6"/><path d="M21 3v6h-6"/>
+                </svg>
+                {schemaLoading ? 'Loading...' : graphqlSchema ? 'Refresh' : 'Schema'}
+              </button>
+            {/if}
+          </div>
           <div class="flex-1 min-h-0">
-            <CodeEditor value={body} language="text" placeholder={"query { ... }"} onchange={onbodychange} enableVariableHighlight={!!getResolvedVars} getResolvedVariables={getResolvedVars} />
+            <CodeEditor value={gqlParsed.query} language="graphql" {graphqlSchema} placeholder={"query { ... }"} onchange={handleGraphqlQueryChange} enableVariableHighlight={!!getResolvedVars} getResolvedVariables={getResolvedVars} />
           </div>
         </div>
-        <div class="h-32 flex flex-col p-2">
+
+        <!-- Draggable divider -->
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
+        <div
+          class="gql-divider"
+          class:gql-split--dragging={gqlDragging}
+          onpointerdown={onGqlDividerPointerDown}
+          onpointermove={onGqlDividerPointerMove}
+          onpointerup={onGqlDividerPointerUp}
+          onpointercancel={onGqlDividerPointerCancel}
+        ></div>
+
+        <!-- Variables pane -->
+        <div class="flex flex-col p-2 min-h-0" style="flex: {100 - gqlSplitPercent} 0 0%">
           <div class="text-[10px] font-medium uppercase tracking-[0.06em] text-surface-500 mb-1 shrink-0">Variables</div>
           <div class="flex-1 min-h-0">
-            <CodeEditor value={graphqlVariables} language="json" placeholder={'{"key": "value"}'} onchange={ongraphqlvarschange ?? (() => {})} />
+            <CodeEditor value={gqlParsed.variables} language="json" placeholder={'{"key": "value"}'} onchange={handleGraphqlVarsChange} />
           </div>
         </div>
       </div>
@@ -395,6 +495,65 @@
 
   .fd-bulk-textarea:focus {
     background: color-mix(in srgb, var(--color-brand-500) 3%, transparent);
+  }
+
+  .gql-spin {
+    animation: gql-spin 0.8s linear infinite;
+  }
+
+  @keyframes gql-spin {
+    to { transform: rotate(360deg); }
+  }
+
+  /* --- GraphQL query/variables draggable divider --- */
+  .gql-divider {
+    position: relative;
+    height: 1px;
+    flex-shrink: 0;
+    background: var(--glass-border);
+    cursor: row-resize;
+    z-index: 2;
+    touch-action: none;
+  }
+
+  /* Centre pill indicator */
+  .gql-divider::before {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 28px;
+    height: 3px;
+    border-radius: 2px;
+    background: var(--color-surface-600);
+    transform: translate(-50%, -50%);
+    opacity: 0;
+    transition: opacity 0.15s, background 0.15s;
+  }
+
+  /* Larger hit area */
+  .gql-divider::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: -4px;
+    bottom: -4px;
+  }
+
+  .gql-divider:hover::before,
+  .gql-split--dragging::before {
+    opacity: 1;
+  }
+
+  .gql-split--dragging {
+    height: 3px;
+    background: var(--color-brand-500);
+  }
+
+  .gql-split--dragging::before {
+    background: var(--color-brand-400);
+    opacity: 1;
   }
 
 </style>

@@ -5,6 +5,8 @@
   import { json } from '@codemirror/lang-json'
   import { html } from '@codemirror/lang-html'
   import { xml } from '@codemirror/lang-xml'
+  import { graphql as graphqlLang, updateSchema } from 'cm6-graphql'
+  import type { GraphQLSchema } from 'graphql'
   import { oneDarkTheme } from '@codemirror/theme-one-dark'
   import { syntaxHighlighting } from '@codemirror/language'
   import { darkSyntaxHighlight, lightSyntaxHighlight } from '../lib/utils/syntax-theme'
@@ -15,11 +17,12 @@
 
   interface Props {
     value?: string
-    language?: 'json' | 'html' | 'xml' | 'text'
+    language?: 'json' | 'html' | 'xml' | 'graphql' | 'text'
     readonly?: boolean
     placeholder?: string
     enableVariableHighlight?: boolean
     getResolvedVariables?: () => Record<string, ResolvedVariable>
+    graphqlSchema?: GraphQLSchema | null
     onchange?: (value: string) => void
     appendOnly?: boolean
   }
@@ -31,6 +34,7 @@
     placeholder = '',
     enableVariableHighlight = false,
     getResolvedVariables,
+    graphqlSchema = null,
     onchange,
     appendOnly = false,
   }: Props = $props()
@@ -51,6 +55,7 @@
       case 'json': return json()
       case 'html': return html()
       case 'xml': return xml()
+      case 'graphql': return graphqlLang(graphqlSchema ?? undefined)
       default: return []
     }
   }
@@ -145,6 +150,15 @@
         : [syntaxHighlighting(lightSyntaxHighlight)]
       )
     })
+  })
+
+  // Reactively update GraphQL schema when it arrives
+  $effect(() => {
+    const schema = graphqlSchema
+    if (!view || language !== 'graphql') return
+    if (schema) {
+      updateSchema(view, schema)
+    }
   })
 </script>
 

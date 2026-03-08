@@ -272,6 +272,41 @@ describe('generateCode', () => {
     })
   })
 
+  describe('curl — graphql body', () => {
+    it('generates POST with JSON-envelope graphql body', () => {
+      const code = generateCode('curl', makeRequest({
+        method: 'POST',
+        body: JSON.stringify({ query: '{ users { id name } }', variables: { limit: 10 } }),
+        bodyType: 'graphql',
+      }))
+      expect(code).toContain('-X POST')
+      expect(code).toContain('-d')
+      const parsed = JSON.parse(code.match(/-d '(.+?)'/s)![1])
+      expect(parsed.query).toBe('{ users { id name } }')
+      expect(parsed.variables).toEqual({ limit: 10 })
+    })
+
+    it('wraps bare query string in JSON envelope', () => {
+      const code = generateCode('curl', makeRequest({
+        method: 'POST',
+        body: '{ users { id } }',
+        bodyType: 'graphql',
+      }))
+      const parsed = JSON.parse(code.match(/-d '(.+?)'/s)![1])
+      expect(parsed.query).toBe('{ users { id } }')
+      expect(parsed.variables).toEqual({})
+    })
+
+    it('returns no body flag when body is empty', () => {
+      const code = generateCode('curl', makeRequest({
+        method: 'POST',
+        body: '',
+        bodyType: 'graphql',
+      }))
+      expect(code).not.toContain('-d')
+    })
+  })
+
   describe('curl — body types', () => {
     it('generates XML body with content-type', () => {
       const code = generateCode('curl', makeRequest({

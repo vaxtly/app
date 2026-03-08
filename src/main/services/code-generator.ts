@@ -98,6 +98,16 @@ function buildBody(data: CodeGenRequest, sub: (s: string) => string): string | n
     case 'xml':
     case 'raw':
       return body ? sub(body) : null
+    case 'graphql': {
+      if (!body) return null
+      try {
+        const parsed = JSON.parse(body)
+        if (parsed && typeof parsed.query === 'string') {
+          return JSON.stringify({ query: sub(parsed.query), variables: parsed.variables ?? {} })
+        }
+      } catch { /* bare query */ }
+      return JSON.stringify({ query: sub(body), variables: {} })
+    }
     case 'form-data':
     case 'urlencoded': {
       const entries = formData.filter((f) => f.key.trim() && f.enabled)

@@ -179,7 +179,17 @@ async function executeHttpRequest(
         body = resolved.toString()
       }
     } else if (request.body_type === 'graphql') {
-      body = JSON.stringify({ query: sub(request.body) })
+      // Body may be JSON envelope or bare query (backward compat)
+      try {
+        const parsed = JSON.parse(request.body)
+        if (parsed && typeof parsed.query === 'string') {
+          body = JSON.stringify({ query: sub(parsed.query), variables: parsed.variables ?? {} })
+        } else {
+          body = JSON.stringify({ query: sub(request.body) })
+        }
+      } catch {
+        body = JSON.stringify({ query: sub(request.body) })
+      }
     } else {
       body = sub(request.body)
     }

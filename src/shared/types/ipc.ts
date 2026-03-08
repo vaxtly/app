@@ -194,6 +194,9 @@ export const IPC = {
   // WebSocket — Push events (main→renderer)
   WS_STATUS_CHANGED: 'ws:status-changed',
   WS_MESSAGE_RECEIVED: 'ws:message-received',
+
+  // GraphQL
+  GRAPHQL_INTROSPECT: 'graphql:introspect',
 } as const
 
 export type IpcChannel = (typeof IPC)[keyof typeof IPC]

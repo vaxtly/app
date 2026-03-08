@@ -593,4 +593,84 @@ describe('executePreRequestScripts', () => {
     const [url] = mockUndiciFetch.mock.calls[0]
     expect(url).toBe('https://api.resolved.com/auth')
   })
+
+  it('sends graphql JSON-envelope body with variables', async () => {
+    const col = collectionsRepo.create({ name: 'C' })
+    const dep = requestsRepo.create({
+      collection_id: col.id,
+      name: 'GQL',
+      url: 'https://api.test/graphql',
+      method: 'POST',
+    })
+    requestsRepo.update(dep.id, {
+      body_type: 'graphql',
+      body: JSON.stringify({ query: '{ users { id } }', variables: { limit: 5 } }),
+    })
+    const main = requestsRepo.create({ collection_id: col.id, name: 'Main' })
+    requestsRepo.update(main.id, {
+      scripts: JSON.stringify({ pre_request: [{ action: 'send_request', request_id: dep.id }] }),
+    })
+
+    mockFetchResponse(200, {})
+
+    await executePreRequestScripts(main.id, col.id)
+
+    const [, opts] = mockUndiciFetch.mock.calls[0]
+    const parsed = JSON.parse(opts.body)
+    expect(parsed.query).toBe('{ users { id } }')
+    expect(parsed.variables).toEqual({ limit: 5 })
+  })
+
+  it('wraps bare graphql query in JSON envelope', async () => {
+    const col = collectionsRepo.create({ name: 'C' })
+    const dep = requestsRepo.create({
+      collection_id: col.id,
+      name: 'GQL-bare',
+      url: 'https://api.test/graphql',
+      method: 'POST',
+    })
+    requestsRepo.update(dep.id, {
+      body_type: 'graphql',
+      body: '{ users { id } }',
+    })
+    const main = requestsRepo.create({ collection_id: col.id, name: 'Main' })
+    requestsRepo.update(main.id, {
+      scripts: JSON.stringify({ pre_request: [{ action: 'send_request', request_id: dep.id }] }),
+    })
+
+    mockFetchResponse(200, {})
+
+    await executePreRequestScripts(main.id, col.id)
+
+    const [, opts] = mockUndiciFetch.mock.calls[0]
+    const parsed = JSON.parse(opts.body)
+    expect(parsed.query).toBe('{ users { id } }')
+  })
+
+  it('applies variable substitution to graphql query', async () => {
+    const col = collectionsRepo.create({ name: 'C' })
+    collectionsRepo.update(col.id, { variables: JSON.stringify({ field: 'name' }) })
+    const dep = requestsRepo.create({
+      collection_id: col.id,
+      name: 'GQL-vars',
+      url: 'https://api.test/graphql',
+      method: 'POST',
+    })
+    requestsRepo.update(dep.id, {
+      body_type: 'graphql',
+      body: JSON.stringify({ query: '{ users { {{field}} } }', variables: {} }),
+    })
+    const main = requestsRepo.create({ collection_id: col.id, name: 'Main' })
+    requestsRepo.update(main.id, {
+      scripts: JSON.stringify({ pre_request: [{ action: 'send_request', request_id: dep.id }] }),
+    })
+
+    mockFetchResponse(200, {})
+
+    await executePreRequestScripts(main.id, col.id)
+
+    const [, opts] = mockUndiciFetch.mock.calls[0]
+    const parsed = JSON.parse(opts.body)
+    expect(parsed.query).toBe('{ users { name } }')
+  })
 })

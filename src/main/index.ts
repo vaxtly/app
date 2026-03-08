@@ -23,6 +23,7 @@ import { registerOAuth2Handlers } from './ipc/oauth2'
 import { registerUpdaterHandlers } from './ipc/updater'
 import { registerMcpHandlers } from './ipc/mcp'
 import { registerWebSocketHandlers } from './ipc/websocket'
+import { registerGraphqlHandlers } from './ipc/graphql'
 import { disconnectAll as disconnectAllMcpServers } from './services/mcp-client'
 import { disconnectAll as disconnectAllWebSockets } from './services/websocket-client'
 import { initUpdater, checkForUpdates } from './services/updater'
@@ -219,6 +220,7 @@ function registerAllIpcHandlers(): void {
   registerUpdaterHandlers()
   registerMcpHandlers()
   registerWebSocketHandlers()
+  registerGraphqlHandlers()
 }
 
 function ensureDefaultWorkspace(): void {
