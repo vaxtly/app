@@ -57,7 +57,7 @@ npx electron-rebuild -f -w better-sqlite3  # Rebuild native module for Electron 
 - Pattern: `ipcMain.handle('domain:action', handler)` in main.
 - Preload exposes typed API: `window.api.domain.action()`.
 - **Push channels** (main→renderer): use `event.sender.send(IPC.CHANNEL, data)` in handlers + `ipcRenderer.on` listeners in preload's `on` namespace. Return cleanup function `() => void`.
-- Domain prefixes: workspaces, collections, folders, requests, environments, histories, proxy, sync, vault, settings, window, mcp, ws.
+- Domain prefixes: workspaces, collections, folders, requests, environments, histories, proxy, sync, vault, settings, window, mcp, ws, graphql.
 
 ### Testing
 - Vitest with `openTestDatabase()` (in-memory SQLite) in `beforeEach`.

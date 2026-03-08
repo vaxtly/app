@@ -11,7 +11,7 @@
 | Build | electron-vite | 3 |
 | UI | Svelte 5 (runes) | 5 |
 | CSS | Tailwind CSS | 4 |
-| Editor | CodeMirror | 6 |
+| Editor | CodeMirror + cm6-graphql | 6 |
 | Database | better-sqlite3 (SQLite WAL) | 12 |
 | HTTP | undici (custom TLS Agent) | 7 |
 | Auto-update | electron-updater | 6 |
@@ -68,6 +68,7 @@ vaxtly/
 │   │   │   ├── session-log.ts         # Session log list + clear
 │   │   │   ├── oauth2.ts              # OAuth 2.0: get-token, refresh-token, clear-token
 │   │   │   ├── code-generator.ts      # Code snippet generation
+│   │   │   ├── graphql.ts            # GraphQL introspection (schema fetch via undici)
 │   │   │   ├── sync.ts                # Git sync: test, pull, push, resolve, scan
 │   │   │   ├── vault.ts               # Vault: test, pull, push, fetch/push vars, delete, migrate
 │   │   │   ├── data-import-export.ts  # Data export/import + Postman/Insomnia import
@@ -118,6 +119,7 @@ vaxtly/
 │       │   │   ├── mcp.svelte.ts       # MCP servers, connection states, traffic, notifications
 │       │   │   ├── settings.svelte.ts  # App settings with typed keys + IPC persistence
 │       │   │   ├── websocket.svelte.ts # WebSocket connection states + message logs
+│       │   │   ├── graphql.svelte.ts   # GraphQL schema cache (introspection results per URL)
 │       │   │   ├── toasts.svelte.ts   # Toast notifications for vault/git failures
 │       │   │   └── drag.svelte.ts      # Drag-and-drop state for sidebar items
 │       │   └── utils/
@@ -200,8 +202,8 @@ vaxtly/
 │   ├── unit/
 │   │   ├── repositories.test.ts        # 32 tests: all repos + encryption + workspace settings
 │   │   ├── variable-substitution.test.ts # 20 tests: variable resolution + vault-synced cache reads
-│   │   ├── script-execution.test.ts    # 40 tests: extractValue + extractJsonPath + executePostResponseScripts + vault mirror
-│   │   ├── code-generator.test.ts      # 29 tests: 9 languages + all auth/body types
+│   │   ├── script-execution.test.ts    # 43 tests: extractValue + extractJsonPath + executePostResponseScripts + vault mirror + graphql envelope
+│   │   ├── code-generator.test.ts      # 32 tests: 9 languages + all auth/body types + graphql
 │   │   ├── oauth2.test.ts             # 17 tests: PKCE, token expiry, mocked token exchange
 │   │   ├── insomnia-import.test.ts    # 14 tests: workspace/folder/request/env import
 │   │   ├── sensitive-data-scanner.test.ts # 34 tests: scan + sanitize + api-key + urlencoded + MCP server scan/sanitize
@@ -452,6 +454,7 @@ Pattern: `ipcMain.handle('domain:action', handler)` in main, `ipcRenderer.invoke
 | `variables:resolve` | ipc/variables.ts | `ensureLoaded()` + `getResolvedVariables()` | `api.variables.resolve(wsId?, colId?)` |
 | `variables:resolve-with-source` | ipc/variables.ts | `ensureLoaded()` + `getResolvedVariablesWithSource()` | `api.variables.resolveWithSource(wsId?, colId?)` |
 | `code:generate` | ipc/code-generator.ts | `generateCode(lang, data, ...)` | `api.codeGenerator.generate(...)` |
+| `graphql:introspect` | ipc/graphql.ts | `undiciFetch()` + `getIntrospectionQuery()` | `api.graphql.introspect(config)` |
 | `log:list` | ipc/session-log.ts | `getLogs()` | `api.log.list()` |
 | `log:clear` | ipc/session-log.ts | `clearLogs()` | `api.log.clear()` |
 | `log:push` | — (main→renderer push) | — | `api.on.logPush(cb)` |
@@ -703,6 +706,14 @@ Mirrors the `mcpStore` pattern. Connection management happens in the main proces
 **Actions**: `loadAll`, `get(key)`, `set(key, value)` — typed settings keys with IPC persistence. Used for app-wide preferences (layout orientation, timeout, SSL, theme, split percentages, etc.).
 
 **Settings keys**: `request.layout`, `request.timeout`, `request.verify_ssl`, `request.follow_redirects`, `request.splitPercent`, `mcp.splitPercent`, `app.version`, `app.welcomed`, `app.theme`, `sidebar.width`
+
+### `graphqlStore` — `lib/stores/graphql.svelte.ts`
+
+**State**: `cache: Record<string, SchemaEntry>` — keyed by URL. Each entry: `{ schema: GraphQLSchema | null, loading, error }`.
+
+**Actions**: `getSchema(url)`, `fetchSchema(url, headers, wsId?, colId?)`, `clearSchema(url)`
+
+Caches introspection results per URL in the renderer. `fetchSchema` calls `api.graphql.introspect()` (main process), which sends the standard introspection query via undici, resolves `{{variables}}` in URL/headers, and respects SSL settings. The resulting `GraphQLSchema` is passed to CodeMirror's `cm6-graphql` extension for autocompletion.
 
 ---
 
