@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-03-08
+
+### Added
+- GraphQL schema introspection — fetch schema from endpoint for autocompletion and validation in the query editor
+- GraphQL syntax highlighting via cm6-graphql CodeMirror extension
+- Draggable divider between GraphQL query and variables panels
+- Schema status indicator (loaded/error) with fetch/refresh button
+- Environment variable substitution in introspection requests (URL and headers)
+- GraphQL JSON envelope storage — query and variables stored together, backward compatible with bare query strings
+- GraphQL body support in code generator and pre-request script execution
+- 6 new tests for GraphQL code generation and script execution paths
+
 ## [0.6.0] - 2026-03-04
 
 ### Added
