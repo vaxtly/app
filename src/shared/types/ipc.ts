@@ -85,10 +85,12 @@ export const IPC = {
   DATA_EXPORT: 'data:export',
   DATA_EXPORT_COLLECTION: 'data:export-collection',
   DATA_EXPORT_MCP_SERVER: 'data:export-mcp-server',
+  DATA_EXPORT_OPENAPI: 'data:export-openapi',
   DATA_IMPORT: 'data:import',
   DATA_PICK_AND_READ: 'data:pick-and-read',
   POSTMAN_IMPORT: 'postman:import',
   INSOMNIA_IMPORT: 'insomnia:import',
+  OPENAPI_IMPORT: 'openapi:import',
 
   // Settings
   SETTINGS_GET: 'settings:get',

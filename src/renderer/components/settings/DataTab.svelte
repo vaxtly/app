@@ -29,6 +29,7 @@
   }
 
   function detectFormatLabel(parsed: Record<string, unknown>): string {
+    if (isOpenAPIFormat(parsed)) return 'OpenAPI Specification'
     if (isInsomniaFormat(parsed)) return 'Insomnia Export'
     if (parsed.version && Array.isArray(parsed.collections)) return 'Postman Dump'
     const info = parsed.info
@@ -39,6 +40,11 @@
     if (Array.isArray(parsed.values) && typeof parsed.name === 'string') return 'Postman Environment'
     if (parsed.vaxtly_export) return 'Vaxtly Export'
     return 'Vaxtly Export'
+  }
+
+  function isOpenAPIFormat(parsed: Record<string, unknown>): boolean {
+    return (typeof parsed.openapi === 'string' || typeof parsed.swagger === 'string') &&
+      typeof parsed.info === 'object' && parsed.info !== null
   }
 
   function isInsomniaFormat(parsed: Record<string, unknown>): boolean {
@@ -77,20 +83,34 @@
     }
   }
 
-  async function processImport(json: string, fileName: string, fileSize: number): Promise<void> {
+  async function processImport(input: string, fileName: string, fileSize: number): Promise<void> {
     importing = true
     importStage = 'detecting'
     status = null
 
     let parsed: Record<string, unknown>
     try {
-      parsed = JSON.parse(json)
+      parsed = JSON.parse(input)
     } catch {
-      status = { type: 'error', message: 'Invalid JSON file' }
-      importing = false
-      importStage = 'idle'
-      selectedFile = null
-      return
+      // Not JSON — try YAML (for OpenAPI YAML files)
+      try {
+        const yamlParsed = (await import('js-yaml')).default.load(input)
+        if (yamlParsed && typeof yamlParsed === 'object' && !Array.isArray(yamlParsed)) {
+          parsed = yamlParsed as Record<string, unknown>
+        } else {
+          status = { type: 'error', message: 'Invalid file — could not parse as JSON or YAML' }
+          importing = false
+          importStage = 'idle'
+          selectedFile = null
+          return
+        }
+      } catch {
+        status = { type: 'error', message: 'Invalid file — could not parse as JSON or YAML' }
+        importing = false
+        importStage = 'idle'
+        selectedFile = null
+        return
+      }
     }
 
     const format = detectFormatLabel(parsed)
@@ -99,8 +119,19 @@
     importStage = 'importing'
 
     try {
-      if (isInsomniaFormat(parsed)) {
-        const result = await window.api.data.importInsomnia(json, appStore.activeWorkspaceId ?? undefined)
+      if (isOpenAPIFormat(parsed)) {
+        const result = await window.api.data.importOpenAPI(input, appStore.activeWorkspaceId ?? undefined)
+        const parts: string[] = []
+        if (result.collections > 0) parts.push(`${result.collections} collection${result.collections > 1 ? 's' : ''}`)
+        if (result.requests > 0) parts.push(`${result.requests} request${result.requests > 1 ? 's' : ''}`)
+        if (result.folders > 0) parts.push(`${result.folders} folder${result.folders > 1 ? 's' : ''}`)
+        const summary = parts.length > 0 ? parts.join(', ') : 'nothing'
+        status = {
+          type: result.errors.length > 0 ? 'error' : 'success',
+          message: `Imported ${summary}${result.errors.length > 0 ? `. Errors: ${result.errors.join(', ')}` : ''}`,
+        }
+      } else if (isInsomniaFormat(parsed)) {
+        const result = await window.api.data.importInsomnia(input, appStore.activeWorkspaceId ?? undefined)
         const parts: string[] = []
         if (result.collections > 0) parts.push(`${result.collections} collection${result.collections > 1 ? 's' : ''}`)
         if (result.requests > 0) parts.push(`${result.requests} request${result.requests > 1 ? 's' : ''}`)
@@ -112,7 +143,7 @@
           message: `Imported ${summary}${result.errors.length > 0 ? `. Errors: ${result.errors.join(', ')}` : ''}`,
         }
       } else if (isPostmanFormat(parsed)) {
-        const result = await window.api.data.importPostman(json, appStore.activeWorkspaceId ?? undefined)
+        const result = await window.api.data.importPostman(input, appStore.activeWorkspaceId ?? undefined)
         const parts: string[] = []
         if (result.collections > 0) parts.push(`${result.collections} collection${result.collections > 1 ? 's' : ''}`)
         if (result.requests > 0) parts.push(`${result.requests} request${result.requests > 1 ? 's' : ''}`)
@@ -124,7 +155,7 @@
           message: `Imported ${summary}${result.errors.length > 0 ? `. Errors: ${result.errors.join(', ')}` : ''}`,
         }
       } else {
-        const result = await window.api.data.import(json, appStore.activeWorkspaceId ?? undefined)
+        const result = await window.api.data.import(input, appStore.activeWorkspaceId ?? undefined)
         const parts: string[] = []
         if (result.collections > 0) parts.push(`${result.collections} collection${result.collections > 1 ? 's' : ''}`)
         if (result.environments > 0) parts.push(`${result.environments} environment${result.environments > 1 ? 's' : ''}`)
@@ -191,8 +222,8 @@
 
     const file = e.dataTransfer?.files[0]
     if (!file) return
-    if (!file.name.endsWith('.json')) {
-      status = { type: 'error', message: 'Only JSON files are supported' }
+    if (!file.name.match(/\.(json|yaml|yml)$/i)) {
+      status = { type: 'error', message: 'Only JSON and YAML files are supported' }
       return
     }
 
@@ -368,7 +399,7 @@
         <path d="M7 6.5V9.5" stroke="currentColor" stroke-width="1" stroke-linecap="round"/>
         <circle cx="7" cy="4.8" r="0.6" fill="currentColor"/>
       </svg>
-      <span>Format is auto-detected. Postman v2.1 collections, workspace dumps, environment files, and Insomnia v4 exports are all supported.</span>
+      <span>Format is auto-detected. OpenAPI 3.x (JSON/YAML), Postman v2.1 collections, workspace dumps, environment files, and Insomnia v4 exports are all supported.</span>
     </div>
   </section>
 </div>

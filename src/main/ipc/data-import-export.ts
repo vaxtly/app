@@ -2,8 +2,11 @@ import { ipcMain, dialog } from 'electron'
 import { readFileSync } from 'fs'
 import { IPC } from '../../shared/types/ipc'
 import * as dataService from '../services/data-export-import'
+import { exportOpenAPI } from '../services/openapi-export'
 import { importPostman } from '../services/postman-import'
 import { importInsomnia } from '../services/insomnia-import'
+import { importOpenAPI } from '../services/openapi-import'
+import type { OpenAPIImportResult } from '../services/openapi-import'
 
 const MAX_IMPORT_SIZE = 50 * 1024 * 1024 // 50 MB
 
@@ -36,10 +39,14 @@ export function registerDataImportExportHandlers(): void {
     return dataService.exportSingleMcpServer(serverId)
   })
 
+  ipcMain.handle(IPC.DATA_EXPORT_OPENAPI, async (_event, collectionId: string) => {
+    return exportOpenAPI(collectionId)
+  })
+
   ipcMain.handle(IPC.DATA_PICK_AND_READ, async () => {
     const result = await dialog.showOpenDialog({
       properties: ['openFile'],
-      filters: [{ name: 'JSON', extensions: ['json'] }],
+      filters: [{ name: 'API Files', extensions: ['json', 'yaml', 'yml'] }],
     })
     if (result.canceled || result.filePaths.length === 0) return null
     const filePath = result.filePaths[0]
@@ -67,5 +74,12 @@ export function registerDataImportExportHandlers(): void {
       throw new Error(`Import data too large (max ${MAX_IMPORT_SIZE / 1024 / 1024}MB)`)
     }
     return importInsomnia(json, workspaceId)
+  })
+
+  ipcMain.handle(IPC.OPENAPI_IMPORT, async (_event, input: string, workspaceId?: string) => {
+    if (typeof input !== 'string' || input.length > MAX_IMPORT_SIZE) {
+      throw new Error(`Import data too large (max ${MAX_IMPORT_SIZE / 1024 / 1024}MB)`)
+    }
+    return importOpenAPI(input, workspaceId)
   })
 }

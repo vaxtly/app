@@ -166,6 +166,8 @@ const api = {
       ipcRenderer.invoke(IPC.DATA_EXPORT_COLLECTION, collectionId),
     exportMcpServer: (serverId: string): Promise<Record<string, unknown>> =>
       ipcRenderer.invoke(IPC.DATA_EXPORT_MCP_SERVER, serverId),
+    exportOpenAPI: (collectionId: string): Promise<string> =>
+      ipcRenderer.invoke(IPC.DATA_EXPORT_OPENAPI, collectionId),
     pickAndRead: (): Promise<{ content: string; name: string } | null> =>
       ipcRenderer.invoke(IPC.DATA_PICK_AND_READ),
     import: (json: string, workspaceId?: string): Promise<{ collections: number; environments: number; mcp_servers: number; config: boolean; errors: string[] }> =>
@@ -174,6 +176,8 @@ const api = {
       ipcRenderer.invoke(IPC.POSTMAN_IMPORT, json, workspaceId),
     importInsomnia: (json: string, workspaceId?: string): Promise<InsomniaImportResult> =>
       ipcRenderer.invoke(IPC.INSOMNIA_IMPORT, json, workspaceId),
+    importOpenAPI: (input: string, workspaceId?: string): Promise<{ collections: number; requests: number; folders: number; errors: string[] }> =>
+      ipcRenderer.invoke(IPC.OPENAPI_IMPORT, input, workspaceId),
   },
 
   graphql: {
