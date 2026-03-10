@@ -89,7 +89,9 @@ vaxtly/
 │   │   │   ├── fetch-error.ts            # Shared formatFetchError (SSL, DNS, timeout, etc.)
 │   │   │   ├── sensitive-data-scanner.ts # Scan/sanitize sensitive data in requests, variables & MCP servers
 │   │   │   ├── sse-parser.ts           # Stateful SSE text parser (spec-compliant, handles partial chunks)
+│   │   │   ├── openapi-export.ts     # OpenAPI 3.0.3 YAML export from collection (paths, tags, auth, body)
 │   │   │   ├── data-export-import.ts  # Export/import collections, environments, MCP servers, config
+│   │   │   ├── openapi-import.ts     # Import OpenAPI 3.x/Swagger 2.x specs (JSON/YAML) as collections
 │   │   │   ├── postman-import.ts      # Import Postman collections/environments (3 formats)
 │   │   │   ├── mcp-yaml-serializer.ts # MCP server ↔ YAML directory serialization/import
 │   │   │   ├── websocket-client.ts   # WebSocket client: connect/disconnect/send, {{variable}} substitution, push events to renderer
@@ -221,6 +223,8 @@ vaxtly/
 │   │   ├── hashicorp-vault-provider.test.ts # 17 tests: KV v2/v1, AppRole auth, namespace, SSL bypass
 │   │   ├── aws-secrets-manager-provider.test.ts # 17 tests: CRUD, pagination, credential resolution
 │   │   ├── aws-localstack.test.ts        # 5 tests: real CRUD against LocalStack (auto-skips when unavailable)
+│   │   ├── openapi-export.test.ts      # 23 tests: OpenAPI 3.0.3 YAML export (paths, tags, auth, body, params, security schemes)
+│   │   ├── openapi-import.test.ts      # 26 tests: OpenAPI 3.x import (JSON/YAML, paths, tags→folders, auth, body types)
 │   │   ├── data-export-import.test.ts  # 15 tests: export + import + nested + workspace
 │   │   ├── postman-import.test.ts      # 14 tests: 3 formats + form-data + URL objects + XML
 │   │   ├── mcp-servers-repository.test.ts # MCP server CRUD, cascade, reorder
@@ -486,10 +490,12 @@ Pattern: `ipcMain.handle('domain:action', handler)` in main, `ipcRenderer.invoke
 | `vault:migrate` | ipc/vault.ts | `vaultService.migrateEnvironment(...)` | `api.vault.migrate(envId, old, new)` |
 | `data:export` | ipc/data-import-export.ts | `dataService.export{All,Collections,Environments,McpServers,Config}()` | `api.data.export(type, wsId?)` |
 | `data:export-mcp-server` | ipc/data-import-export.ts | `dataService.exportSingleMcpServer(id)` | `api.data.exportMcpServer(id)` |
+| `data:export-openapi` | ipc/data-import-export.ts | `exportOpenAPI(collectionId)` → YAML string | `api.data.exportOpenAPI(id)` |
 | `data:pick-and-read` | ipc/data-import-export.ts | `dialog.showOpenDialog()` + `readFileSync()` | `api.data.pickAndRead()` |
 | `data:import` | ipc/data-import-export.ts | `dataService.importData(json, wsId?)` | `api.data.import(json, wsId?)` |
 | `postman:import` | ipc/data-import-export.ts | `importPostman(json, wsId?)` | `api.data.importPostman(json, wsId?)` |
 | `insomnia:import` | ipc/data-import-export.ts | `importInsomnia(json, wsId?)` | `api.data.importInsomnia(json, wsId?)` |
+| `openapi:import` | ipc/data-import-export.ts | `importOpenAPI(input, wsId?)` | `api.data.importOpenAPI(input, wsId?)` |
 | `oauth2:get-token` | ipc/oauth2.ts | `startAuthorizationFlow()` / `exchangeClientCredentials()` / `exchangePassword()` | `api.oauth2.getToken(reqId)` |
 | `oauth2:refresh-token` | ipc/oauth2.ts | `refreshAccessToken(auth)` | `api.oauth2.refreshToken(reqId)` |
 | `oauth2:clear-token` | ipc/oauth2.ts | clears token fields | `api.oauth2.clearToken(reqId)` |
