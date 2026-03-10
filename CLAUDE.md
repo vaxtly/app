@@ -10,7 +10,7 @@ See `ARCHITECTURE.md` for the complete technical reference.
 | What | Where |
 |------|-------|
 | Full architecture docs | `ARCHITECTURE.md` |
-| Shared types | `src/shared/types/*.ts` + `src/shared/constants.ts` |
+| Shared types | `src/shared/types/*.ts` + `src/shared/constants.ts` + `src/shared/curl-parser.ts` |
 | Database schema | `src/main/database/migrations/001_initial_schema.ts`, `002_mcp_servers.ts`, `003_mcp_sync_fields.ts`, `004_websocket.ts` |
 | All IPC handlers | `src/main/ipc/*.ts` |
 | Main services | `src/main/services/*.ts` |
@@ -57,7 +57,7 @@ npx electron-rebuild -f -w better-sqlite3  # Rebuild native module for Electron 
 - Pattern: `ipcMain.handle('domain:action', handler)` in main.
 - Preload exposes typed API: `window.api.domain.action()`.
 - **Push channels** (main→renderer): use `event.sender.send(IPC.CHANNEL, data)` in handlers + `ipcRenderer.on` listeners in preload's `on` namespace. Return cleanup function `() => void`.
-- Domain prefixes: workspaces, collections, folders, requests, environments, histories, proxy, sync, vault, settings, window, mcp, ws, graphql.
+- Domain prefixes: workspaces, collections, folders, requests, environments, histories, proxy, sync, vault, settings, window, mcp, ws, graphql, clipboard.
 
 ### Testing
 - Vitest with `openTestDatabase()` (in-memory SQLite) in `beforeEach`.

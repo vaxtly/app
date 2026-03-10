@@ -34,7 +34,8 @@ vaxtly/
 │   │   │   ├── mcp.ts                  # MCP types: McpServer, McpServerState, McpTool, McpResource, McpPrompt, traffic/notifications
 │   │   │   ├── sync.ts                 # SyncConfig, VaultConfig, ConflictChange, OrphanedCollection, SessionLogEntry, HttpLogDetail
 │   │   │   └── websocket.ts            # WsConnectionStatus, WsConnectionConfig, WsConnectionState, WsMessage, WsStatusChanged, WsMessageReceived
-│   │   └── constants.ts                # HTTP_METHODS, BODY_TYPES, AUTH_TYPES, SENSITIVE_*, isWebSocketRequest(), WS_MESSAGE_LOG_MAX
+│   │   ├── constants.ts                # HTTP_METHODS, BODY_TYPES, AUTH_TYPES, SENSITIVE_*, isWebSocketRequest(), WS_MESSAGE_LOG_MAX
+│   │   └── curl-parser.ts             # Pure cURL command parser (isCurlCommand, parseCurl → ParsedCurl)
 │   ├── main/
 │   │   ├── index.ts                    # App lifecycle, window, boot sequence
 │   │   ├── menu.ts                     # Native menu + accelerators
@@ -106,7 +107,7 @@ vaxtly/
 │   └── renderer/
 │       ├── index.html
 │       ├── main.ts                     # Svelte mount point
-│       ├── App.svelte                  # Root: sidebar + tabs + content + session persistence + auto-reveal + default env + conflict/orphan queues
+│       ├── App.svelte                  # Root: sidebar + tabs + content + session persistence + auto-reveal + default env + conflict/orphan queues + clipboard cURL detection
 │       ├── env.d.ts                    # window.api type declaration
 │       ├── styles/app.css              # Tailwind + theme + scrollbars + CodeMirror
 │       ├── lib/
@@ -158,8 +159,8 @@ vaxtly/
 │           │   ├── WsMessageLog.svelte  # Scrollable message list with direction arrows, auto-scroll, CodeEditor for JSON
 │           │   └── WsMessageComposer.svelte # Text/JSON input with CodeEditor for JSON mode, Enter to send
 │           ├── request/
-│           │   ├── RequestBuilder.svelte # Container: URL + sub-tabs + response split
-│           │   ├── UrlBar.svelte        # Method select + URL input + Send/Cancel
+│           │   ├── RequestBuilder.svelte # Container: URL + sub-tabs + response split + cURL paste import
+│           │   ├── UrlBar.svelte        # Method select + URL input + Send/Cancel + cURL paste detection
 │           │   ├── ParamsEditor.svelte   # Query params ↔ URL sync
 │           │   ├── HeadersEditor.svelte  # Headers editor (generated + user headers via KeyValueEditor)
 │           │   ├── BodyEditor.svelte     # 7 body types: none/json/xml/form-data/urlencoded/raw/graphql
@@ -188,6 +189,7 @@ vaxtly/
 │           │   ├── OrphanedCollectionModal.svelte # Orphaned collection: delete locally vs keep unsynced
 │           │   ├── SensitiveDataModal.svelte # Sensitive data findings before push
 │           │   ├── EnvironmentAssociationModal.svelte # Env checkbox list + default star + reloads store on save
+│           │   ├── CurlImportModal.svelte  # Clipboard cURL detection: preview + Import/Dismiss
 │           │   └── WelcomeGuide.svelte    # 5-step onboarding modal
 │           ├── help/
 │           │   └── UserManual.svelte     # Comprehensive in-app user manual (F1 shortcut)
@@ -231,7 +233,8 @@ vaxtly/
 │   │   ├── session-log.test.ts         # 6 tests: ring buffer, categories, copy safety
 │   │   ├── proxy-handler.test.ts       # 22 tests: HTTP proxy dispatch, auth, body, scripts
 │   │   ├── proxy-helpers.test.ts       # 8 tests: parseCookies + setDefaultHeader + deleteHeader
-│   │   └── sse-parser.test.ts          # 22 tests: SSE parsing, multi-line, partial chunks, OpenAI/Anthropic formats
+│   │   ├── sse-parser.test.ts          # 22 tests: SSE parsing, multi-line, partial chunks, OpenAI/Anthropic formats
+│   │   └── curl-parser.test.ts         # 36 tests: cURL parsing, headers, body types, auth, query params, quoting
 │   └── e2e/
 │       ├── fixtures/
 │       │   ├── electron-app.ts         # Shared fixture: temp userData, app launch, cleanup
@@ -536,6 +539,8 @@ Pattern: `ipcMain.handle('domain:action', handler)` in main, `ipcRenderer.invoke
 | `update:downloaded` | — (main→renderer push) | — | `api.on.updateDownloaded(cb)` |
 | `update:error` | — (main→renderer push) | — | `api.on.updateError(cb)` |
 
+| `clipboard:text` | — (main→renderer push on BrowserWindow focus) | — | `api.on.clipboardText(cb)` |
+
 **Menu channels** (main→renderer push via `IPC.*` constants, not request/response):
 `menu:new-request`, `menu:save-request`, `menu:open-settings`, `menu:open-manual`, `menu:check-updates`
 
@@ -624,6 +629,15 @@ DEFAULTS = { REQUEST_TIMEOUT_MS: 30000, FOLLOW_REDIRECTS: true,
     SESSION_LOG_MAX_ENTRIES: 100, SESSION_LOG_BODY_MAX_SIZE: 50 * 1024 }
 WS_MESSAGE_LOG_MAX = 500
 isWebSocketRequest(method) → boolean  // method === 'WEBSOCKET'
+```
+
+### `curl-parser.ts`
+
+```typescript
+interface ParsedCurl { method, url, headers: KeyValueEntry[], queryParams: KeyValueEntry[],
+    body: string | null, body_type: BodyType, auth: AuthConfig | null }
+isCurlCommand(input: string) → boolean
+parseCurl(input: string) → ParsedCurl
 ```
 
 ---
@@ -1017,6 +1031,7 @@ Four `$effect` hooks and three `onMount` listeners in `App.svelte` drive cross-c
 6. **Vault health LED**: `environmentsStore.vaultHealthy` drives the EnvironmentSelector LED color — green when vault secrets loaded successfully, red when fetch failed, gray when no environment is active.
 7. **Centralized conflict queue**: `onMount` listener on `syncConflict` — all sync IPC handlers (`sync:pull`, `sync:push-collection`, `sync:push-all`) push detected conflicts via `event.sender.send('sync:conflict', conflicts)`. App.svelte queues them in `conflictQueue` and renders a single `ConflictModal` for the first conflict, resolving sequentially. This replaces per-component conflict modals (e.g., RemoteSyncTab no longer handles conflicts locally).
 8. **Orphaned collection queue**: `onMount` listener on `syncOrphanedCollections` — when `sync:pull` or auto-sync detects locally-synced collections missing from remote, they are queued in `orphanQueue`. `OrphanedCollectionModal` prompts to delete locally or keep unsynced (deferred while conflicts are being resolved).
+9. **Clipboard cURL detection**: `onMount` listener on `clipboardText` — main process reads `clipboard.readText()` on BrowserWindow `'focus'` event and pushes text to renderer. Renderer checks via `isCurlCommand()`, deduplicates by content hash (same cURL won't re-prompt after import/dismiss), parses via `parseCurl()`, and shows `CurlImportModal`. Import creates a populated draft tab. cURL can also be pasted directly into the URL bar (intercepted by `RequestBuilder.handleUrlPaste`).
 
 ---
 
@@ -1077,7 +1092,7 @@ All method colors are theme-aware via `--color-method-*` CSS variables. Componen
 8. buildMenu()                   — Set native application menu (using IPC.MENU_* constants)
 9. initUpdater()                 — Configure electron-updater (no-op in dev; macOS: notify only; Win/Linux: auto-download)
 10. applyThemeSetting()           — Read app.theme, set nativeTheme.themeSource + resolve backgroundColor
-11. createWindow()               — BrowserWindow (sandbox: true, CSP, navigation guards, permission deny-all)
+11. createWindow()               — BrowserWindow (sandbox: true, CSP, navigation guards, permission deny-all, focus→clipboard push)
 12. runAutoSync()                — On ready-to-show: iterates all workspaces, resolves effective auto_sync setting (workspace → global fallback), runs vault pullAll + git pull per workspace
 13. checkForUpdates()            — On ready-to-show: check for available updates
 ```
