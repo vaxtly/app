@@ -16,6 +16,7 @@
   import { graphqlStore } from '../../lib/stores/graphql.svelte'
   import type { KeyValueEntry, AuthConfig, ScriptsConfig, FormDataEntry, ResponseData, SSEStreamStart, SSEChunk, SSEStreamEnd } from '../../lib/types'
   import type { ResolvedVariable } from '../../lib/utils/variable-highlight'
+  import { isCurlCommand, parseCurl } from '../../../shared/curl-parser'
 
   interface Props {
     tabId: string
@@ -239,6 +240,34 @@
 
   function update(partial: Partial<TabRequestState>): void {
     appStore.updateTabState(tabId, partial)
+  }
+
+  function handleUrlPaste(e: ClipboardEvent): void {
+    const text = e.clipboardData?.getData('text/plain')
+    if (!text || !isCurlCommand(text)) return
+
+    e.preventDefault()
+    const parsed = parseCurl(text) as ReturnType<typeof parseCurl> & { queryParams: import('../../../shared/types/models').KeyValueEntry[] }
+
+    // Merge parsed headers with an empty trailing row for the editor
+    const newHeaders = parsed.headers.length > 0
+      ? [...parsed.headers, { key: '', value: '', enabled: true }]
+      : [{ key: '', value: '', enabled: true }]
+
+    // Merge query params with empty trailing row
+    const newParams = parsed.queryParams.length > 0
+      ? [...parsed.queryParams, { key: '', value: '', enabled: true }]
+      : [{ key: '', value: '', enabled: true }]
+
+    update({
+      method: parsed.method,
+      url: parsed.url,
+      headers: JSON.stringify(newHeaders),
+      query_params: JSON.stringify(newParams),
+      body: parsed.body,
+      body_type: parsed.body_type,
+      auth: parsed.auth ? JSON.stringify(parsed.auth) : null,
+    })
   }
 
   function handleBodyTypeChange(newType: string): void {
@@ -567,6 +596,7 @@
       onsend={sendRequest}
       oncancel={cancelRequest}
       onsave={saveRequest}
+      onpaste={handleUrlPaste}
     />
 
     <!-- Split: request tabs + response -->

@@ -324,6 +324,13 @@ const api = {
       ipcRenderer.on(IPC.MENU_SHOW_WELCOME, handler)
       return () => ipcRenderer.removeListener(IPC.MENU_SHOW_WELCOME, handler)
     },
+    clipboardText: (callback: (text: string) => void): (() => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, text: string): void => {
+        callback(text)
+      }
+      ipcRenderer.on(IPC.CLIPBOARD_TEXT, handler)
+      return () => ipcRenderer.removeListener(IPC.CLIPBOARD_TEXT, handler)
+    },
     updateAvailable: (callback: (data: { version: string; releaseName: string }) => void): (() => void) => {
       const handler = (_event: Electron.IpcRendererEvent, data: { version: string; releaseName: string }): void => {
         callback(data)

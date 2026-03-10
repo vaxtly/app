@@ -13,9 +13,10 @@
     onsend: () => void
     oncancel: () => void
     onsave: () => void
+    onpaste?: (e: ClipboardEvent) => void
   }
 
-  let { method, url, loading, unsaved, onmethodchange, onurlchange, onsend, oncancel, onsave }: Props = $props()
+  let { method, url, loading, unsaved, onmethodchange, onurlchange, onsend, oncancel, onsave, onpaste }: Props = $props()
 
   let saveFeedback = $state('')
   let varInput: { focus: () => void } | undefined
@@ -170,6 +171,7 @@
       value={url}
       oninput={(value) => onurlchange(value)}
       onkeydown={handleKeydown}
+      {onpaste}
       placeholder="Enter request URL..."
       class="url-input"
     />

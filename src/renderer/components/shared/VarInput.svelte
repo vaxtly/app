@@ -11,6 +11,7 @@
     class?: string
     oninput?: (value: string) => void
     onkeydown?: (e: KeyboardEvent) => void
+    onpaste?: (e: ClipboardEvent) => void
   }
 
   let {
@@ -22,6 +23,7 @@
     class: className = '',
     oninput,
     onkeydown,
+    onpaste,
   }: Props = $props()
 
   const getResolvedVars = getContext<(() => Record<string, ResolvedVariable>) | undefined>('resolvedVars')
@@ -191,6 +193,7 @@
       class={className}
       oninput={handleInput}
       {onkeydown}
+      {onpaste}
     />
   </div>
 {:else}
@@ -220,6 +223,7 @@
       class="{className}{hasVars ? ' vi-input--has-vars' : ''}"
       oninput={handleInput}
       {onkeydown}
+      {onpaste}
       onscroll={syncScroll}
       onkeyup={syncScroll}
       onclick={syncScroll}

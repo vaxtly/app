@@ -135,6 +135,9 @@ export const IPC = {
   LOG_LIST: 'log:list',
   LOG_CLEAR: 'log:clear',
 
+  // Clipboard (main→renderer push)
+  CLIPBOARD_TEXT: 'clipboard:text',
+
   // Menu events (main→renderer push)
   MENU_NEW_REQUEST: 'menu:new-request',
   MENU_SAVE_REQUEST: 'menu:save-request',

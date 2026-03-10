@@ -1,5 +1,5 @@
 import { execFileSync } from 'child_process'
-import { app, BrowserWindow, nativeImage, nativeTheme, shell } from 'electron'
+import { app, BrowserWindow, clipboard, nativeImage, nativeTheme, shell } from 'electron'
 import { join } from 'path'
 import { is } from '@electron-toolkit/utils'
 import { initEncryption } from './services/encryption'
@@ -161,6 +161,13 @@ function createWindow(): void {
     mainWindow?.show()
     runAutoSync()
     checkForUpdates()
+  })
+
+  mainWindow.on('focus', () => {
+    const text = clipboard.readText()
+    if (text) {
+      mainWindow?.webContents.send(IPC.CLIPBOARD_TEXT, text)
+    }
   })
 
   mainWindow.on('close', () => {

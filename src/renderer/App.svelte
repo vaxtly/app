@@ -12,6 +12,8 @@
   import ToastContainer from './components/shared/ToastContainer.svelte'
   import ConflictModal from './components/modals/ConflictModal.svelte'
   import OrphanedCollectionModal from './components/modals/OrphanedCollectionModal.svelte'
+  import CurlImportModal from './components/modals/CurlImportModal.svelte'
+  import { isCurlCommand, parseCurl, type ParsedCurl } from '../shared/curl-parser'
   import type { SyncConflict, OrphanedCollection, OrphanedMcpServer } from './lib/types'
   import { appStore } from './lib/stores/app.svelte'
   import { collectionsStore } from './lib/stores/collections.svelte'
@@ -34,6 +36,57 @@
   let updateDismissed = $state(false)
   let installSource: 'brew' | 'scoop' | 'snap' | 'standalone' = $state('standalone')
   let menuUpdateCheck = $state(false)
+
+  // --- Clipboard cURL detection ---
+  let curlDetected = $state<{ parsed: ParsedCurl; raw: string } | null>(null)
+  let lastClipboardHash = ''
+
+  function handleClipboardText(text: string): void {
+    if (!text || !isCurlCommand(text)) return
+
+    // Don't re-prompt for the same clipboard content
+    const hash = text.trim()
+    if (hash === lastClipboardHash) return
+    lastClipboardHash = hash
+
+    const parsed = parseCurl(text)
+    if (!parsed.url) return
+    curlDetected = { parsed, raw: text }
+  }
+
+  function handleCurlImport(): void {
+    if (!curlDetected) return
+    const { parsed } = curlDetected
+
+    // Open a draft tab and populate it
+    appStore.openDraftTab()
+    const tab = appStore.activeTab
+    if (!tab) return
+
+    const newHeaders = parsed.headers.length > 0
+      ? [...parsed.headers, { key: '', value: '', enabled: true }]
+      : [{ key: '', value: '', enabled: true }]
+
+    const newParams = (parsed as any).queryParams?.length > 0
+      ? [...(parsed as any).queryParams, { key: '', value: '', enabled: true }]
+      : [{ key: '', value: '', enabled: true }]
+
+    appStore.updateTabState(tab.id, {
+      method: parsed.method,
+      url: parsed.url,
+      headers: JSON.stringify(newHeaders),
+      query_params: JSON.stringify(newParams),
+      body: parsed.body,
+      body_type: parsed.body_type,
+      auth: parsed.auth ? JSON.stringify(parsed.auth) : null,
+    })
+
+    curlDetected = null
+  }
+
+  function dismissCurlDetection(): void {
+    curlDetected = null
+  }
 
   // --- Sync conflict state ---
   let conflictQueue = $state<SyncConflict[]>([])
@@ -446,6 +499,8 @@
       // WebSocket push events
       window.api.on.wsStatusChanged((data) => wsStore.handleStatusChanged(data)),
       window.api.on.wsMessageReceived((data) => wsStore.handleMessageReceived(data)),
+      // Clipboard cURL detection (main pushes clipboard text on BrowserWindow focus)
+      window.api.on.clipboardText(handleClipboardText),
     ]
 
     // Replay recent vault/git failures (covers auto-sync that fired before renderer mounted)
@@ -665,6 +720,15 @@
       name={activeMcpOrphan.serverName}
       onresolve={handleMcpOrphanResolve}
       onclose={dismissMcpOrphan}
+    />
+  {/if}
+
+  {#if curlDetected}
+    <CurlImportModal
+      parsed={curlDetected.parsed}
+      rawCurl={curlDetected.raw}
+      onimport={handleCurlImport}
+      onclose={dismissCurlDetection}
     />
   {/if}
 </div>

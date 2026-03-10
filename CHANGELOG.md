@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- cURL import — paste a cURL command into the URL bar to auto-populate method, URL, headers, query params, body, and auth into the current request tab
+- Clipboard cURL detection — when switching to Vaxtly with a cURL command in the clipboard, a modal prompts to import it as a new draft request (same cURL won't re-prompt after import or dismiss)
+- Pure cURL parser supporting `-X`, `-H`, `-d`/`--data-raw`/`--data-binary`, `--data-urlencode`, `-F`, `-u` (basic auth), `-A`, `-b`, `-e`, `Authorization: Bearer/Basic` header extraction, line continuations, single/double/ANSI-C quoting, combined short flags, and auto body-type detection
+- 36 unit tests for cURL parser covering all flag combinations, quoting styles, auth extraction, query param parsing, and real-world Chrome DevTools output
+
 ## [0.7.0] - 2026-03-08
 
 ### Added
