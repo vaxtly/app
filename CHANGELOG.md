@@ -7,11 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-03-10
+
 ### Added
 - cURL import — paste a cURL command into the URL bar to auto-populate method, URL, headers, query params, body, and auth into the current request tab
 - Clipboard cURL detection — when switching to Vaxtly with a cURL command in the clipboard, a modal prompts to import it as a new draft request (same cURL won't re-prompt after import or dismiss)
-- Pure cURL parser supporting `-X`, `-H`, `-d`/`--data-raw`/`--data-binary`, `--data-urlencode`, `-F`, `-u` (basic auth), `-A`, `-b`, `-e`, `Authorization: Bearer/Basic` header extraction, line continuations, single/double/ANSI-C quoting, combined short flags, and auto body-type detection
-- 36 unit tests for cURL parser covering all flag combinations, quoting styles, auth extraction, query param parsing, and real-world Chrome DevTools output
+- OpenAPI export — right-click a collection and choose "Export as OpenAPI" to generate an OpenAPI 3.0.3 YAML spec with paths, tags, parameters, request bodies, and security schemes (sensitive credentials are never included)
+- OpenAPI import — auto-detect and import OpenAPI 3.x or Swagger 2.x specs (JSON or YAML) from the Data tab, creating a collection with folders from tags, requests from path operations, and mapped auth/body/params
+- File picker and drag-and-drop import now accept `.yaml` and `.yml` files alongside `.json`
+- 85 new unit tests: cURL parser (36), OpenAPI export (23), OpenAPI import (26)
 
 ## [0.7.0] - 2026-03-08
 
