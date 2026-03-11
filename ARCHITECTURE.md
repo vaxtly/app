@@ -1049,7 +1049,7 @@ Four `$effect` hooks and three `onMount` listeners in `App.svelte` drive cross-c
 6. **Vault health LED**: `environmentsStore.vaultHealthy` drives the EnvironmentSelector LED color — green when vault secrets loaded successfully, red when fetch failed, gray when no environment is active.
 7. **Centralized conflict queue**: `onMount` listener on `syncConflict` — all sync IPC handlers (`sync:pull`, `sync:push-collection`, `sync:push-all`) push detected conflicts via `event.sender.send('sync:conflict', conflicts)`. App.svelte queues them in `conflictQueue` and renders a single `ConflictModal` for the first conflict, resolving sequentially. This replaces per-component conflict modals (e.g., RemoteSyncTab no longer handles conflicts locally).
 8. **Orphaned collection queue**: `onMount` listener on `syncOrphanedCollections` — when `sync:pull` or auto-sync detects locally-synced collections missing from remote, they are queued in `orphanQueue`. `OrphanedCollectionModal` prompts to delete locally or keep unsynced (deferred while conflicts are being resolved).
-9. **Clipboard cURL detection**: `onMount` listener on `clipboardText` — main process reads `clipboard.readText()` on BrowserWindow `'focus'` event and pushes text to renderer. Renderer checks via `isCurlCommand()`, deduplicates by content hash (same cURL won't re-prompt after import/dismiss), parses via `parseCurl()`, and shows `CurlImportModal`. Import creates a populated draft tab. cURL can also be pasted directly into the URL bar (intercepted by `RequestBuilder.handleUrlPaste`).
+9. **Clipboard cURL detection**: `onMount` listener on `clipboardText` — main process checks `clipboard.availableFormats()` on BrowserWindow `'focus'` event (skips non-text formats to avoid triggering OS lazy data transfers for large files/images), reads `clipboard.readText()` with try-catch, caps at 100 KB, and pushes text to renderer. Renderer also enforces the 100 KB limit, checks via `isCurlCommand()`, deduplicates by content hash (same cURL won't re-prompt after import/dismiss), parses via `parseCurl()`, and shows `CurlImportModal`. Import creates a populated draft tab. cURL can also be pasted directly into the URL bar (intercepted by `RequestBuilder.handleUrlPaste`).
 
 ---
 
@@ -1110,7 +1110,7 @@ All method colors are theme-aware via `--color-method-*` CSS variables. Componen
 8. buildMenu()                   — Set native application menu (using IPC.MENU_* constants)
 9. initUpdater()                 — Configure electron-updater (no-op in dev; macOS: notify only; Win/Linux: auto-download)
 10. applyThemeSetting()           — Read app.theme, set nativeTheme.themeSource + resolve backgroundColor
-11. createWindow()               — BrowserWindow (sandbox: true, CSP, navigation guards, permission deny-all, focus→clipboard push)
+11. createWindow()               — BrowserWindow (sandbox: true, CSP, navigation guards, permission deny-all, focus→clipboard push with format check + 100KB cap)
 12. runAutoSync()                — On ready-to-show: iterates all workspaces, resolves effective auto_sync setting (workspace → global fallback), runs vault pullAll + git pull per workspace
 13. checkForUpdates()            — On ready-to-show: check for available updates
 ```
