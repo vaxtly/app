@@ -1,9 +1,10 @@
 import { ipcMain } from 'electron'
-import { Agent, fetch as undiciFetch } from 'undici'
+import { fetch as undiciFetch } from 'undici'
 import { IPC } from '../../shared/types/ipc'
 import { substitute } from '../services/variable-substitution'
 import { getIntrospectionQuery } from 'graphql'
 import * as settingsRepo from '../database/repositories/settings'
+import { createUndiciDispatcher } from '../services/tls-options'
 import * as environmentsRepo from '../database/repositories/environments'
 import * as vaultSyncService from '../vault/vault-sync-service'
 
@@ -38,9 +39,7 @@ export function registerGraphqlHandlers(): void {
     }
 
     const verifySsl = settingsRepo.getSetting('request.verify_ssl') !== 'false'
-    const dispatcher = !verifySsl
-      ? new Agent({ connect: { rejectUnauthorized: false } })
-      : undefined
+    const dispatcher = createUndiciDispatcher(verifySsl, resolvedUrl)
 
     const body = JSON.stringify({ query: getIntrospectionQuery() })
 

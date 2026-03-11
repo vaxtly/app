@@ -55,6 +55,7 @@ export const IPC = {
   PROXY_SEND: 'proxy:send',
   PROXY_CANCEL: 'proxy:cancel',
   PROXY_PICK_FILE: 'proxy:pick-file',
+  PROXY_PICK_CERT_FILE: 'proxy:pick-cert-file',
 
   // Sync
   SYNC_TEST_CONNECTION: 'sync:test-connection',

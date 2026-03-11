@@ -1,7 +1,7 @@
 import { ipcMain, dialog, type BrowserWindow } from 'electron'
 import { readFileSync } from 'fs'
 import { basename } from 'path'
-import { Agent, fetch as undiciFetch, FormData as UndiciFormData } from 'undici'
+import { fetch as undiciFetch, FormData as UndiciFormData } from 'undici'
 import { IPC } from '../../shared/types/ipc'
 import type { RequestConfig, ResponseData, FormDataEntry, ResponseCookie, SSEEvent, SSEStreamStart, SSEChunk, SSEStreamEnd } from '../../shared/types/http'
 import { substitute } from '../services/variable-substitution'
@@ -13,6 +13,7 @@ import type { HttpLogDetail } from '../../shared/types/sync'
 import * as requestsRepo from '../database/repositories/requests'
 import * as environmentsRepo from '../database/repositories/environments'
 import * as settingsRepo from '../database/repositories/settings'
+import { createUndiciDispatcher } from '../services/tls-options'
 import * as vaultSyncService from '../vault/vault-sync-service'
 import { isTokenExpired, refreshAccessToken } from '../services/oauth2'
 import type { AuthConfig } from '../../shared/types/models'
@@ -122,10 +123,8 @@ export function registerProxyHandlers(): void {
     try {
       const fetchHeaders = { ...resolvedHeaders }
 
-      // Use undici Agent — optionally disable SSL verification
-      const dispatcher = !verifySsl
-        ? new Agent({ connect: { rejectUnauthorized: false } })
-        : undefined
+      // TLS: custom certs + SSL verification
+      const dispatcher = createUndiciDispatcher(verifySsl, resolvedUrl)
 
       // Build request body
       let fetchBody: any = undefined
@@ -314,6 +313,19 @@ export function registerProxyHandlers(): void {
     if (result.canceled || result.filePaths.length === 0) return null
     const filePath = result.filePaths[0]
     approvedFilePaths.add(filePath)
+    return { path: filePath, name: basename(filePath) }
+  })
+
+  ipcMain.handle(IPC.PROXY_PICK_CERT_FILE, async (): Promise<{ path: string; name: string } | null> => {
+    const result = await dialog.showOpenDialog({
+      properties: ['openFile'],
+      filters: [
+        { name: 'Certificates', extensions: ['pem', 'crt', 'cer', 'key', 'p12', 'pfx'] },
+        { name: 'All Files', extensions: ['*'] },
+      ],
+    })
+    if (result.canceled || result.filePaths.length === 0) return null
+    const filePath = result.filePaths[0]
     return { path: filePath, name: basename(filePath) }
   })
 }

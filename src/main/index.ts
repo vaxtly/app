@@ -164,9 +164,20 @@ function createWindow(): void {
   })
 
   mainWindow.on('focus', () => {
-    const text = clipboard.readText()
-    if (text) {
-      mainWindow?.webContents.send(IPC.CLIPBOARD_TEXT, text)
+    try {
+      // Skip clipboard read when it doesn't contain plain text — avoids triggering
+      // lazy clipboard data transfers for large files/images (macOS pasteboard)
+      const formats = clipboard.availableFormats()
+      if (!formats.some((f) => f.startsWith('text/'))) return
+
+      const text = clipboard.readText()
+      // Cap at 100 KB — no valid cURL command is larger, and this prevents
+      // sending huge strings over IPC (e.g. user copied a large file's content)
+      if (text && text.length <= 100_000) {
+        mainWindow?.webContents.send(IPC.CLIPBOARD_TEXT, text)
+      }
+    } catch {
+      // Clipboard read can fail (OOM, permission error) — skip silently
     }
   })
 

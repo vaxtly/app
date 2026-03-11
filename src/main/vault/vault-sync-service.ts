@@ -8,6 +8,7 @@
 
 import type { SecretsProvider } from './secrets-provider.interface'
 import { HashiCorpVaultProvider } from './hashicorp-vault-provider'
+import { createUndiciDispatcher } from '../services/tls-options'
 import { AwsSecretsManagerProvider } from './aws-secrets-manager-provider'
 import * as settingsRepo from '../database/repositories/settings'
 import * as workspacesRepo from '../database/repositories/workspaces'
@@ -54,6 +55,8 @@ export async function getProvider(workspaceId?: string): Promise<SecretsProvider
     if (authMethod === 'token' && !token) return null
     if (authMethod === 'approle' && (!roleId || !secretId)) return null
 
+    const dispatcher = createUndiciDispatcher(verifySsl, url)
+
     provider = await HashiCorpVaultProvider.create({
       url: url.replace(/\/+$/, ''),
       token,
@@ -63,6 +66,7 @@ export async function getProvider(workspaceId?: string): Promise<SecretsProvider
       roleId: roleId ?? undefined,
       secretId: secretId ?? undefined,
       verifySsl,
+      dispatcher,
     })
   } else if (providerType === 'aws') {
     const region = getVaultSetting('vault.aws_region', workspaceId)

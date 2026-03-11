@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.8.5] - 2026-03-10
+
+### Added
+- Custom CA certificates — trust a custom certificate authority (PEM format) for servers signed by internal CAs
+- Client certificates (mTLS) — configure client certificate + private key for mutual TLS authentication
+- Proxy support — route all HTTP requests through an HTTP/HTTPS proxy with optional username/password authentication
+- No-proxy bypass — comma-separated host patterns (exact, wildcard `*.local`, suffix `.corp.com`, catch-all `*`) to skip the proxy
+- Collapsible Proxy and Certificates sections in Settings → General (collapsed by default, auto-expand when configured)
+- Proxy-specific error messages — clear feedback for proxy rejection, auth failures, and certificate format issues
+- Centralized TLS/proxy helper (`tls-options.ts`) — all HTTP consumers share consistent cert loading and proxy dispatch
+- 53 new tests: TLS options (36), fetch error proxy/cert messages (17)
+
+### Fixed
+- Clipboard cURL detection no longer freezes the app when the system clipboard contains very large content (e.g. copied files); main process now checks clipboard formats first and caps text reads at 100 KB
+
 ## [0.8.0] - 2026-03-10
 
 ### Added

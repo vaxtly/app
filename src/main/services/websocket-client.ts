@@ -5,7 +5,7 @@
  * all renderer windows via BrowserWindow.getAllWindows().
  */
 
-import https from 'node:https'
+import { createHttpsAgent } from './tls-options'
 import { v4 as uuid } from 'uuid'
 import { BrowserWindow } from 'electron'
 import WebSocket from 'ws'
@@ -86,9 +86,9 @@ export async function connect(connectionId: string, config: WsConnectionConfig):
   }
   const headers = resolveHeaders(config.headers, sub)
 
-  // SSL verification
+  // TLS: custom certs + SSL verification
   const verifySsl = getSetting('request.verify_ssl') !== 'false'
-  const agent = !verifySsl ? new https.Agent({ rejectUnauthorized: false }) : undefined
+  const agent = createHttpsAgent(verifySsl)
 
   // Parse protocols
   const protocols = config.protocols

@@ -16,6 +16,14 @@ export interface SettingsMap {
   'sidebar.width': number
   'request.splitPercent': number
   'mcp.splitPercent': number
+  'tls.ca_cert_path': string
+  'tls.client_cert_path': string
+  'tls.client_key_path': string
+  'tls.client_key_passphrase': string
+  'proxy.url': string
+  'proxy.username': string
+  'proxy.password': string
+  'proxy.no_proxy': string
 }
 
 type SettingsKey = keyof SettingsMap
@@ -33,6 +41,14 @@ const defaults: SettingsMap = {
   'sidebar.width': 244,
   'request.splitPercent': 50,
   'mcp.splitPercent': 50,
+  'tls.ca_cert_path': '',
+  'tls.client_cert_path': '',
+  'tls.client_key_path': '',
+  'tls.client_key_passphrase': '',
+  'proxy.url': '',
+  'proxy.username': '',
+  'proxy.password': '',
+  'proxy.no_proxy': '',
 }
 
 // --- State ---

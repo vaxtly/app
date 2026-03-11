@@ -11,6 +11,9 @@ const SENSITIVE_KEYS = new Set([
   'sync.token',
   'vault.aws_access_key_id',
   'vault.aws_secret_access_key',
+  'tls.client_key_passphrase',
+  'proxy.username',
+  'proxy.password',
 ])
 
 export function getSetting(key: string): string | undefined {

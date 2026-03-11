@@ -19,6 +19,9 @@ const READONLY_KEY_PREFIXES = ['encryption.', 'app.version']
 const SENSITIVE_KEYS = new Set([
   'vault.token', 'vault.role_id', 'vault.secret_id', 'sync.token',
   'vault.aws_access_key_id', 'vault.aws_secret_access_key',
+  'tls.client_key_passphrase',
+  'proxy.username',
+  'proxy.password',
 ])
 
 function invalidateCachesIfNeeded(key: string, workspaceId?: string): void {

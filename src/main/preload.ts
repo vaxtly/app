@@ -103,6 +103,8 @@ const api = {
       ipcRenderer.invoke(IPC.PROXY_CANCEL, requestId),
     pickFile: (): Promise<{ path: string; name: string } | null> =>
       ipcRenderer.invoke(IPC.PROXY_PICK_FILE),
+    pickCertFile: (): Promise<{ path: string; name: string } | null> =>
+      ipcRenderer.invoke(IPC.PROXY_PICK_CERT_FILE),
   },
 
   sync: {

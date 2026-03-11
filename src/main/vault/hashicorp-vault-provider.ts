@@ -22,12 +22,15 @@ export class HashiCorpVaultProvider implements SecretsProvider {
     private readonly roleId?: string,
     private readonly secretId?: string,
     verifySsl = true,
+    customDispatcher?: Agent,
   ) {
     this.namespace = namespace
     // AppRole login is async — callers must use the static create() method
     this.token = token
 
-    if (!verifySsl) {
+    if (customDispatcher) {
+      this.dispatcher = customDispatcher
+    } else if (!verifySsl) {
       this.dispatcher = new Agent({ connect: { rejectUnauthorized: false } })
     }
   }
@@ -44,6 +47,7 @@ export class HashiCorpVaultProvider implements SecretsProvider {
     roleId?: string
     secretId?: string
     verifySsl?: boolean
+    dispatcher?: Agent
   }): Promise<HashiCorpVaultProvider> {
     const provider = new HashiCorpVaultProvider(
       opts.url,
@@ -54,6 +58,7 @@ export class HashiCorpVaultProvider implements SecretsProvider {
       opts.roleId,
       opts.secretId,
       opts.verifySsl ?? true,
+      opts.dispatcher,
     )
 
     if (opts.authMethod === 'approle') {

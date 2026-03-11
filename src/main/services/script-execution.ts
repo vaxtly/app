@@ -5,7 +5,8 @@
  * Post-response: extracts a value from the response and sets it as a collection variable.
  */
 
-import { Agent, fetch as undiciFetch } from 'undici'
+import { fetch as undiciFetch } from 'undici'
+import { createUndiciDispatcher } from './tls-options'
 import * as requestsRepo from '../database/repositories/requests'
 import * as collectionsRepo from '../database/repositories/collections'
 import * as environmentsRepo from '../database/repositories/environments'
@@ -233,11 +234,9 @@ async function executeHttpRequest(
     else if (request.body_type === 'urlencoded') headers['Content-Type'] = 'application/x-www-form-urlencoded'
   }
 
-  // Read SSL setting (same as main proxy)
+  // TLS: custom certs + SSL verification (same as main proxy)
   const verifySsl = settingsRepo.getSetting('request.verify_ssl') !== 'false'
-  const dispatcher = !verifySsl
-    ? new Agent({ connect: { rejectUnauthorized: false } })
-    : undefined
+  const dispatcher = createUndiciDispatcher(verifySsl, resolvedUrl)
 
   const fetchOptions: Parameters<typeof undiciFetch>[1] = {
     method: request.method as any,

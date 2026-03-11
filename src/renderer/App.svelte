@@ -42,7 +42,8 @@
   let lastClipboardHash = ''
 
   function handleClipboardText(text: string): void {
-    if (!text || !isCurlCommand(text)) return
+    // Skip empty, oversized (>100 KB), or non-cURL clipboard content
+    if (!text || text.length > 100_000 || !isCurlCommand(text)) return
 
     // Don't re-prompt for the same clipboard content
     const hash = text.trim()

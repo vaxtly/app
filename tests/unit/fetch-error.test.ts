@@ -16,7 +16,16 @@ describe('formatFetchError', () => {
     'SELF_SIGNED_CERT_IN_CHAIN',
   ])('returns SSL error message for %s', (code) => {
     const result = formatFetchError(makeFetchError(code))
-    expect(result).toBe(`SSL certificate error (${code}). Disable "Verify SSL" in Settings to bypass.`)
+    expect(result).toBe(`SSL certificate error (${code}). Disable "Verify SSL" in Settings to bypass, or add a custom CA certificate.`)
+  })
+
+  it.each([
+    'ERR_OSSL_PEM_NO_START_LINE',
+    'ERR_OSSL_PEM_BAD_BASE64_DECODE',
+  ])('returns cert format error for %s', (code) => {
+    expect(formatFetchError(makeFetchError(code))).toBe(
+      'Invalid certificate file format — ensure the file is in PEM format',
+    )
   })
 
   it('returns ECONNREFUSED with URL when provided', () => {
@@ -53,6 +62,18 @@ describe('formatFetchError', () => {
   it('returns abort message when error contains "aborted"', () => {
     expect(formatFetchError(new Error('The operation was aborted'))).toBe(
       'Request aborted (timeout or cancelled)',
+    )
+  })
+
+  it('returns proxy rejection message for UND_ERR_PROXY_RESPONSE', () => {
+    expect(formatFetchError(makeFetchError('UND_ERR_PROXY_RESPONSE'))).toBe(
+      'Proxy rejected the connection — check proxy URL and credentials',
+    )
+  })
+
+  it('returns proxy auth message when error contains 407', () => {
+    expect(formatFetchError(new Error('407 Proxy Authentication Required'))).toBe(
+      'Proxy authentication required — configure proxy credentials in Settings',
     )
   })
 

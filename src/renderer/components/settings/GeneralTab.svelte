@@ -65,6 +65,71 @@
   function toggleRedirects(value: boolean): void {
     settingsStore.set('request.follow_redirects', value)
   }
+
+  // Certificate settings
+  let caCertPath = $derived(settingsStore.get('tls.ca_cert_path'))
+  let clientCertPath = $derived(settingsStore.get('tls.client_cert_path'))
+  let clientKeyPath = $derived(settingsStore.get('tls.client_key_path'))
+  let clientKeyPassphrase = $derived(settingsStore.get('tls.client_key_passphrase'))
+  let hasCerts = $derived(caCertPath || clientCertPath || clientKeyPath || clientKeyPassphrase)
+  let certsExpanded = $state(false)
+  let certsVisible = $derived(certsExpanded || hasCerts)
+
+  function basename(path: string): string {
+    return path.split(/[\\/]/).pop() ?? path
+  }
+
+  async function browseCert(key: 'tls.ca_cert_path' | 'tls.client_cert_path' | 'tls.client_key_path'): Promise<void> {
+    const result = await window.api.proxy.pickCertFile()
+    if (result) settingsStore.set(key, result.path)
+  }
+
+  function clearCert(key: 'tls.ca_cert_path' | 'tls.client_cert_path' | 'tls.client_key_path' | 'tls.client_key_passphrase'): void {
+    settingsStore.set(key, '')
+  }
+
+  function clearAllCerts(): void {
+    settingsStore.set('tls.ca_cert_path', '')
+    settingsStore.set('tls.client_cert_path', '')
+    settingsStore.set('tls.client_key_path', '')
+    settingsStore.set('tls.client_key_passphrase', '')
+  }
+
+  function handlePassphraseChange(e: Event): void {
+    settingsStore.set('tls.client_key_passphrase', (e.target as HTMLInputElement).value)
+  }
+
+  // Proxy settings
+  let proxyUrl = $derived(settingsStore.get('proxy.url'))
+  let proxyUsername = $derived(settingsStore.get('proxy.username'))
+  let proxyPassword = $derived(settingsStore.get('proxy.password'))
+  let proxyNoProxy = $derived(settingsStore.get('proxy.no_proxy'))
+  let hasProxy = $derived(proxyUrl || proxyUsername || proxyPassword || proxyNoProxy)
+  let proxyExpanded = $state(false)
+  let proxyVisible = $derived(proxyExpanded || hasProxy)
+
+  function handleProxyUrlChange(e: Event): void {
+    settingsStore.set('proxy.url', (e.target as HTMLInputElement).value.trim())
+  }
+
+  function handleProxyUsernameChange(e: Event): void {
+    settingsStore.set('proxy.username', (e.target as HTMLInputElement).value)
+  }
+
+  function handleProxyPasswordChange(e: Event): void {
+    settingsStore.set('proxy.password', (e.target as HTMLInputElement).value)
+  }
+
+  function handleNoProxyChange(e: Event): void {
+    settingsStore.set('proxy.no_proxy', (e.target as HTMLInputElement).value)
+  }
+
+  function clearAllProxy(): void {
+    settingsStore.set('proxy.url', '')
+    settingsStore.set('proxy.username', '')
+    settingsStore.set('proxy.password', '')
+    settingsStore.set('proxy.no_proxy', '')
+  }
 </script>
 
 <div class="general-tab">
@@ -213,6 +278,202 @@
 
   <div class="divider"></div>
 
+  <!-- Proxy section (collapsible) -->
+  <section class="section">
+    <button class="section-header section-header-btn" onclick={() => proxyExpanded = !proxyExpanded}>
+      <div class="section-icon proxy-icon">
+        <svg viewBox="0 0 18 18" fill="none">
+          <circle cx="9" cy="9" r="6.5" stroke="currentColor" stroke-width="1.3"/>
+          <path d="M3 9H15M9 2.5C10.5 4.5 11.5 6.5 11.5 9S10.5 13.5 9 15.5M9 2.5C7.5 4.5 6.5 6.5 6.5 9S7.5 13.5 9 15.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <div class="section-header-text">
+        <div class="section-title">Proxy</div>
+        <div class="section-subtitle">{hasProxy ? 'HTTP proxy configured' : 'Route requests through an HTTP proxy'}</div>
+      </div>
+      <svg class="section-chevron" class:is-open={proxyVisible} viewBox="0 0 12 12" fill="none">
+        <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </button>
+
+    {#if proxyVisible}
+      <!-- Proxy URL -->
+      <div class="setting-row">
+        <div class="setting-info">
+          <span class="setting-label">Proxy URL</span>
+          <span class="setting-desc">HTTP or HTTPS proxy server address</span>
+        </div>
+        <input
+          type="text"
+          class="proxy-input"
+          value={proxyUrl}
+          onchange={handleProxyUrlChange}
+          placeholder="http://proxy:8080"
+        />
+      </div>
+
+      <!-- Username -->
+      <div class="setting-row">
+        <div class="setting-info">
+          <span class="setting-label">Username</span>
+          <span class="setting-desc">Proxy authentication username</span>
+        </div>
+        <input
+          type="text"
+          class="proxy-input proxy-input-sm"
+          value={proxyUsername}
+          onchange={handleProxyUsernameChange}
+          placeholder="None"
+        />
+      </div>
+
+      <!-- Password -->
+      <div class="setting-row">
+        <div class="setting-info">
+          <span class="setting-label">Password</span>
+          <span class="setting-desc">Proxy authentication password</span>
+        </div>
+        <input
+          type="password"
+          class="proxy-input proxy-input-sm"
+          value={proxyPassword}
+          onchange={handleProxyPasswordChange}
+          placeholder="None"
+        />
+      </div>
+
+      <!-- No Proxy -->
+      <div class="setting-row" class:last={!hasProxy}>
+        <div class="setting-info">
+          <span class="setting-label">No Proxy</span>
+          <span class="setting-desc">Hosts that bypass the proxy</span>
+        </div>
+        <input
+          type="text"
+          class="proxy-input"
+          value={proxyNoProxy}
+          onchange={handleNoProxyChange}
+          placeholder="localhost, *.local"
+        />
+      </div>
+
+      {#if hasProxy}
+        <div class="setting-row last">
+          <div></div>
+          <button class="cert-clear-all-btn" onclick={clearAllProxy}>Clear proxy settings</button>
+        </div>
+      {/if}
+    {/if}
+  </section>
+
+  <div class="divider"></div>
+
+  <!-- Certificates section (collapsible) -->
+  <section class="section">
+    <button class="section-header section-header-btn" onclick={() => certsExpanded = !certsExpanded}>
+      <div class="section-icon cert-icon">
+        <svg viewBox="0 0 18 18" fill="none">
+          <path d="M9 2L4 4.5V8.5C4 12 6.2 14.8 9 16C11.8 14.8 14 12 14 8.5V4.5L9 2Z" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M7 9L8.5 10.5L11 7.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <div class="section-header-text">
+        <div class="section-title">Certificates</div>
+        <div class="section-subtitle">{hasCerts ? 'Custom CA and client certificates configured' : 'Custom CA and client certificates for mTLS'}</div>
+      </div>
+      <svg class="section-chevron" class:is-open={certsVisible} viewBox="0 0 12 12" fill="none">
+        <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </button>
+
+    {#if certsVisible}
+      <!-- CA Certificate -->
+      <div class="setting-row" class:dimmed={!verifySsl}>
+        <div class="setting-info">
+          <span class="setting-label">CA Certificate</span>
+          <span class="setting-desc">{#if !verifySsl}Only used when Verify SSL is on{:else}Trust a custom certificate authority{/if}</span>
+        </div>
+        <div class="cert-actions">
+          {#if caCertPath}
+            <span class="cert-filename" title={caCertPath}>{basename(caCertPath)}</span>
+            <button class="cert-clear-btn" onclick={() => clearCert('tls.ca_cert_path')} title="Remove">
+              <svg viewBox="0 0 14 14" fill="none"><path d="M4 4L10 10M10 4L4 10" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+            </button>
+          {:else}
+            <button class="cert-browse-btn" onclick={() => browseCert('tls.ca_cert_path')} disabled={!verifySsl}>Browse</button>
+          {/if}
+        </div>
+      </div>
+
+      <!-- Client Certificate -->
+      <div class="setting-row">
+        <div class="setting-info">
+          <span class="setting-label">Client Certificate</span>
+          <span class="setting-desc">PEM certificate for mutual TLS</span>
+        </div>
+        <div class="cert-actions">
+          {#if clientCertPath}
+            <span class="cert-filename" title={clientCertPath}>{basename(clientCertPath)}</span>
+            <button class="cert-clear-btn" onclick={() => clearCert('tls.client_cert_path')} title="Remove">
+              <svg viewBox="0 0 14 14" fill="none"><path d="M4 4L10 10M10 4L4 10" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+            </button>
+          {:else}
+            <button class="cert-browse-btn" onclick={() => browseCert('tls.client_cert_path')}>Browse</button>
+          {/if}
+        </div>
+      </div>
+
+      <!-- Client Key -->
+      <div class="setting-row">
+        <div class="setting-info">
+          <span class="setting-label">Client Key</span>
+          <span class="setting-desc">PEM private key for the client certificate</span>
+        </div>
+        <div class="cert-actions">
+          {#if clientKeyPath}
+            <span class="cert-filename" title={clientKeyPath}>{basename(clientKeyPath)}</span>
+            <button class="cert-clear-btn" onclick={() => clearCert('tls.client_key_path')} title="Remove">
+              <svg viewBox="0 0 14 14" fill="none"><path d="M4 4L10 10M10 4L4 10" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+            </button>
+          {:else}
+            <button class="cert-browse-btn" onclick={() => browseCert('tls.client_key_path')}>Browse</button>
+          {/if}
+        </div>
+      </div>
+
+      <!-- Key Passphrase -->
+      <div class="setting-row" class:last={!hasCerts}>
+        <div class="setting-info">
+          <span class="setting-label">Key Passphrase</span>
+          <span class="setting-desc">Optional passphrase for the private key</span>
+        </div>
+        <div class="cert-actions">
+          <input
+            type="password"
+            class="passphrase-input"
+            value={clientKeyPassphrase}
+            onchange={handlePassphraseChange}
+            placeholder="None"
+          />
+          {#if clientKeyPassphrase}
+            <button class="cert-clear-btn" onclick={() => clearCert('tls.client_key_passphrase')} title="Clear">
+              <svg viewBox="0 0 14 14" fill="none"><path d="M4 4L10 10M10 4L4 10" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+            </button>
+          {/if}
+        </div>
+      </div>
+
+      {#if hasCerts}
+        <div class="setting-row last">
+          <div></div>
+          <button class="cert-clear-all-btn" onclick={clearAllCerts}>Clear all certificates</button>
+        </div>
+      {/if}
+    {/if}
+  </section>
+
+  <div class="divider"></div>
+
   <!-- About -->
   <section class="about">
     <div class="about-card">
@@ -281,6 +542,45 @@
   .http-icon {
     background: color-mix(in srgb, var(--color-brand-500) 15%, transparent);
     color: var(--color-brand-400);
+  }
+  .proxy-icon {
+    background: color-mix(in srgb, var(--color-warning-muted) 15%, transparent);
+    color: var(--color-warning-muted);
+  }
+  .cert-icon {
+    background: color-mix(in srgb, var(--color-success-muted) 15%, transparent);
+    color: var(--color-success-muted);
+  }
+  .section-header-btn {
+    all: unset;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+    width: 100%;
+    cursor: pointer;
+    border-radius: 8px;
+    padding: 2px;
+    margin: -2px -2px 8px;
+    transition: background 0.12s ease;
+  }
+  .section-header-btn:hover {
+    background: var(--tint-subtle);
+  }
+  .section-header-text {
+    flex: 1;
+    min-width: 0;
+  }
+  .section-chevron {
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+    color: var(--color-surface-500);
+    transform: rotate(-90deg);
+    transition: transform 0.15s ease;
+  }
+  .section-chevron.is-open {
+    transform: rotate(0deg);
   }
   .section-title {
     font-size: 13px;
@@ -418,6 +718,123 @@
     font-size: 11px;
     color: var(--color-surface-500);
   }
+  /* Certificates */
+  .cert-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+  }
+  .cert-filename {
+    font-size: 11px;
+    font-family: var(--font-mono, monospace);
+    color: var(--color-surface-300);
+    max-width: 140px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    padding: 3px 8px;
+    border-radius: 6px;
+    background: var(--tint-muted);
+    border: 1px solid var(--border-subtle);
+  }
+  .cert-browse-btn {
+    padding: 3px 10px;
+    border-radius: 6px;
+    border: 1px solid var(--border-subtle);
+    background: var(--tint-muted);
+    color: var(--color-surface-300);
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.12s ease;
+  }
+  .cert-browse-btn:hover {
+    border-color: var(--glass-border);
+    background: var(--tint-active);
+    color: var(--color-surface-200);
+  }
+  .cert-browse-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+  .cert-clear-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border-radius: 4px;
+    border: none;
+    background: transparent;
+    color: var(--color-surface-500);
+    cursor: pointer;
+    transition: all 0.12s ease;
+  }
+  .cert-clear-btn:hover {
+    background: var(--tint-active);
+    color: var(--color-danger-light);
+  }
+  .cert-clear-btn svg {
+    width: 12px;
+    height: 12px;
+  }
+  .cert-clear-all-btn {
+    padding: 3px 10px;
+    border-radius: 6px;
+    border: 1px solid color-mix(in srgb, var(--color-danger-light) 30%, transparent);
+    background: transparent;
+    color: var(--color-danger-light);
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.12s ease;
+  }
+  .cert-clear-all-btn:hover {
+    background: color-mix(in srgb, var(--color-danger-light) 10%, transparent);
+  }
+  .passphrase-input {
+    width: 120px;
+    height: 26px;
+    padding: 0 8px;
+    border-radius: 6px;
+    border: 1px solid var(--border-subtle);
+    background: var(--tint-muted);
+    color: var(--color-surface-100);
+    font-size: 11px;
+    outline: none;
+    transition: border-color 0.12s;
+  }
+  .passphrase-input:focus {
+    border-color: var(--color-brand-500);
+  }
+  .passphrase-input::placeholder {
+    color: var(--color-surface-600);
+  }
+  .dimmed {
+    opacity: 0.45;
+  }
+  /* Proxy */
+  .proxy-input {
+    width: 180px;
+    height: 26px;
+    padding: 0 8px;
+    border-radius: 6px;
+    border: 1px solid var(--border-subtle);
+    background: var(--tint-muted);
+    color: var(--color-surface-100);
+    font-size: 11px;
+    outline: none;
+    transition: border-color 0.12s;
+  }
+  .proxy-input:focus {
+    border-color: var(--color-brand-500);
+  }
+  .proxy-input::placeholder {
+    color: var(--color-surface-600);
+  }
+  .proxy-input-sm {
+    width: 120px;
+  }
+
   /* Divider */
   .divider {
     height: 1px;
