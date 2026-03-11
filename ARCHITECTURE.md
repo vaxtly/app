@@ -13,7 +13,7 @@
 | CSS | Tailwind CSS | 4 |
 | Editor | CodeMirror + cm6-graphql | 6 |
 | Database | better-sqlite3 (SQLite WAL) | 12 |
-| HTTP | undici (custom TLS Agent) | 7 |
+| HTTP | undici (Agent + ProxyAgent for TLS/proxy) | 7 |
 | Auto-update | electron-updater | 6 |
 | Encryption | Electron safeStorage + AES-256-GCM | — |
 | Tests (unit) | Vitest | 4 |
@@ -86,7 +86,8 @@ vaxtly/
 │   │   │   ├── mcp-client.ts           # MCP SDK client: connect/disconnect, tool/resource/prompt calls, traffic log, {{variable}} substitution at connect time
 │   │   │   ├── session-log.ts          # In-memory ring buffer, push to renderer
 │   │   │   ├── yaml-serializer.ts      # Collection ↔ YAML directory serialization/import
-│   │   │   ├── fetch-error.ts            # Shared formatFetchError (SSL, DNS, timeout, etc.)
+│   │   │   ├── tls-options.ts             # Shared TLS + proxy helper: cert loading, ProxyAgent, no_proxy bypass
+│   │   │   ├── fetch-error.ts            # Shared formatFetchError (SSL, DNS, timeout, proxy, etc.)
 │   │   │   ├── sensitive-data-scanner.ts # Scan/sanitize sensitive data in requests, variables & MCP servers
 │   │   │   ├── sse-parser.ts           # Stateful SSE text parser (spec-compliant, handles partial chunks)
 │   │   │   ├── openapi-export.ts     # OpenAPI 3.0.3 YAML export from collection (paths, tags, auth, body)
@@ -179,7 +180,7 @@ vaxtly/
 │           │   └── HtmlPreview.svelte     # Sandboxed iframe (blob: URL, empty sandbox) HTML response preview
 │           ├── settings/
 │           │   ├── SettingsModal.svelte   # 4-tab bespoke modal (General/Data/Remote/Vault)
-│           │   ├── GeneralTab.svelte      # Layout, timeout, SSL, redirects, about
+│           │   ├── GeneralTab.svelte      # Layout, timeout, SSL, redirects, proxy, certificates, about
 │           │   ├── DataTab.svelte         # Export (type pills: all/collections/environments/mcp/config) + Import (Vaxtly/Postman/Insomnia)
 │           │   ├── RemoteSyncTab.svelte   # Git provider config, test/pull/push (conflicts handled by centralized ConflictModal in App.svelte)
 │           │   └── VaultTab.svelte        # Vault URL, auth, namespace, actions
@@ -233,7 +234,8 @@ vaxtly/
 │   │   ├── mcp-yaml-serializer.test.ts # 11 tests: serialize/import round-trip, manifest, sanitize, upsert
 │   │   ├── bulk-edit.test.ts            # 23 tests: entriesToBulk, bulkToEntries, formDataToBulk, bulkToFormData
 │   │   ├── encryption.test.ts          # 6 tests: round-trip, random IV, wrong key
-│   │   ├── fetch-error.test.ts         # 13 tests: all error branches (SSL, DNS, timeout, etc.)
+│   │   ├── tls-options.test.ts         # 36 tests: TLS config, proxy agent, shouldProxy, cert loading
+│   │   ├── fetch-error.test.ts         # 17 tests: all error branches (SSL, DNS, timeout, proxy, etc.)
 │   │   ├── session-log.test.ts         # 6 tests: ring buffer, categories, copy safety
 │   │   ├── proxy-handler.test.ts       # 22 tests: HTTP proxy dispatch, auth, body, scripts
 │   │   ├── proxy-helpers.test.ts       # 8 tests: parseCookies + setDefaultHeader + deleteHeader
@@ -363,7 +365,7 @@ folders 1──N requests (ON DELETE SET NULL)
 | Column | Type | Notes |
 |--------|------|-------|
 | key | TEXT PK | |
-| value | TEXT NOT NULL | Sensitive keys (`vault.token`, `vault.role_id`, `vault.secret_id`, `vault.aws_access_key_id`, `vault.aws_secret_access_key`, `sync.token`) stored as AES-256-GCM encrypted base64 |
+| value | TEXT NOT NULL | Sensitive keys (`vault.token`, `vault.role_id`, `vault.secret_id`, `vault.aws_access_key_id`, `vault.aws_secret_access_key`, `sync.token`, `tls.client_key_passphrase`, `proxy.username`, `proxy.password`) stored as AES-256-GCM encrypted base64 |
 
 #### `window_state`
 | Column | Type | Default | Notes |
@@ -455,6 +457,7 @@ Pattern: `ipcMain.handle('domain:action', handler)` in main, `ipcRenderer.invoke
 | `proxy:send` | ipc/proxy.ts | native fetch + var substitution (auto-detects SSE) | `api.proxy.send(reqId, config)` |
 | `proxy:cancel` | ipc/proxy.ts | AbortController | `api.proxy.cancel(reqId)` |
 | `proxy:pick-file` | ipc/proxy.ts | dialog.showOpenDialog | `api.proxy.pickFile()` |
+| `proxy:pick-cert-file` | ipc/proxy.ts | dialog.showOpenDialog (PEM/CRT/KEY) | `api.proxy.pickCertFile()` |
 | `sse:stream-start` | — (main→renderer push) | — | `api.on.sseStreamStart(cb)` |
 | `sse:stream-chunk` | — (main→renderer push) | — | `api.on.sseStreamChunk(cb)` |
 | `sse:stream-end` | — (main→renderer push) | — | `api.on.sseStreamEnd(cb)` |
@@ -725,7 +728,7 @@ Mirrors the `mcpStore` pattern. Connection management happens in the main proces
 
 **Actions**: `loadAll`, `get(key)`, `set(key, value)` — typed settings keys with IPC persistence. Used for app-wide preferences (layout orientation, timeout, SSL, theme, split percentages, etc.).
 
-**Settings keys**: `request.layout`, `request.timeout`, `request.verify_ssl`, `request.follow_redirects`, `request.splitPercent`, `mcp.splitPercent`, `app.version`, `app.welcomed`, `app.theme`, `sidebar.width`
+**Settings keys**: `request.layout`, `request.timeout`, `request.verify_ssl`, `request.follow_redirects`, `request.splitPercent`, `mcp.splitPercent`, `app.version`, `app.welcomed`, `app.theme`, `sidebar.width`, `tls.ca_cert_path`, `tls.client_cert_path`, `tls.client_key_path`, `tls.client_key_passphrase`, `proxy.url`, `proxy.username`, `proxy.password`, `proxy.no_proxy`
 
 ### `graphqlStore` — `lib/stores/graphql.svelte.ts`
 
@@ -746,7 +749,7 @@ Caches introspection results per URL in the renderer. `fetchSchema` calls `api.g
 - `decryptValue(encrypted)` → detects format: `gcm:` prefix → AES-256-GCM; otherwise → legacy AES-256-CBC fallback for backward compatibility
 - `initEncryptionForTesting(key?)` → bypass safeStorage for Vitest
 - **Repository-layer integration**: encryption is transparent at the repository layer — callers (IPC, services, UI) are unaware
-  - **Settings**: `SENSITIVE_KEYS` set (`vault.token`, `vault.role_id`, `vault.secret_id`, `vault.aws_access_key_id`, `vault.aws_secret_access_key`, `sync.token`) — encrypted on write, decrypted on read with try/catch fallback for pre-migration plaintext
+  - **Settings**: `SENSITIVE_KEYS` set (`vault.token`, `vault.role_id`, `vault.secret_id`, `vault.aws_access_key_id`, `vault.aws_secret_access_key`, `sync.token`, `tls.client_key_passphrase`, `proxy.username`, `proxy.password`) — encrypted on write, decrypted on read with try/catch fallback for pre-migration plaintext
   - **Environments**: variable values encrypted with `enc:` prefix — `encryptVariables()`/`decryptVariables()` in all CRUD paths
   - **Requests**: auth credentials (`bearer_token`, `basic_username`, `basic_password`, `api_key_value`, `oauth2_client_secret`, `oauth2_password`, `oauth2_access_token`, `oauth2_refresh_token`) encrypted with `enc:` prefix — `encryptAuth()`/`decryptAuth()` in all CRUD paths; double-encryption guard checks `enc:` prefix before encrypting
   - **Workspace settings**: sensitive fields in `workspaces.settings` JSON column encrypted/decrypted using the same key set as `app_settings`
@@ -774,9 +777,18 @@ Caches introspection results per URL in the renderer. `fetchSchema` calls `api.g
 - **Sanitization**: All SDK results sanitized with `JSON.parse(JSON.stringify())` to strip non-cloneable properties before IPC transit
 - **Notification schemas**: Uses Zod schemas from `@modelcontextprotocol/sdk/types.js` (`ToolListChangedNotificationSchema`, etc.)
 
+### TLS & Proxy Options (`services/tls-options.ts`)
+- `getTlsConfig(verifySsl)` → reads cert paths from settings, loads files via `readFileSync`, returns `{ ca?, cert?, key?, passphrase?, rejectUnauthorized }`
+- `getProxyConfig()` → reads proxy URL/auth from settings, builds Basic auth token, parses no_proxy list. Returns `null` when no proxy configured
+- `shouldProxy(targetUrl, noProxy)` → hostname matching against no_proxy patterns (exact, `*.local` wildcard, `.corp.com` suffix, `*` catch-all)
+- `createUndiciDispatcher(verifySsl, targetUrl?)` → returns `ProxyAgent` when proxy configured (with TLS in `requestTls`), `Agent` for custom TLS only, `undefined` for defaults
+- `createHttpsAgent(verifySsl)` → returns `https.Agent` for WebSocket client (proxy support is future enhancement)
+- CA cert only loaded when `verifySsl === true`; client cert/key loaded regardless (mTLS is client auth)
+- Throws descriptive errors for missing cert files
+
 ### Fetch Error Formatting (`services/fetch-error.ts`)
 - `formatFetchError(error, url?)` → user-friendly error message from undici/fetch errors
-- Unwraps `error.cause.code` for descriptive messages: SSL certificate errors, DNS lookup failures, connection refused, EHOSTUNREACH, timeouts, abort signals
+- Unwraps `error.cause.code` for descriptive messages: SSL certificate errors, PEM format errors, DNS lookup failures, connection refused, timeouts, proxy rejections, abort signals
 - Shared by proxy handler and vault IPC handlers
 
 ### HTTP Proxy (`ipc/proxy.ts`)
