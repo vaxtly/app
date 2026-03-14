@@ -16,6 +16,8 @@ import { substitute } from './variable-substitution'
 import { isTokenExpired, refreshAccessToken } from './oauth2'
 import { DEFAULTS } from '../../shared/constants'
 import { logHttp, logScript } from './session-log'
+import { getCookieHeader, captureCookies } from './cookie-jar'
+import { parseCookies } from '../ipc/proxy'
 import type { ScriptsConfig, PreRequestScript, PostResponseScript, EnvironmentVariable } from '../../shared/types/models'
 import type { ResponseData } from '../../shared/types/http'
 
@@ -132,9 +134,10 @@ async function executeDependentRequest(
 }
 
 /**
- * Execute an HTTP request from saved request data (for dependent request scripts).
+ * Execute an HTTP request from saved request data.
+ * Used by dependent request scripts and the collection runner.
  */
-async function executeHttpRequest(
+export async function executeHttpRequest(
   requestId: string,
   collectionId: string,
   workspaceId?: string,
@@ -234,6 +237,15 @@ async function executeHttpRequest(
     else if (request.body_type === 'urlencoded') headers['Content-Type'] = 'application/x-www-form-urlencoded'
   }
 
+  // Inject cookies from cookie jar
+  const sendCookies = settingsRepo.getSetting('request.send_cookies') !== 'false'
+  if (sendCookies) {
+    const cookieHeader = getCookieHeader(resolvedUrl)
+    if (cookieHeader && !Object.keys(headers).some(k => k.toLowerCase() === 'cookie')) {
+      headers['Cookie'] = cookieHeader
+    }
+  }
+
   // TLS: custom certs + SSL verification (same as main proxy)
   const verifySsl = settingsRepo.getSetting('request.verify_ssl') !== 'false'
   const dispatcher = createUndiciDispatcher(verifySsl, resolvedUrl)
@@ -264,6 +276,12 @@ async function executeHttpRequest(
       responseHeaders[key] = value
     })
 
+    // Capture cookies into the cookie jar
+    const cookies = parseCookies(response.headers)
+    if (sendCookies) {
+      captureCookies(resolvedUrl, cookies)
+    }
+
     return {
       status: response.status,
       statusText: response.statusText,
@@ -271,7 +289,7 @@ async function executeHttpRequest(
       body: responseBody,
       size: bodyBuffer.byteLength,
       timing: { start: startTime, ttfb, total },
-      cookies: [],
+      cookies,
     }
   } catch (error) {
     const total = performance.now() - startTime

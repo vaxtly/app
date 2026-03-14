@@ -36,6 +36,7 @@ export interface ResponseData {
   cookies: ResponseCookie[]
   isSSE?: boolean
   sseEvents?: SSEEvent[]
+  assertionResults?: import('./models').AssertionResult[]
 }
 
 export interface ResponseTiming {

@@ -58,7 +58,7 @@ npx electron-rebuild -f -w better-sqlite3  # Rebuild native module for Electron 
 - Pattern: `ipcMain.handle('domain:action', handler)` in main.
 - Preload exposes typed API: `window.api.domain.action()`.
 - **Push channels** (main→renderer): use `event.sender.send(IPC.CHANNEL, data)` in handlers + `ipcRenderer.on` listeners in preload's `on` namespace. Return cleanup function `() => void`.
-- Domain prefixes: workspaces, collections, folders, requests, environments, histories, proxy, sync, vault, settings, window, mcp, ws, graphql, clipboard.
+- Domain prefixes: workspaces, collections, folders, requests, environments, histories, proxy, sync, vault, settings, window, mcp, ws, graphql, clipboard, runner, cookies, gql-sub.
 - **TLS/Proxy helper**: `services/tls-options.ts` — centralized cert loading + proxy dispatch. All HTTP consumers call `createUndiciDispatcher(verifySsl, targetUrl?)`, WebSocket uses `createHttpsAgent(verifySsl)`. Returns `ProxyAgent` when proxy is configured.
 
 ### Testing

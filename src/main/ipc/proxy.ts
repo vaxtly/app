@@ -18,6 +18,9 @@ import * as vaultSyncService from '../vault/vault-sync-service'
 import { isTokenExpired, refreshAccessToken } from '../services/oauth2'
 import type { AuthConfig } from '../../shared/types/models'
 import { SSEParser } from '../services/sse-parser'
+import { evaluateRequestAssertions } from '../services/assertion-evaluator'
+import { getCookieHeader, captureCookies } from '../services/cookie-jar'
+import * as settingsRepoForCookies from '../database/repositories/settings'
 
 function truncateBody(body: string | undefined): string | undefined {
   if (!body) return undefined
@@ -123,6 +126,15 @@ export function registerProxyHandlers(): void {
 
     try {
       const fetchHeaders = { ...resolvedHeaders }
+
+      // Inject cookies from cookie jar (user-set Cookie headers take priority)
+      const sendCookies = settingsRepoForCookies.getSetting('request.send_cookies') !== 'false'
+      if (sendCookies) {
+        const cookieHeader = getCookieHeader(resolvedUrl)
+        if (cookieHeader) {
+          setDefaultHeader(fetchHeaders, 'Cookie', cookieHeader)
+        }
+      }
 
       // TLS: custom certs + SSL verification
       const dispatcher = createUndiciDispatcher(verifySsl, resolvedUrl)
@@ -239,6 +251,11 @@ export function registerProxyHandlers(): void {
 
       const cookies = parseCookies(response.headers)
 
+      // Capture cookies into the cookie jar
+      if (sendCookies) {
+        captureCookies(resolvedUrl, cookies)
+      }
+
       const result: ResponseData = {
         status: response.status,
         statusText: response.statusText,
@@ -256,6 +273,12 @@ export function registerProxyHandlers(): void {
         } catch (error) {
           logHttp('post-script', resolvedUrl, `Post-response script failed: ${error instanceof Error ? error.message : String(error)}`, false)
         }
+      }
+
+      // Evaluate assertions
+      const assertionResults = evaluateRequestAssertions(requestId, result)
+      if (assertionResults.length > 0) {
+        result.assertionResults = assertionResults
       }
 
       const detail: HttpLogDetail = {
@@ -385,6 +408,12 @@ async function handleSSEStream(
   })
   const cookies = parseCookies(response.headers)
 
+  // Capture cookies into the cookie jar
+  const sendCookiesSse = settingsRepoForCookies.getSetting('request.send_cookies') !== 'false'
+  if (sendCookiesSse) {
+    captureCookies(resolvedUrl, cookies)
+  }
+
   // Send stream start to renderer
   const startPayload: SSEStreamStart = {
     requestId,
@@ -476,6 +505,12 @@ async function handleSSEStream(
     } catch (error) {
       logHttp('post-script', resolvedUrl, `Post-response script failed: ${error instanceof Error ? error.message : String(error)}`, false)
     }
+  }
+
+  // Evaluate assertions
+  const assertionResults = evaluateRequestAssertions(requestId, result)
+  if (assertionResults.length > 0) {
+    result.assertionResults = assertionResults
   }
 
   // Log to session log

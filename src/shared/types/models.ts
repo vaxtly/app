@@ -129,6 +129,37 @@ export interface AuthConfig {
 export interface ScriptsConfig {
   pre_request?: PreRequestScript
   post_response?: PostResponseScript[]
+  assertions?: Assertion[]
+}
+
+// --- Assertion types ---
+
+export type AssertionType = 'status' | 'header' | 'json_path' | 'response_time'
+
+export type AssertionOperator =
+  | 'equals'
+  | 'not_equals'
+  | 'contains'
+  | 'not_contains'
+  | 'exists'
+  | 'not_exists'
+  | 'less_than'
+  | 'greater_than'
+  | 'matches_regex'
+
+export interface Assertion {
+  type: AssertionType
+  target: string // header name, JSON path, or '' for status/response_time
+  operator: AssertionOperator
+  expected: string
+  enabled: boolean
+}
+
+export interface AssertionResult {
+  assertion: Assertion
+  passed: boolean
+  actual: string | null
+  error?: string
 }
 
 export interface PreRequestScript {

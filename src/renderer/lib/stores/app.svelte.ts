@@ -3,7 +3,7 @@
  * Uses Svelte 5 runes for fine-grained reactivity.
  */
 
-import type { Request, ResponseData, Workspace, SSEEvent, McpToolCallResult, McpResourceReadResult, McpPromptGetResult } from '../../lib/types'
+import type { Request, ResponseData, Workspace, SSEEvent, McpToolCallResult, McpResourceReadResult, McpPromptGetResult, GqlSubscriptionEvent, GqlSubscriptionStatus } from '../../lib/types'
 
 // --- Types ---
 
@@ -44,6 +44,9 @@ export interface TabRequestState {
     size: number
     startTime: number
   }
+  // GraphQL subscription state
+  gqlSubStatus?: GqlSubscriptionStatus
+  gqlSubEvents?: GqlSubscriptionEvent[]
 }
 
 export interface TabEnvironmentState {

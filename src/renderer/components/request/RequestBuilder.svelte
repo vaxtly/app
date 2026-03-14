@@ -5,6 +5,7 @@
   import BodyEditor from './BodyEditor.svelte'
   import AuthEditor from './AuthEditor.svelte'
   import ScriptsEditor from './ScriptsEditor.svelte'
+  import TestsEditor from './TestsEditor.svelte'
   import ResponseViewer from '../response/ResponseViewer.svelte'
   import CodeSnippetModal from '../modals/CodeSnippetModal.svelte'
   import CollectionPickerModal from '../modals/CollectionPickerModal.svelte'
@@ -14,7 +15,7 @@
   import { environmentsStore } from '../../lib/stores/environments.svelte'
   import { settingsStore } from '../../lib/stores/settings.svelte'
   import { graphqlStore } from '../../lib/stores/graphql.svelte'
-  import type { KeyValueEntry, AuthConfig, ScriptsConfig, FormDataEntry, ResponseData, SSEStreamStart, SSEChunk, SSEStreamEnd } from '../../lib/types'
+  import type { KeyValueEntry, AuthConfig, ScriptsConfig, FormDataEntry, ResponseData, SSEStreamStart, SSEChunk, SSEStreamEnd, GqlSubscriptionEvent, GqlSubStatusChanged } from '../../lib/types'
   import type { ResolvedVariable } from '../../lib/utils/variable-highlight'
   import { isCurlCommand, parseCurl } from '../../../shared/curl-parser'
 
@@ -26,7 +27,7 @@
   let { tabId, requestId }: Props = $props()
 
   // Request tab sub-tabs
-  type RequestTab = 'params' | 'headers' | 'body' | 'auth' | 'scripts'
+  type RequestTab = 'params' | 'headers' | 'body' | 'auth' | 'scripts' | 'tests'
   let activeRequestTab = $derived<RequestTab>((state?.activeSubTab as RequestTab) ?? 'params')
 
   // Code snippet modal
@@ -63,6 +64,21 @@
   })
 
   let currentCollectionId = $derived(collectionsStore.getRequestById(requestId)?.collection_id)
+
+  // Detect GraphQL subscription
+  let isSubscription = $derived.by(() => {
+    if (state?.body_type !== 'graphql' || !state?.body) return false
+    try {
+      const parsed = JSON.parse(state.body)
+      const query = typeof parsed === 'string' ? parsed : parsed?.query
+      if (typeof query !== 'string') return false
+      return /^\s*subscription\b/m.test(query)
+    } catch {
+      return /^\s*subscription\b/m.test(state.body)
+    }
+  })
+  let gqlSubStatus = $derived(state?.gqlSubStatus)
+  let isSubscribed = $derived(gqlSubStatus === 'connected' || gqlSubStatus === 'connecting')
 
   // Resolved variables for highlighting (refreshed when env or collection changes)
   let resolvedVars = $state<Record<string, ResolvedVariable>>({})
@@ -243,6 +259,7 @@
   })
   let authHasContent = $derived(auth.type !== 'none')
   let scriptsHasContent = $derived(!!(scripts.pre_request || scripts.post_response?.length))
+  let testsHasContent = $derived(!!(scripts.assertions?.length))
 
   // --- Actions ---
 
@@ -291,8 +308,85 @@
     update({ body_type: newType, body: restoredBody, bodyCache: cache })
   }
 
+  async function startSubscription(): Promise<void> {
+    if (!state?.url?.trim()) return
+
+    update({ gqlSubStatus: 'connecting', gqlSubEvents: [] })
+
+    // Register push listeners
+    const cleanups: Array<() => void> = []
+
+    cleanups.push(window.api.on.gqlSubStatusChanged((data: GqlSubStatusChanged) => {
+      if (data.requestId !== requestId) return
+      update({ gqlSubStatus: data.status })
+    }))
+
+    cleanups.push(window.api.on.gqlSubEvent((data: { requestId: string; event: GqlSubscriptionEvent }) => {
+      if (data.requestId !== requestId) return
+      const current = appStore.getTabState(tabId)
+      if (!current) return
+      update({ gqlSubEvents: [...(current.gqlSubEvents ?? []), data.event] })
+    }))
+
+    // Build GraphQL query
+    let query = ''
+    let variables: Record<string, unknown> = {}
+    if (state.body) {
+      try {
+        const parsed = JSON.parse(state.body)
+        query = typeof parsed === 'string' ? parsed : parsed?.query ?? ''
+        variables = (typeof parsed === 'object' && parsed?.variables) ? parsed.variables : {}
+      } catch {
+        query = state.body
+      }
+    }
+
+    // Build headers
+    const headerMap: Record<string, string> = {}
+    for (const h of headers) {
+      if (h.enabled && h.key.trim()) headerMap[h.key.trim()] = h.value
+    }
+
+    try {
+      await window.api.gqlSub.subscribe(requestId, {
+        url: state.url.trim(),
+        query,
+        variables,
+        headers: headerMap,
+        workspaceId: appStore.activeWorkspaceId ?? undefined,
+        collectionId: currentCollectionId,
+      })
+    } catch (error) {
+      update({ gqlSubStatus: 'error' })
+    }
+
+    // Store cleanups for later (we clean up when unsubscribing)
+    // Note: these stay active as long as the subscription is active
+    const existingCleanups = gqlSubCleanups.get(tabId)
+    if (existingCleanups) existingCleanups.forEach(fn => fn())
+    gqlSubCleanups.set(tabId, cleanups)
+  }
+
+  const gqlSubCleanups = new Map<string, Array<() => void>>()
+
+  function cancelSubscription(): void {
+    window.api.gqlSub.unsubscribe(requestId)
+    update({ gqlSubStatus: 'disconnected' })
+    const cleanups = gqlSubCleanups.get(tabId)
+    if (cleanups) {
+      cleanups.forEach(fn => fn())
+      gqlSubCleanups.delete(tabId)
+    }
+  }
+
   async function sendRequest(): Promise<void> {
     if (!state?.url?.trim()) return
+
+    // Route to subscription if detected
+    if (isSubscription) {
+      startSubscription()
+      return
+    }
 
     update({ loading: true, response: null, streaming: false, sseEvents: undefined, sseBody: undefined, sseMetrics: undefined })
 
@@ -427,6 +521,10 @@
   }
 
   function cancelRequest(): void {
+    if (isSubscribed) {
+      cancelSubscription()
+      return
+    }
     window.api.proxy.cancel(requestId)
     update({ loading: false, streaming: false })
   }
@@ -553,6 +651,7 @@
     { key: 'body' as const, label: 'Body', icon: 'body' },
     { key: 'auth' as const, label: 'Auth', icon: 'auth' },
     { key: 'scripts' as const, label: 'Scripts', icon: 'scripts' },
+    { key: 'tests' as const, label: 'Tests', icon: 'tests' },
   ] as const
 
   let layout = $derived(settingsStore.get('request.layout'))
@@ -599,6 +698,8 @@
       url={state.url}
       loading={state.loading}
       unsaved={isUnsaved}
+      subscriptionMode={isSubscription}
+      subscribed={isSubscribed}
       onmethodchange={(m) => update({ method: m })}
       onurlchange={(u) => update({ url: u })}
       onsend={sendRequest}
@@ -621,7 +722,7 @@
         <div class="flex items-stretch shrink-0 h-9 px-1 gap-px" style="border-bottom: 1px solid var(--glass-border)">
           {#each requestTabs as tab (tab.key)}
             {@const count = tab.key === 'params' ? paramCount : tab.key === 'headers' ? headerCount : 0}
-            {@const hasDot = tab.key === 'body' ? bodyHasContent : tab.key === 'auth' ? authHasContent : tab.key === 'scripts' ? scriptsHasContent : false}
+            {@const hasDot = tab.key === 'body' ? bodyHasContent : tab.key === 'auth' ? authHasContent : tab.key === 'scripts' ? scriptsHasContent : tab.key === 'tests' ? testsHasContent : false}
             {@const isActive = activeRequestTab === tab.key}
             <button
               onclick={() => update({ activeSubTab: tab.key })}
@@ -689,6 +790,11 @@
               collectionId={currentCollectionId}
               onchange={(s) => update({ scripts: JSON.stringify(s) })}
             />
+          {:else if activeRequestTab === 'tests'}
+            <TestsEditor
+              {scripts}
+              onchange={(s) => update({ scripts: JSON.stringify(s) })}
+            />
           {/if}
         </div>
       </div>
@@ -713,6 +819,8 @@
           sseEvents={state.sseEvents}
           sseBody={state.sseBody}
           sseMetrics={state.sseMetrics}
+          gqlSubStatus={state.gqlSubStatus}
+          gqlSubEvents={state.gqlSubEvents}
         />
       </div>
     </div>

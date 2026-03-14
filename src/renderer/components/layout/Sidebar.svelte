@@ -9,6 +9,7 @@
   import EnvironmentList from '../sidebar/EnvironmentList.svelte'
   import McpServerList from '../sidebar/McpServerList.svelte'
   import WorkspaceSwitcher from '../sidebar/WorkspaceSwitcher.svelte'
+  import CookieJarModal from '../modals/CookieJarModal.svelte'
 
   interface Props {
     onrequestclick: (requestId: string) => void
@@ -22,6 +23,7 @@
   let environmentSearch = $state('')
   let mcpSearch = $state('')
   let modeDropdownOpen = $state(false)
+  let showCookieJar = $state(false)
 
   // Debounce filter for large collection trees
   let searchDebounceTimer: ReturnType<typeof setTimeout> | undefined
@@ -263,8 +265,23 @@
 
     <div class="flex-1"></div>
 
-    <!-- Right group: layout, expand/collapse, theme, settings -->
+    <!-- Right group: cookie jar, layout, expand/collapse, theme, settings -->
     <div class="flex items-center gap-0.5">
+      <!-- Cookie Jar -->
+      <button
+        onclick={() => { showCookieJar = true }}
+        class="flex h-7 w-7 items-center justify-center rounded-lg text-surface-500 transition-all duration-150 hover:bg-[var(--tint-subtle)] hover:text-surface-300"
+        title="Cookie Jar"
+      >
+        <svg class="h-5 w-5" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="4" y="5" width="12" height="12" rx="2"/>
+          <path d="M7 5V4a1 1 0 011-1h4a1 1 0 011 1v1"/>
+          <circle cx="8" cy="9.5" r="0.75" fill="currentColor" stroke="none"/>
+          <circle cx="12" cy="11" r="0.75" fill="currentColor" stroke="none"/>
+          <circle cx="10" cy="14" r="0.75" fill="currentColor" stroke="none"/>
+        </svg>
+      </button>
+
       <!-- Layout toggle -->
       <button
         onclick={() => settingsStore.set('request.layout', layout === 'columns' ? 'rows' : 'columns')}
@@ -345,6 +362,10 @@
   </div>
 
 </div>
+
+{#if showCookieJar}
+  <CookieJarModal onclose={() => { showCookieJar = false }} />
+{/if}
 
 <style>
   .sidebar-scroll { overflow-y: overlay; }

@@ -8,6 +8,8 @@
     url: string
     loading: boolean
     unsaved: boolean
+    subscriptionMode?: boolean
+    subscribed?: boolean
     onmethodchange: (method: string) => void
     onurlchange: (url: string) => void
     onsend: () => void
@@ -16,7 +18,7 @@
     onpaste?: (e: ClipboardEvent) => void
   }
 
-  let { method, url, loading, unsaved, onmethodchange, onurlchange, onsend, oncancel, onsave, onpaste }: Props = $props()
+  let { method, url, loading, unsaved, subscriptionMode = false, subscribed = false, onmethodchange, onurlchange, onsend, oncancel, onsave, onpaste }: Props = $props()
 
   let saveFeedback = $state('')
   let varInput: { focus: () => void } | undefined
@@ -176,7 +178,7 @@
       class="url-input"
     />
 
-    <!-- Send / Cancel -->
+    <!-- Send / Cancel / Subscribe / Unsubscribe -->
     {#if loading}
       <button onclick={oncancel} class="btn-cancel flex items-center gap-[7px] pl-3.5 pr-4 h-[38px] border-none cursor-pointer whitespace-nowrap shrink-0 transition-all duration-200 ease-in-out">
         <div class="cancel-ring shrink-0 w-4 h-4">
@@ -186,13 +188,20 @@
         </div>
         <span class="font-mono text-[11px] font-bold tracking-[0.06em] uppercase" style="font-feature-settings: var(--font-feature-mono)">Stop</span>
       </button>
+    {:else if subscriptionMode && subscribed}
+      <button onclick={oncancel} class="btn-cancel flex items-center gap-[7px] pl-3.5 pr-4 h-[38px] border-none cursor-pointer whitespace-nowrap shrink-0 transition-all duration-200 ease-in-out">
+        <svg class="shrink-0" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <rect x="6" y="6" width="12" height="12" rx="1"/>
+        </svg>
+        <span class="font-mono text-[11px] font-bold tracking-[0.06em] uppercase" style="font-feature-settings: var(--font-feature-mono)">Unsubscribe</span>
+      </button>
     {:else}
       <button onclick={onsend} disabled={!url.trim()} class="btn-send flex items-center gap-[7px] pl-3.5 pr-4 h-[38px] border-none cursor-pointer whitespace-nowrap shrink-0 transition-all duration-200 ease-in-out disabled:opacity-25 disabled:cursor-not-allowed">
         <svg class="send-arrow shrink-0" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <line x1="5" y1="12" x2="19" y2="12"/>
           <polyline points="12 5 19 12 12 19"/>
         </svg>
-        <span class="font-mono text-[11px] font-bold tracking-[0.06em] uppercase" style="font-feature-settings: var(--font-feature-mono)">Send</span>
+        <span class="font-mono text-[11px] font-bold tracking-[0.06em] uppercase" style="font-feature-settings: var(--font-feature-mono)">{subscriptionMode ? 'Subscribe' : 'Send'}</span>
       </button>
     {/if}
   </div>

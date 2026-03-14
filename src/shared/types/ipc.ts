@@ -203,6 +203,28 @@ export const IPC = {
 
   // GraphQL
   GRAPHQL_INTROSPECT: 'graphql:introspect',
+
+  // Collection Runner
+  RUNNER_START: 'runner:start',
+  RUNNER_CANCEL: 'runner:cancel',
+
+  // Collection Runner — Push events (main→renderer)
+  RUNNER_STARTED: 'runner:started',
+  RUNNER_PROGRESS: 'runner:progress',
+  RUNNER_COMPLETE: 'runner:complete',
+
+  // Cookie Jar
+  COOKIES_LIST: 'cookies:list',
+  COOKIES_CLEAR: 'cookies:clear',
+  COOKIES_DELETE: 'cookies:delete',
+
+  // GraphQL Subscriptions
+  GQL_SUB_SUBSCRIBE: 'gql-sub:subscribe',
+  GQL_SUB_UNSUBSCRIBE: 'gql-sub:unsubscribe',
+
+  // GraphQL Subscriptions — Push events (main→renderer)
+  GQL_SUB_STATUS_CHANGED: 'gql-sub:status-changed',
+  GQL_SUB_EVENT: 'gql-sub:event',
 } as const
 
 export type IpcChannel = (typeof IPC)[keyof typeof IPC]

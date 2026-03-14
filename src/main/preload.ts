@@ -10,6 +10,9 @@ import type { PostmanImportResult } from './services/postman-import'
 import type { InsomniaImportResult } from './services/insomnia-import'
 import type { McpServer, McpServerState, McpTool, McpResource, McpResourceTemplate, McpPrompt, McpToolCallResult, McpResourceReadResult, McpPromptGetResult, McpTrafficEntry, McpNotification } from '../shared/types/mcp'
 import type { WsConnectionConfig, WsConnectionState, WsMessage, WsStatusChanged, WsMessageReceived } from '../shared/types/websocket'
+import type { CollectionRunResult, RunnerStartedEvent, RunnerProgressEvent } from '../shared/types/runner'
+import type { StoredCookie } from '../shared/types/cookies'
+import type { GqlSubscriptionEvent, GqlSubStatusChanged } from '../shared/types/graphql-subscription'
 
 const api = {
   workspaces: {
@@ -185,6 +188,29 @@ const api = {
   graphql: {
     introspect: (config: { url: string; headers?: Record<string, string>; workspaceId?: string; collectionId?: string }): Promise<unknown> =>
       ipcRenderer.invoke(IPC.GRAPHQL_INTROSPECT, config),
+  },
+
+  runner: {
+    start: (collectionId: string, workspaceId?: string): Promise<CollectionRunResult> =>
+      ipcRenderer.invoke(IPC.RUNNER_START, collectionId, workspaceId),
+    cancel: (runId: string): Promise<void> =>
+      ipcRenderer.invoke(IPC.RUNNER_CANCEL, runId),
+  },
+
+  cookies: {
+    list: (): Promise<StoredCookie[]> =>
+      ipcRenderer.invoke(IPC.COOKIES_LIST),
+    clear: (): Promise<void> =>
+      ipcRenderer.invoke(IPC.COOKIES_CLEAR),
+    delete: (domain: string, name: string): Promise<void> =>
+      ipcRenderer.invoke(IPC.COOKIES_DELETE, domain, name),
+  },
+
+  gqlSub: {
+    subscribe: (requestId: string, config: { url: string; query: string; variables?: Record<string, unknown>; headers?: Record<string, string>; workspaceId?: string; collectionId?: string }): Promise<void> =>
+      ipcRenderer.invoke(IPC.GQL_SUB_SUBSCRIBE, requestId, config),
+    unsubscribe: (requestId: string): Promise<void> =>
+      ipcRenderer.invoke(IPC.GQL_SUB_UNSUBSCRIBE, requestId),
   },
 
   oauth2: {
@@ -474,6 +500,41 @@ const api = {
       }
       ipcRenderer.on(IPC.WS_MESSAGE_RECEIVED, handler)
       return () => ipcRenderer.removeListener(IPC.WS_MESSAGE_RECEIVED, handler)
+    },
+    runnerStarted: (callback: (data: RunnerStartedEvent) => void): (() => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, data: RunnerStartedEvent): void => {
+        callback(data)
+      }
+      ipcRenderer.on(IPC.RUNNER_STARTED, handler)
+      return () => ipcRenderer.removeListener(IPC.RUNNER_STARTED, handler)
+    },
+    runnerProgress: (callback: (data: RunnerProgressEvent) => void): (() => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, data: RunnerProgressEvent): void => {
+        callback(data)
+      }
+      ipcRenderer.on(IPC.RUNNER_PROGRESS, handler)
+      return () => ipcRenderer.removeListener(IPC.RUNNER_PROGRESS, handler)
+    },
+    runnerComplete: (callback: (data: CollectionRunResult) => void): (() => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, data: CollectionRunResult): void => {
+        callback(data)
+      }
+      ipcRenderer.on(IPC.RUNNER_COMPLETE, handler)
+      return () => ipcRenderer.removeListener(IPC.RUNNER_COMPLETE, handler)
+    },
+    gqlSubStatusChanged: (callback: (data: GqlSubStatusChanged) => void): (() => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, data: GqlSubStatusChanged): void => {
+        callback(data)
+      }
+      ipcRenderer.on(IPC.GQL_SUB_STATUS_CHANGED, handler)
+      return () => ipcRenderer.removeListener(IPC.GQL_SUB_STATUS_CHANGED, handler)
+    },
+    gqlSubEvent: (callback: (data: { requestId: string; event: GqlSubscriptionEvent }) => void): (() => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, data: { requestId: string; event: GqlSubscriptionEvent }): void => {
+        callback(data)
+      }
+      ipcRenderer.on(IPC.GQL_SUB_EVENT, handler)
+      return () => ipcRenderer.removeListener(IPC.GQL_SUB_EVENT, handler)
     },
   },
 }

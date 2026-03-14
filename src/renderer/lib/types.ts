@@ -24,6 +24,10 @@ export type {
   AuthConfig,
   ScriptsConfig,
   EnvironmentVariable,
+  Assertion,
+  AssertionType,
+  AssertionOperator,
+  AssertionResult,
 } from '../../shared/types/models'
 
 export type { SyncResult, SyncConflict, ConflictChange, OrphanedCollection, OrphanedMcpServer, SessionLogEntry, HttpLogDetail } from '../../shared/types/sync'
@@ -56,3 +60,20 @@ export type {
   WsStatusChanged,
   WsMessageReceived,
 } from '../../shared/types/websocket'
+
+export type {
+  GqlSubscriptionEvent,
+  GqlSubscriptionStatus,
+  GqlSubStatusChanged,
+} from '../../shared/types/graphql-subscription'
+
+export type {
+  RequestRunResult,
+  CollectionRunResult,
+  RunnerStartedEvent,
+  RunnerProgressEvent,
+} from '../../shared/types/runner'
+
+export type {
+  StoredCookie,
+} from '../../shared/types/cookies'

@@ -33,7 +33,10 @@ vaxtly/
 │   │   │   ├── http.ts                 # RequestConfig, ResponseData, etc.
 │   │   │   ├── mcp.ts                  # MCP types: McpServer, McpServerState, McpTool, McpResource, McpPrompt, traffic/notifications
 │   │   │   ├── sync.ts                 # SyncConfig, VaultConfig, ConflictChange, OrphanedCollection, SessionLogEntry, HttpLogDetail
-│   │   │   └── websocket.ts            # WsConnectionStatus, WsConnectionConfig, WsConnectionState, WsMessage, WsStatusChanged, WsMessageReceived
+│   │   │   ├── websocket.ts            # WsConnectionStatus, WsConnectionConfig, WsConnectionState, WsMessage, WsStatusChanged, WsMessageReceived
+│   │   │   ├── runner.ts              # CollectionRunResult, RequestRunResult, RunnerStartedEvent, RunnerProgressEvent
+│   │   │   ├── cookies.ts             # StoredCookie
+│   │   │   └── graphql-subscription.ts # GqlSubscriptionEvent, GqlSubscriptionStatus, GqlSubStatusChanged
 │   │   ├── constants.ts                # HTTP_METHODS, BODY_TYPES, AUTH_TYPES, SENSITIVE_*, isWebSocketRequest(), WS_MESSAGE_LOG_MAX
 │   │   └── curl-parser.ts             # Pure cURL command parser (isCurlCommand, parseCurl → ParsedCurl)
 │   ├── main/
@@ -75,6 +78,9 @@ vaxtly/
 │   │   │   ├── vault.ts               # Vault: test, pull, push, fetch/push vars, delete, migrate
 │   │   │   ├── data-import-export.ts  # Data export/import + Postman/Insomnia import
 │   │   │   ├── websocket.ts          # WebSocket: connect, disconnect, send, messages
+│   │   │   ├── collection-runner.ts  # Collection runner: start, cancel + push events
+│   │   │   ├── cookies.ts           # Cookie jar: list, clear, delete
+│   │   │   ├── graphql-subscription.ts # GraphQL subscriptions: subscribe, unsubscribe + push events
 │   │   │   ├── updater.ts            # Auto-update: check, install, install-source
 │   │   │   └── settings.ts
 │   │   ├── services/
@@ -97,6 +103,10 @@ vaxtly/
 │   │   │   ├── postman-import.ts      # Import Postman collections/environments (3 formats)
 │   │   │   ├── mcp-yaml-serializer.ts # MCP server ↔ YAML directory serialization/import
 │   │   │   ├── websocket-client.ts   # WebSocket client: connect/disconnect/send, {{variable}} substitution, push events to renderer
+│   │   │   ├── assertion-evaluator.ts # Pure function: evaluateAssertions(assertions, response) → AssertionResult[]
+│   │   │   ├── collection-runner.ts  # Sequential collection execution with progress push events
+│   │   │   ├── cookie-jar.ts        # In-memory cookie store: RFC 6265 domain/path/secure matching
+│   │   │   ├── graphql-subscription.ts # graphql-ws protocol client over raw WebSocket
 │   │   │   └── updater.ts            # electron-updater: init, check, quit-and-install, install-source detection
 │   │   ├── vault/
 │   │   │   ├── secrets-provider.interface.ts      # SecretsProvider interface
@@ -169,15 +179,18 @@ vaxtly/
 │           │   ├── HeadersEditor.svelte  # Headers editor (generated + user headers via KeyValueEditor)
 │           │   ├── BodyEditor.svelte     # 7 body types: none/json/xml/form-data/urlencoded/raw/graphql
 │           │   ├── AuthEditor.svelte     # 5 auth types: none/bearer/basic/api-key/oauth2
-│           │   └── ScriptsEditor.svelte  # Pre-request + post-response script config
+│           │   ├── ScriptsEditor.svelte  # Pre-request + post-response script config
+│           │   └── TestsEditor.svelte    # Response assertions editor (status/header/json_path/response_time)
 │           ├── environment/
 │           │   └── EnvironmentEditor.svelte # Name, active toggle, variables, Save button, vault sync (toggle clears variables in both directions)
 │           ├── response/
-│           │   ├── ResponseViewer.svelte  # Status bar + Body/Headers/Cookies/Preview/Events tabs + SSE streaming UI
+│           │   ├── ResponseViewer.svelte  # Status bar + Body/Headers/Cookies/Preview/Events/Tests tabs + SSE streaming + GraphQL subscription UI
 │           │   ├── ResponseBody.svelte    # Read-only CodeMirror, auto-detect language, streaming body support
 │           │   ├── ResponseHeaders.svelte # Key-value list
 │           │   ├── ResponseCookies.svelte # Cookie cards with attributes
 │           │   ├── SSEEventsTab.svelte    # SSE events debug table with auto-scroll
+│           │   ├── AssertionResultsTab.svelte # Test assertion results table with pass/fail summary
+│           │   ├── GqlSubscriptionEventsTab.svelte # GraphQL subscription events display with auto-scroll
 │           │   └── HtmlPreview.svelte     # Sandboxed iframe (blob: URL, empty sandbox) HTML response preview
 │           ├── settings/
 │           │   ├── SettingsModal.svelte   # 4-tab bespoke modal (General/Data/Remote/Vault)
@@ -194,6 +207,8 @@ vaxtly/
 │           │   ├── SensitiveDataModal.svelte # Sensitive data findings before push
 │           │   ├── EnvironmentAssociationModal.svelte # Env checkbox list + default star + reloads store on save
 │           │   ├── CurlImportModal.svelte  # Clipboard cURL detection: preview + Import/Dismiss
+│           │   ├── CollectionRunnerModal.svelte # Collection runner progress + results table
+│           │   ├── CookieJarModal.svelte  # Cookie jar viewer grouped by domain
 │           │   └── WelcomeGuide.svelte    # 5-step onboarding modal
 │           ├── help/
 │           │   └── UserManual.svelte     # Comprehensive in-app user manual (F1 shortcut)
@@ -241,7 +256,9 @@ vaxtly/
 │   │   ├── proxy-handler.test.ts       # 22 tests: HTTP proxy dispatch, auth, body, scripts
 │   │   ├── proxy-helpers.test.ts       # 8 tests: parseCookies + setDefaultHeader + deleteHeader
 │   │   ├── sse-parser.test.ts          # 22 tests: SSE parsing, multi-line, partial chunks, OpenAI/Anthropic formats
-│   │   └── curl-parser.test.ts         # 36 tests: cURL parsing, headers, body types, auth, query params, quoting
+│   │   ├── curl-parser.test.ts         # 36 tests: cURL parsing, headers, body types, auth, query params, quoting
+│   │   ├── assertion-evaluator.test.ts # 33 tests: all assertion types/operators, disabled assertions, edge cases
+│   │   └── cookie-jar.test.ts          # 24 tests: capture, domain/path/secure matching, expiry, RFC 6265 compliance
 │   └── e2e/
 │       ├── fixtures/
 │       │   ├── electron-app.ts         # Shared fixture: temp userData, app launch, cleanup
@@ -549,6 +566,18 @@ Pattern: `ipcMain.handle('domain:action', handler)` in main, `ipcRenderer.invoke
 | `update:downloaded` | — (main→renderer push) | — | `api.on.updateDownloaded(cb)` |
 | `update:error` | — (main→renderer push) | — | `api.on.updateError(cb)` |
 
+| `runner:start` | ipc/collection-runner.ts | `startRun(colId, wsId)` | `api.runner.start(colId, wsId?)` |
+| `runner:cancel` | ipc/collection-runner.ts | `cancelRun(runId)` | `api.runner.cancel(runId)` |
+| `runner:started` | — (main→renderer push) | — | `api.on.runnerStarted(cb)` |
+| `runner:progress` | — (main→renderer push) | — | `api.on.runnerProgress(cb)` |
+| `runner:complete` | — (main→renderer push) | — | `api.on.runnerComplete(cb)` |
+| `cookies:list` | ipc/cookies.ts | `listAll()` | `api.cookies.list()` |
+| `cookies:clear` | ipc/cookies.ts | `clearAll()` | `api.cookies.clear()` |
+| `cookies:delete` | ipc/cookies.ts | `deleteCookie(domain, name)` | `api.cookies.delete(domain, name)` |
+| `gql-sub:subscribe` | ipc/graphql-subscription.ts | `subscribe(reqId, config)` | `api.gqlSub.subscribe(reqId, config)` |
+| `gql-sub:unsubscribe` | ipc/graphql-subscription.ts | `unsubscribe(reqId)` | `api.gqlSub.unsubscribe(reqId)` |
+| `gql-sub:status-changed` | — (main→renderer push) | — | `api.on.gqlSubStatusChanged(cb)` |
+| `gql-sub:event` | — (main→renderer push) | — | `api.on.gqlSubEvent(cb)` |
 | `clipboard:text` | — (main→renderer push on BrowserWindow focus) | — | `api.on.clipboardText(cb)` |
 
 **Menu channels** (main→renderer push via `IPC.*` constants, not request/response):
@@ -580,9 +609,13 @@ interface AuthConfig { type: 'none'|'bearer'|'basic'|'api-key'|'oauth2', bearer_
     oauth2_client_id?, oauth2_client_secret?, oauth2_scope?, oauth2_username?,
     oauth2_password?, oauth2_redirect_url?, oauth2_pkce?, oauth2_audience?,
     oauth2_access_token?, oauth2_refresh_token?, oauth2_token_type?, oauth2_expires_at? }
-interface ScriptsConfig { pre_request?: ScriptAction[], post_response?: ScriptAction[] }
+interface ScriptsConfig { pre_request?: ScriptAction[], post_response?: ScriptAction[], assertions?: Assertion[] }
 interface ScriptAction { action, request_id?, source?, target?, value? }
 interface EnvironmentVariable { key, value, enabled }
+type AssertionType = 'status' | 'header' | 'json_path' | 'response_time'
+type AssertionOperator = 'equals' | 'not_equals' | 'contains' | 'not_contains' | 'exists' | 'not_exists' | 'less_than' | 'greater_than' | 'matches_regex'
+interface Assertion { type, target, operator, expected, enabled }
+interface AssertionResult { assertion, passed, actual, error? }
 ```
 
 ### `http.ts`
@@ -592,7 +625,7 @@ type BodyType = 'none' | 'json' | 'xml' | 'form-data' | 'urlencoded' | 'raw' | '
 interface RequestConfig { method, url, headers, body?, bodyType?, formData?, timeout?,
     followRedirects?, verifySsl? }
 interface FormDataEntry { key, value, type: 'text'|'file', enabled, filePath?, fileName? }
-interface ResponseData { status, statusText, headers, body, size, timing, cookies }
+interface ResponseData { status, statusText, headers, body, size, timing, cookies, assertionResults? }
 interface ResponseTiming { start, ttfb, total }
 interface ResponseCookie { name, value, domain?, path?, expires?, httpOnly?, secure?, sameSite? }
 ```
@@ -624,6 +657,29 @@ interface WsConnectionState { connectionId, status, connectedAt?, error?, messag
 interface WsMessage { id, connection_id, direction: 'sent'|'received', data, timestamp, size }
 interface WsStatusChanged { connectionId, status, error? }
 interface WsMessageReceived { connectionId, message: WsMessage }
+```
+
+### `runner.ts`
+
+```typescript
+interface RequestRunResult { requestId, requestName, method, url, status, statusText, timing, size, passed, assertionResults, error? }
+interface CollectionRunResult { runId, collectionId, collectionName, total, passed, failed, skipped, timing, results }
+interface RunnerStartedEvent { runId, collectionId, total, requestNames }
+interface RunnerProgressEvent { runId, index, total, result }
+```
+
+### `cookies.ts`
+
+```typescript
+interface StoredCookie { name, value, domain, path, expires?, httpOnly, secure, sameSite?, createdAt }
+```
+
+### `graphql-subscription.ts`
+
+```typescript
+type GqlSubscriptionStatus = 'connecting' | 'connected' | 'disconnected' | 'error'
+interface GqlSubscriptionEvent { id, type: 'data'|'error'|'complete', data, timestamp }
+interface GqlSubStatusChanged { requestId, status, error? }
 ```
 
 ### `constants.ts`
@@ -664,7 +720,7 @@ All stores use this pattern: module-level `$state` + `$derived` + exported objec
 - `Tab { id, type: 'request'|'environment'|'mcp'|'websocket', entityId, label, method?, pinned, isUnsaved, isDraft }`
 - `TabMcpState { serverId, activeLeftTab: 'tools'|'resources'|'prompts', activeRightTab: 'response'|'traffic'|'notifications', lastResponse: McpLastResponse | null }`
 - `TabWebSocketState { name, url, headers, protocols, composerMessage, composerType }`
-- `TabRequestState { name, method, url, headers, query_params, body, body_type, auth, scripts, response, loading, activeSubTab? }`
+- `TabRequestState { name, method, url, headers, query_params, body, body_type, auth, scripts, response, loading, activeSubTab?, streaming?, sseEvents?, sseBody?, sseMetrics?, gqlSubStatus?, gqlSubEvents? }`
 - `TabEnvironmentState { name, variables, isDirty, initialized }`
 
 **Actions**: `openRequestTab`, `openDraftTab`, `promoteDraft`, `openEnvironmentTab`, `openMcpTab`, `openWebSocketTab`, `closeTab`, `closeOtherTabs`, `closeAllTabs`, `reorderTabs`, `togglePinTab`, `setActiveTab`, `nextTab`, `prevTab`, `toggleSidebar`, `getTabState`, `updateTabState`, `markTabSaved`, `updateTabLabel`, `getEnvTabState`, `updateEnvTabState`, `getMcpTabState`, `updateMcpTabState`, `getWsTabState`, `updateWsTabState`, `markWsTabSaved`
@@ -802,6 +858,8 @@ Caches introspection results per URL in the renderer (LRU eviction at 20 entries
 - **Substitutes `{{variables}}`** in URL, headers (keys+values), body, form-data text values before sending
 - **Pre-request scripts**: executes dependent requests before main send
 - **Post-response scripts**: extracts values and sets collection variables after response
+- **Assertions**: evaluates request assertions after post-scripts, attaches `assertionResults` to `ResponseData`
+- **Cookie jar**: injects cookies before fetch (via `getCookieHeader`), captures Set-Cookie after response (via `captureCookies`). Controlled by `request.send_cookies` setting (default: true). User-set `Cookie` headers take priority
 - **Logs** template URL (not resolved URL with secrets) to session log; error bodies use `error.message` (not stack traces)
 - **HTTP detail capture**: Builds `HttpLogDetail` on both success and failure paths — captures request method/URL/headers/body/queryParams and response status/headers/body/size/timing/cookies. String bodies truncated to `SESSION_LOG_BODY_MAX_SIZE` (50KB); form-data bodies (UndiciFormData) skipped. Passed to `logHttp()` for expandable detail in the session log UI
 - **SSE streaming**: Auto-detects `Content-Type: text/event-stream` responses. Reads body via async iterator, parses events with `SSEParser`, and pushes `sse:stream-start/chunk/end` IPC events to the renderer in real-time. The `proxy:send` invoke still resolves with the complete `ResponseData` (including `isSSE: true` and `sseEvents[]`) when the stream finishes. Timeout is cleared for SSE streams (user cancels manually via AbortController)
@@ -892,6 +950,40 @@ Caches introspection results per URL in the renderer (LRU eviction at 20 entries
 - `sanitizeRequestData(data)` / `sanitizeCollectionData(data)` / `sanitizeMcpServerData(data)` — blanks sensitive values, preserves `{{var}}` references
 - Extensive sensitive key lists: auth tokens, API keys, passwords, cloud keys, PII
 - Recursive JSON body scanning
+
+### Assertion Evaluator (`services/assertion-evaluator.ts`)
+- `evaluateAssertions(assertions, response)` → `AssertionResult[]` — pure function, no DB access
+- `evaluateRequestAssertions(requestId, response)` → reads assertions from request's `scripts` column, delegates to `evaluateAssertions`
+- Assertion types: `status`, `header` (case-insensitive key lookup), `json_path` (reuses `extractJsonPath` from script-execution), `response_time` (total ms)
+- Operators: `equals`, `not_equals`, `contains`, `not_contains`, `exists`, `not_exists`, `less_than`, `greater_than`, `matches_regex` (ReDoS protection: 500-char limit)
+- Disabled assertions (`enabled: false`) are skipped
+
+### Collection Runner (`services/collection-runner.ts`)
+- `startRun(collectionId, workspaceId, callbacks)` → `CollectionRunResult` — executes all requests sequentially
+- Walks collection tree in sidebar order (root requests first by `order`, then folders recursively)
+- Skips `WEBSOCKET` requests
+- Per-request: runs pre-scripts → HTTP fetch → post-scripts → assertion evaluation
+- Pass/fail: `status !== 0` AND all enabled assertions pass
+- Cancellable via `AbortController` (checked between requests)
+- Results are ephemeral (in-memory only, not persisted)
+- Push events: `runner:started`, `runner:progress`, `runner:complete`
+
+### Cookie Jar (`services/cookie-jar.ts`)
+- In-memory cookie store (Map keyed by domain) — cleared on app restart
+- `captureCookies(url, cookies)` — stores cookies from Set-Cookie headers, RFC 6265 compliant
+- `getCookieHeader(url)` → cookie header string or undefined — domain/path/secure matching, expired cookies purged on read, sorted by longest path first
+- `listAll()` → all cookies sorted by domain+name
+- `clearAll()` / `deleteCookie(domain, name)` — management functions
+- Domain matching: no `Domain` attr = exact host only; with `Domain` = host + subdomains
+
+### GraphQL Subscription Client (`services/graphql-subscription.ts`)
+- Implements `graphql-transport-ws` protocol over raw `ws` WebSocket (no npm dependency)
+- `subscribe(requestId, config, callbacks)` — opens WS, sends `connection_init` + `subscribe`, streams `next` events
+- `unsubscribe(requestId)` — sends `complete`, closes WS
+- `disconnectAll()` — called on app quit
+- Auto-converts `https://` → `wss://`, respects TLS settings via `createHttpsAgent`
+- One subscription per request tab at a time
+- Connection timeout: 10s for `connection_ack`
 
 ### Git Providers (`sync/github-provider.ts`, `sync/gitlab-provider.ts`)
 - Both implement `GitProvider` interface from `sync/git-provider.interface.ts`

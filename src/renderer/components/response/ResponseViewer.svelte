@@ -1,10 +1,12 @@
 <script lang="ts">
-  import type { ResponseData, SSEEvent } from '../../lib/types'
+  import type { ResponseData, SSEEvent, GqlSubscriptionEvent, GqlSubscriptionStatus } from '../../lib/types'
   import HtmlPreview from './HtmlPreview.svelte'
   import ResponseBody from './ResponseBody.svelte'
   import ResponseHeaders from './ResponseHeaders.svelte'
   import ResponseCookies from './ResponseCookies.svelte'
   import SSEEventsTab from './SSEEventsTab.svelte'
+  import AssertionResultsTab from './AssertionResultsTab.svelte'
+  import GqlSubscriptionEventsTab from './GqlSubscriptionEventsTab.svelte'
 
   import { formatSize, formatTime } from '../../lib/utils/formatters'
 
@@ -20,11 +22,16 @@
       size: number
       startTime: number
     }
+    gqlSubStatus?: GqlSubscriptionStatus
+    gqlSubEvents?: GqlSubscriptionEvent[]
   }
 
-  let { response, loading, streaming = false, sseEvents, sseBody, sseMetrics }: Props = $props()
+  let { response, loading, streaming = false, sseEvents, sseBody, sseMetrics, gqlSubStatus, gqlSubEvents }: Props = $props()
 
-  let activeTab = $state<'body' | 'headers' | 'cookies' | 'preview' | 'events'>('body')
+  let activeTab = $state<'body' | 'headers' | 'cookies' | 'preview' | 'events' | 'tests' | 'subscription'>('body')
+
+  let hasGqlSub = $derived(gqlSubStatus && gqlSubStatus !== 'disconnected')
+  let gqlSubConnected = $derived(gqlSubStatus === 'connected')
 
   // Auto-switch to Events tab when SSE streaming starts
   $effect(() => {
@@ -35,6 +42,10 @@
 
   let headerCount = $derived(response ? Object.keys(response.headers).length : 0)
   let cookieCount = $derived(response?.cookies?.length ?? 0)
+  let assertionResults = $derived(response?.assertionResults ?? [])
+  let assertionPassCount = $derived(assertionResults.filter(r => r.passed).length)
+  let assertionFailCount = $derived(assertionResults.filter(r => !r.passed).length)
+
   let isHtml = $derived.by(() => {
     if (!response) return false
     const ct = response.headers['content-type'] ?? response.headers['Content-Type'] ?? ''
@@ -63,7 +74,11 @@
 </script>
 
 <div class="flex flex-col h-full">
-  {#if !response && !loading}
+  {#if hasGqlSub}
+    <!-- GraphQL Subscription view -->
+    <GqlSubscriptionEventsTab events={gqlSubEvents ?? []} connected={gqlSubConnected ?? false} />
+
+  {:else if !response && !loading}
     <!-- Empty state -->
     <div class="flex flex-1 items-center justify-center">
       <div class="text-center">
@@ -213,6 +228,20 @@
             {/if}
           </button>
         {/if}
+        {#if assertionResults.length > 0}
+          <button
+            class="rv-tab flex items-center gap-[5px] px-2.5 my-1 border-none bg-transparent text-surface-400 text-xs font-medium cursor-pointer relative whitespace-nowrap rounded-lg transition-all duration-150 hover:text-surface-200 hover:bg-[var(--tint-subtle)]"
+            class:rv-tab--active={activeTab === 'tests'}
+            onclick={() => activeTab = 'tests'}
+          >
+            Tests
+            {#if assertionFailCount > 0}
+              <span class="rv-tab-badge text-[10px] leading-none py-0.5 px-[5px] rounded-full bg-red-500/15 text-red-400 font-medium">{assertionFailCount} fail</span>
+            {:else}
+              <span class="rv-tab-badge text-[10px] leading-none py-0.5 px-[5px] rounded-full bg-emerald-500/15 text-emerald-400 font-medium">{assertionPassCount} pass</span>
+            {/if}
+          </button>
+        {/if}
       </div>
 
       <!-- Content -->
@@ -227,6 +256,8 @@
           <HtmlPreview body={response.body} />
         {:else if activeTab === 'events'}
           <SSEEventsTab events={sseEvents} {streaming} />
+        {:else if activeTab === 'tests'}
+          <AssertionResultsTab results={assertionResults} />
         {/if}
       </div>
     {/if}

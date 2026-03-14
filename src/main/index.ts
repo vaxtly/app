@@ -24,6 +24,10 @@ import { registerUpdaterHandlers } from './ipc/updater'
 import { registerMcpHandlers } from './ipc/mcp'
 import { registerWebSocketHandlers } from './ipc/websocket'
 import { registerGraphqlHandlers } from './ipc/graphql'
+import { registerCollectionRunnerHandlers } from './ipc/collection-runner'
+import { registerCookieHandlers } from './ipc/cookies'
+import { registerGraphqlSubscriptionHandlers } from './ipc/graphql-subscription'
+import { disconnectAll as disconnectAllGqlSubs } from './services/graphql-subscription'
 import { disconnectAll as disconnectAllMcpServers } from './services/mcp-client'
 import { disconnectAll as disconnectAllWebSockets } from './services/websocket-client'
 import { initUpdater, checkForUpdates } from './services/updater'
@@ -239,6 +243,9 @@ function registerAllIpcHandlers(): void {
   registerMcpHandlers()
   registerWebSocketHandlers()
   registerGraphqlHandlers()
+  registerCollectionRunnerHandlers()
+  registerCookieHandlers()
+  registerGraphqlSubscriptionHandlers()
 }
 
 function ensureDefaultWorkspace(): void {
@@ -463,5 +470,6 @@ app.on('window-all-closed', () => {
 app.on('will-quit', () => {
   disconnectAllMcpServers()
   disconnectAllWebSockets()
+  disconnectAllGqlSubs()
   closeDatabase()
 })
