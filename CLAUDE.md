@@ -11,7 +11,7 @@ See `ARCHITECTURE.md` for the complete technical reference.
 |------|-------|
 | Full architecture docs | `ARCHITECTURE.md` |
 | Shared types | `src/shared/types/*.ts` + `src/shared/constants.ts` + `src/shared/curl-parser.ts` |
-| Database schema | `src/main/database/migrations/001_initial_schema.ts`, `002_mcp_servers.ts`, `003_mcp_sync_fields.ts`, `004_websocket.ts` |
+| Database schema | `src/main/database/migrations/001_initial_schema.ts`, `002_mcp_servers.ts`, `003_mcp_sync_fields.ts`, `004_websocket.ts`, `005_indexes_and_constraints.ts` |
 | All IPC handlers | `src/main/ipc/*.ts` |
 | Main services | `src/main/services/*.ts` |
 | All repositories | `src/main/database/repositories/*.ts` |
@@ -51,7 +51,8 @@ npx electron-rebuild -f -w better-sqlite3  # Rebuild native module for Electron 
 - Foreign keys with CASCADE (except requests→folders which is SET NULL).
 - Repositories are plain exported functions, not classes.
 - `getDatabase()` returns the singleton `better-sqlite3` instance.
-- **Encryption**: sensitive data encrypted transparently at the repository layer (AES-256-CBC). Settings tokens, environment variable values (`enc:` prefix), and request auth credentials (`enc:` prefix) are encrypted on write and decrypted on read. See `services/encryption.ts`.
+- **Encryption**: sensitive data encrypted transparently at the repository layer (AES-256-GCM). Settings tokens, environment variable values (`enc:` prefix), and request auth credentials (`enc:` prefix) are encrypted on write and decrypted on read. See `services/encryption.ts`.
+- **Vault constraint**: `CHECK (vault_synced = 0 OR variables = '[]')` — vault-synced envs must always have empty variables in the DB (secrets held in-memory only). Set `variables: '[]'` when enabling vault sync.
 
 ### IPC
 - Pattern: `ipcMain.handle('domain:action', handler)` in main.
@@ -64,6 +65,7 @@ npx electron-rebuild -f -w better-sqlite3  # Rebuild native module for Electron 
 - Vitest with `openTestDatabase()` (in-memory SQLite) in `beforeEach`.
 - `globals: true` — no need to import describe/it/expect.
 - Test file naming: `tests/unit/<name>.test.ts`.
+- Coverage: `npm run test -- --coverage` (v8 provider, text + json reporters).
 
 ### CSS
 - Tailwind v4 with `@theme` in `src/renderer/styles/app.css`.

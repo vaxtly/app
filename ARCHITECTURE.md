@@ -47,7 +47,8 @@ vaxtly/
 │   │   │   │   ├── 001_initial_schema.ts
 │   │   │   │   ├── 002_mcp_servers.ts
 │   │   │   │   ├── 003_mcp_sync_fields.ts
-│   │   │   │   └── 004_websocket.ts       # websocket_messages table
+│   │   │   │   ├── 004_websocket.ts       # websocket_messages table
+│   │   │   │   └── 005_indexes_and_constraints.ts # updated_at indexes, vault-synced CHECK constraint
 │   │   │   └── repositories/
 │   │   │       ├── workspaces.ts
 │   │   │       ├── collections.ts
@@ -198,8 +199,8 @@ vaxtly/
 │           │   └── UserManual.svelte     # Comprehensive in-app user manual (F1 shortcut)
 │           └── shared/
 │               ├── KeyValueEditor.svelte  # Reusable checkbox + key + value + delete rows + bulk edit mode + "auto" badge for generated entries
-│               ├── ContextMenu.svelte     # Right-click menu with position correction
-│               ├── Modal.svelte           # Generic modal with backdrop + Escape
+│               ├── ContextMenu.svelte     # Right-click menu with position correction, ARIA roles + keyboard nav
+│               ├── Modal.svelte           # Generic modal with backdrop + Escape + focus trap + focus restore
 │               ├── Toggle.svelte          # Pill-shaped sliding switch (settings)
 │               ├── Checkbox.svelte        # Square checkbox with checkmark animation
 │               └── ToastContainer.svelte  # Fixed bottom-right toast notifications (vault/git failures)
@@ -255,7 +256,7 @@ vaxtly/
 │       └── draft-requests.spec.ts    # 6 tests: draft lifecycle, send, save, persist, double-click
 ├── electron.vite.config.ts             # 3-target build (main, preload, renderer)
 ├── playwright.config.ts                # E2E config: workers:1, timeout:30s
-├── vitest.config.ts                    # @shared alias, globals: true
+├── vitest.config.ts                    # @shared alias, globals: true, v8 coverage
 ├── tsconfig.json                       # Project references
 ├── tsconfig.node.json                  # main + shared
 ├── tsconfig.web.json                   # renderer + shared
@@ -356,10 +357,10 @@ folders 1──N requests (ON DELETE SET NULL)
 | variables | TEXT NOT NULL | '[]' | JSON `EnvironmentVariable[]` — values encrypted with `enc:` prefix; always `'[]'` for vault-synced envs (secrets held in-memory only) |
 | is_active | INTEGER | 0 | Only 1 active per workspace (enforced in code) |
 | order | INTEGER | 0 | |
-| vault_synced | INTEGER | 0 | |
+| vault_synced | INTEGER | 0 | CHECK: when 1, `variables` must be `'[]'` |
 | vault_path | TEXT | NULL | |
-| created_at | TEXT | datetime('now') | |
-| updated_at | TEXT | datetime('now') | |
+| created_at | TEXT | datetime('now') | Indexed (migration 005) |
+| updated_at | TEXT | datetime('now') | Indexed (migration 005) |
 
 #### `app_settings`
 | Column | Type | Notes |
@@ -698,9 +699,9 @@ All stores use this pattern: module-level `$state` + `$derived` + exported objec
 
 **Actions**: `addToast(category, message)`, `dismissToast(id)`, `pauseToast(id)`, `resumeToast(id)`
 
-**Toast interface**: `{ id, category: 'sync' | 'vault', message, timestamp }`
+**Toast interface**: `{ id, category: 'sync' | 'vault' | 'update', message, timestamp }`
 
-Pause/resume supports hover-to-hold: `pauseToast` clears the JS timeout and records remaining time; `resumeToast` restarts with the remaining duration. The CSS countdown bar pauses via `animation-play-state: paused` on hover.
+Pause/resume supports hover-to-hold: `pauseToast` clears the JS timeout and records remaining time; `resumeToast` restarts with the remaining duration. Timer bookkeeping consolidated into a single `timerStates` Map (per-toast `{ timer, startedAt, remaining }`).
 
 ### `mcpStore` — `lib/stores/mcp.svelte.ts`
 
@@ -736,7 +737,7 @@ Mirrors the `mcpStore` pattern. Connection management happens in the main proces
 
 **Actions**: `getSchema(url)`, `fetchSchema(url, headers, wsId?, colId?)`, `clearSchema(url)`
 
-Caches introspection results per URL in the renderer. `fetchSchema` calls `api.graphql.introspect()` (main process), which sends the standard introspection query via undici, resolves `{{variables}}` in URL/headers, and respects SSL settings. The resulting `GraphQLSchema` is passed to CodeMirror's `cm6-graphql` extension for autocompletion.
+Caches introspection results per URL in the renderer (LRU eviction at 20 entries). `fetchSchema` calls `api.graphql.introspect()` (main process), which sends the standard introspection query via undici, resolves `{{variables}}` in URL/headers, and respects SSL settings. The resulting `GraphQLSchema` is passed to CodeMirror's `cm6-graphql` extension for autocompletion.
 
 ---
 
@@ -744,7 +745,7 @@ Caches introspection results per URL in the renderer. `fetchSchema` calls `api.g
 
 ### Encryption (`services/encryption.ts`)
 - `initEncryption()` → generates/loads 256-bit master key via Electron `safeStorage`, persists encrypted blob to `{userData}/master.key` with `0o600` file permissions
-- Master key file uses `vxk1:` prefix to distinguish keychain-encrypted format from legacy plaintext (handles graceful migration)
+- Master key file uses `vxk1:` prefix to distinguish keychain-encrypted format from legacy plaintext (handles graceful migration). Logs `console.warn` when using plaintext fallback
 - `encryptValue(plaintext)` → AES-256-GCM, returns `gcm:` + base64(IV[12] + authTag[16] + ciphertext)
 - `decryptValue(encrypted)` → detects format: `gcm:` prefix → AES-256-GCM; otherwise → legacy AES-256-CBC fallback for backward compatibility
 - `initEncryptionForTesting(key?)` → bypass safeStorage for Vitest
@@ -770,7 +771,7 @@ Caches introspection results per URL in the renderer. `fetchSchema` calls `api.g
 - `connections: Map<string, { client, transport, state }>` — active connections keyed by server ID
 - `trafficLog: McpTrafficEntry[]` — in-memory ring buffer (500 entries) for JSON-RPC traffic inspection
 - `connect(server)` → creates transport with `{{variable}}` substitution (command, args, env values, cwd, url, header values resolved via active environment + vault), wires notification handlers (tools/resources/prompts list_changed → auto-refresh + push), fetches initial capabilities, returns `McpServerState`
-- `disconnect(serverId)` → calls `client.close()`, removes from map, pushes status change
+- `disconnect(serverId)` → removes notification handlers, calls `client.close()`, removes from map, pushes status change
 - `disconnectAll()` → called on `app.will-quit` for cleanup
 - Primitive wrappers: `listTools`, `callTool`, `listResources`, `readResource`, `listResourceTemplates`, `listPrompts`, `getPrompt` — each logs traffic entries
 - `pushToRenderer(channel, data)` → broadcasts to all `BrowserWindow.getAllWindows()`
@@ -804,12 +805,14 @@ Caches introspection results per URL in the renderer. `fetchSchema` calls `api.g
 - **Logs** template URL (not resolved URL with secrets) to session log; error bodies use `error.message` (not stack traces)
 - **HTTP detail capture**: Builds `HttpLogDetail` on both success and failure paths — captures request method/URL/headers/body/queryParams and response status/headers/body/size/timing/cookies. String bodies truncated to `SESSION_LOG_BODY_MAX_SIZE` (50KB); form-data bodies (UndiciFormData) skipped. Passed to `logHttp()` for expandable detail in the session log UI
 - **SSE streaming**: Auto-detects `Content-Type: text/event-stream` responses. Reads body via async iterator, parses events with `SSEParser`, and pushes `sse:stream-start/chunk/end` IPC events to the renderer in real-time. The `proxy:send` invoke still resolves with the complete `ResponseData` (including `isSSE: true` and `sseEvents[]`) when the stream finishes. Timeout is cleared for SSE streams (user cancels manually via AbortController)
-- **Security validation**: URL scheme whitelist (http/https only), timeout clamped 1-300s, response body size limit 50MB (content-length check), form-data file paths validated against dialog-approved set. Any HTTP method string is accepted (uppercased before sending)
+- **Security validation**: URL scheme whitelist (http/https only), timeout clamped 1-300s, response body size limit 50MB (content-length check), form-data file paths validated against dialog-approved set (single-use, path traversal rejected, symlinks rejected). Any HTTP method string is accepted (uppercased before sending)
+- **Variable caching**: resolves all variables once per request via `getResolvedVariables()` + `substituteWith()` to avoid N+1 DB lookups
 
 ### Variable Substitution (`services/variable-substitution.ts`)
 - `getResolvedVariables(wsId?, colId?)` → flat `Record<string, string>` (env vars + collection overrides)
 - `getResolvedVariablesWithSource(wsId?, colId?)` → `Record<string, { value, source }>` for tooltips
 - `substitute(text, wsId?, colId?)` → resolve `{{varName}}` in text
+- `substituteWith(text, variables)` → resolve using pre-resolved variable map (avoids N+1 DB lookups when substituting multiple values in a single request)
 - `substituteRecord(record, wsId?, colId?)` → resolve vars in both keys and values
 - Nested reference resolution up to `MAX_VARIABLE_NESTING` (10) iterations
 - Priority: active environment vars (base) → collection vars (override)
@@ -830,7 +833,7 @@ Caches introspection results per URL in the renderer. `fetchSchema` calls `api.g
 - **Token expiry**: `isTokenExpired(auth)` — returns true within 30-second safety margin
 - **Callback server**: `startCallbackServer(port?)` — ephemeral HTTP server on `127.0.0.1`, returns auth code from redirect, auto-closes after 5-minute timeout
 - **Authorization flow**: `startAuthorizationFlow(auth)` — builds auth URL with PKCE, opens system browser via `shell.openExternal()`, waits for callback
-- **Auto-refresh**: proxy and script-execution check `isTokenExpired()` before sending; if expired, `refreshAccessToken()` runs automatically and persists new tokens
+- **Auto-refresh**: proxy and script-execution check `isTokenExpired()` before sending; if expired, `refreshAccessToken()` runs automatically and persists new tokens. A per-token-URL mutex prevents concurrent refresh requests when multiple requests expire simultaneously
 - Encrypted fields: `oauth2_client_secret`, `oauth2_password`, `oauth2_access_token`, `oauth2_refresh_token`
 
 ### Code Generator (`services/code-generator.ts`)
@@ -1003,7 +1006,7 @@ Caches introspection results per URL in the renderer. `fetchSchema` calls `api.g
 - `connect(connectionId, config)` → resolves `{{variables}}` in URL and headers via active environment, creates `ws` WebSocket, pushes status events to renderer
 - Auto-corrects `https://` → `wss://` and `http://` → `ws://` URL schemes
 - `sendMessage(connectionId, data)` → substitutes `{{variables}}` in message data before sending, persists to `websocket_messages` table
-- `disconnect(connectionId)` / `disconnectAll()` — called on `app.will-quit`
+- `disconnect(connectionId)` — calls `removeAllListeners()` before `ws.close()` to prevent event handler accumulation on reconnect; `disconnectAll()` called on `app.will-quit`
 - Messages persisted to `websocket_messages` table, trimmed to `WS_MESSAGE_LOG_MAX` (500) per connection
 - SSL verification respects `request.verify_ssl` setting
 - Subprotocols parsed from comma-separated string
@@ -1041,7 +1044,7 @@ Caches introspection results per URL in the renderer. `fetchSchema` calls `api.g
 
 Four `$effect` hooks and three `onMount` listeners in `App.svelte` drive cross-cutting UX behaviors:
 
-1. **Session save**: Watches `openTabs.length` + `activeTabId`, debounce-writes to `session.tabs.{workspaceId}` setting (skipped until initial restore completes via `sessionRestored` flag). Sessions are scoped per workspace. Draft tabs (`isDraft: true`) are excluded from persistence — they are transient by design.
+1. **Session save**: Watches `tabFingerprint` (tab IDs joined) + `activeTabId`, debounce-writes to `session.tabs.{workspaceId}` setting (skipped until initial restore completes via `sessionRestored` flag). Sessions are scoped per workspace. Draft tabs (`isDraft: true`) are excluded from persistence — they are transient by design. Using a derived fingerprint of tab IDs (not `.length`) prevents re-triggering on tab property mutations.
 2. **Sidebar auto-reveal**: When active tab changes — request/websocket tabs (non-draft): expands ancestor tree nodes + switches sidebar to "collections"; environment tabs: switches sidebar to "environments"; MCP tabs: switches sidebar to "mcp". Draft tabs skip sidebar reveal since they have no collection/folder backing.
 3. **Default environment auto-activation**: When a request tab becomes active, resolves the nearest `default_environment_id` (folder chain → collection) and activates it if different from current.
 4. **Theme application**: Reads `app.theme` setting (`dark` | `light` | `system`), toggles `light` class on `<html>`. In `system` mode listens to `matchMedia('prefers-color-scheme: dark')` with cleanup.
