@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.8.7] - 2026-03-14
+
+### Added
+- Response assertions (Tests): define assertions on status, headers, JSON paths, and response time with 9 operators — results shown in a new Tests tab in the response viewer
+- Collection runner: execute all requests in a collection sequentially via right-click context menu, with progress modal and pass/fail based on assertions
+- Cookie jar: in-memory RFC 6265 cookie store with automatic capture from Set-Cookie headers and injection on subsequent requests, viewer modal in sidebar footer
+- GraphQL subscriptions: native `graphql-transport-ws` protocol support — auto-detects `subscription` keyword, Subscribe/Unsubscribe button, live event stream display
+
 ## [0.8.6] - 2026-03-14
 
 ### Added
