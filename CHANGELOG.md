@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.8.6] - 2026-03-14
+
+### Added
+- Database migration 005: performance indexes on `updated_at` columns for collections, requests, and environments
+- Database CHECK constraint enforcing vault-synced environments always have empty variables in DB
+- Vitest v8 coverage reporting (`npm run test -- --coverage`)
+- `postinstall` script for automatic `electron-rebuild` after `npm install`
+- `substituteWith()` function for pre-resolved variable substitution (avoids N+1 DB lookups)
+
+### Fixed
+- WebSocket event handler accumulation — listeners now removed on disconnect before closing
+- OAuth2 token refresh race condition — per-token-URL mutex prevents concurrent refresh requests
+- OAuth2 callback server timeout not cleared on `server.listen()` failure
+- Tab drag pointer event leak when component is destroyed mid-drag
+- Session save effect firing on every tab property change — now tracks tab IDs only
+- MCP client notification handlers not deregistered on disconnect
+- Vault push errors in post-response scripts silently swallowed — now logged
+- File path validation gap in form-data upload — paths are now single-use, reject traversal and symlinks
+- GraphQL schema cache growing unbounded — LRU eviction at 20 entries
+- MCP traffic log creating new arrays on every entry at capacity — uses splice instead
+- Sidebar collection search triggering expensive tree rebuild on every keystroke — debounced (150ms)
+- RequestBuilder header reconciliation re-running on every auth field keystroke — debounced (200ms)
+- HTTP proxy resolving variables separately for each substitution — cached once per request
+- Context menu missing ARIA roles and keyboard navigation (arrow keys, Home, End, autofocus)
+- Modal missing focus trap, autofocus, and focus restore on close
+- Sidebar search input missing `aria-label`
+- Toast timer bookkeeping using 3 separate Maps — consolidated into single Map
+- Encryption fallback silently storing master key as plaintext — now logs a warning
+
 ## [0.8.5] - 2026-03-10
 
 ### Added
