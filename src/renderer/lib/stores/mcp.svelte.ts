@@ -173,16 +173,16 @@ function handlePromptsChanged(data: { serverId: string; prompts: McpPrompt[] }):
 }
 
 function handleTrafficPush(entry: McpTrafficEntry): void {
-  trafficLog = [...trafficLog, entry]
+  trafficLog.push(entry)
   if (trafficLog.length > 500) {
-    trafficLog = trafficLog.slice(-500)
+    trafficLog.splice(0, trafficLog.length - 500)
   }
 }
 
 function handleNotification(entry: McpNotification): void {
-  notifications = [...notifications, entry]
+  notifications.push(entry)
   if (notifications.length > 500) {
-    notifications = notifications.slice(-500)
+    notifications.splice(0, notifications.length - 500)
   }
 }
 

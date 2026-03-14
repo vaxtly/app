@@ -155,7 +155,10 @@
     } catch { return defaultFormData }
   })
 
-  // Sync generated headers into the headers array when body_type or auth changes
+  // Sync generated headers into the headers array when body_type or auth changes.
+  // Debounced to avoid recalculating on every keystroke in auth fields.
+  let headerSyncTimer: ReturnType<typeof setTimeout> | undefined
+
   $effect(() => {
     if (!state) return
 
@@ -168,56 +171,61 @@
     const apiKeyHeader = auth.api_key_header
     const apiKeyValue = auth.api_key_value
 
-    // Compute wanted generated headers
-    const wanted: Array<{ key: string; value: string }> = []
-    if (bodyType === 'json') wanted.push({ key: 'Content-Type', value: 'application/json' })
-    else if (bodyType === 'xml') wanted.push({ key: 'Content-Type', value: 'application/xml' })
-    else if (bodyType === 'urlencoded') wanted.push({ key: 'Content-Type', value: 'application/x-www-form-urlencoded' })
-    else if (bodyType === 'graphql') wanted.push({ key: 'Content-Type', value: 'application/json' })
+    clearTimeout(headerSyncTimer)
+    headerSyncTimer = setTimeout(() => {
+      // Compute wanted generated headers
+      const wanted: Array<{ key: string; value: string }> = []
+      if (bodyType === 'json') wanted.push({ key: 'Content-Type', value: 'application/json' })
+      else if (bodyType === 'xml') wanted.push({ key: 'Content-Type', value: 'application/xml' })
+      else if (bodyType === 'urlencoded') wanted.push({ key: 'Content-Type', value: 'application/x-www-form-urlencoded' })
+      else if (bodyType === 'graphql') wanted.push({ key: 'Content-Type', value: 'application/json' })
 
-    if (authType === 'bearer' && bearerToken) {
-      wanted.push({ key: 'Authorization', value: `Bearer ${bearerToken}` })
-    } else if (authType === 'basic' && basicUser) {
-      wanted.push({ key: 'Authorization', value: `Basic ${btoa(`${basicUser}:${basicPass ?? ''}`)}` })
-    } else if (authType === 'api-key' && apiKeyHeader) {
-      wanted.push({ key: apiKeyHeader, value: apiKeyValue ?? '' })
-    }
+      if (authType === 'bearer' && bearerToken) {
+        wanted.push({ key: 'Authorization', value: `Bearer ${bearerToken}` })
+      } else if (authType === 'basic' && basicUser) {
+        wanted.push({ key: 'Authorization', value: `Basic ${btoa(`${basicUser}:${basicPass ?? ''}`)}` })
+      } else if (authType === 'api-key' && apiKeyHeader) {
+        wanted.push({ key: apiKeyHeader, value: apiKeyValue ?? '' })
+      }
 
-    // Read current headers without tracking (avoids re-running on every keystroke)
-    const current: KeyValueEntry[] = untrack(() => headers)
+      // Read current headers without tracking (avoids re-running on every keystroke)
+      const current: KeyValueEntry[] = untrack(() => headers)
 
-    // Sync: keep user entries, update/add/remove generated
-    const wantedByKey = new Map(wanted.map(w => [w.key.toLowerCase(), w]))
-    const handled = new Set<string>()
-    const result: KeyValueEntry[] = []
+      // Sync: keep user entries, update/add/remove generated
+      const wantedByKey = new Map(wanted.map(w => [w.key.toLowerCase(), w]))
+      const handled = new Set<string>()
+      const result: KeyValueEntry[] = []
 
-    for (const entry of current) {
-      if (entry.generated) {
-        const match = wantedByKey.get(entry.key.toLowerCase())
-        if (match) {
-          result.push({ ...entry, key: match.key, value: match.value })
-          handled.add(match.key.toLowerCase())
+      for (const entry of current) {
+        if (entry.generated) {
+          const match = wantedByKey.get(entry.key.toLowerCase())
+          if (match) {
+            result.push({ ...entry, key: match.key, value: match.value })
+            handled.add(match.key.toLowerCase())
+          }
+          // else: stale generated entry → drop
+        } else {
+          result.push(entry)
         }
-        // else: stale generated entry → drop
-      } else {
-        result.push(entry)
       }
-    }
 
-    // Prepend new generated entries
-    const newGen: KeyValueEntry[] = []
-    for (const w of wanted) {
-      if (!handled.has(w.key.toLowerCase())) {
-        newGen.push({ key: w.key, value: w.value, enabled: true, generated: true })
+      // Prepend new generated entries
+      const newGen: KeyValueEntry[] = []
+      for (const w of wanted) {
+        if (!handled.has(w.key.toLowerCase())) {
+          newGen.push({ key: w.key, value: w.value, enabled: true, generated: true })
+        }
       }
-    }
 
-    const final = [...newGen, ...result]
-    const finalJson = JSON.stringify(final)
-    const currentJson = untrack(() => state!.headers ?? '[]')
-    if (finalJson !== currentJson) {
-      update({ headers: finalJson })
-    }
+      const final = [...newGen, ...result]
+      const finalJson = JSON.stringify(final)
+      const currentJson = untrack(() => state!.headers ?? '[]')
+      if (finalJson !== currentJson) {
+        update({ headers: finalJson })
+      }
+    }, 200)
+
+    return () => clearTimeout(headerSyncTimer)
   })
 
   // Count badges

@@ -59,7 +59,7 @@ describe('export', () => {
   it('exports environments, skipping variables for vault-synced', () => {
     environmentsRepo.create({ name: 'Local Env', variables: JSON.stringify([{ key: 'a', value: '1', enabled: true }]) })
     const vaultEnv = environmentsRepo.create({ name: 'Vault Env', variables: JSON.stringify([{ key: 'b', value: '2', enabled: true }]) })
-    environmentsRepo.update(vaultEnv.id, { vault_synced: 1, vault_path: 'vault-env' })
+    environmentsRepo.update(vaultEnv.id, { vault_synced: 1, vault_path: 'vault-env', variables: '[]' })
 
     const result = exportEnvironments()
     const environments = result.data.environments as any[]

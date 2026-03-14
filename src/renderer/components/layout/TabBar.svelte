@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onMount } from 'svelte'
   import { appStore } from '../../lib/stores/app.svelte'
   import { getMethodColor } from '../../lib/utils/http-colors'
   import ContextMenu from '../shared/ContextMenu.svelte'
@@ -21,6 +22,14 @@
   let dragJustEnded = false
 
   const DRAG_THRESHOLD = 4
+
+  // Clean up window-level listeners if component is destroyed mid-drag
+  onMount(() => {
+    return () => {
+      window.removeEventListener('pointermove', handlePointerMove)
+      window.removeEventListener('pointerup', handlePointerUp)
+    }
+  })
 
   function handlePointerDown(e: PointerEvent, index: number): void {
     if (e.button !== 0) return

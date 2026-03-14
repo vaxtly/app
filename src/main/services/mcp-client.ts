@@ -284,6 +284,11 @@ export async function disconnect(serverId: string): Promise<void> {
 
   connections.delete(serverId)
   try {
+    // Remove notification handlers before closing to prevent stale callbacks
+    conn.client.removeNotificationHandler('notifications/tools/list_changed')
+    conn.client.removeNotificationHandler('notifications/resources/list_changed')
+    conn.client.removeNotificationHandler('notifications/prompts/list_changed')
+    conn.client.fallbackNotificationHandler = undefined
     await conn.client.close()
   } catch {
     // ignore close errors

@@ -1,10 +1,10 @@
 import { ipcMain, dialog, type BrowserWindow } from 'electron'
-import { readFileSync } from 'fs'
-import { basename } from 'path'
+import { readFileSync, lstatSync } from 'fs'
+import { basename, resolve as resolvePath } from 'path'
 import { fetch as undiciFetch, FormData as UndiciFormData } from 'undici'
 import { IPC } from '../../shared/types/ipc'
 import type { RequestConfig, ResponseData, FormDataEntry, ResponseCookie, SSEEvent, SSEStreamStart, SSEChunk, SSEStreamEnd } from '../../shared/types/http'
-import { substitute } from '../services/variable-substitution'
+import { substitute, substituteWith, getResolvedVariables } from '../services/variable-substitution'
 import { executePreRequestScripts, executePostResponseScripts } from '../services/script-execution'
 import { logHttp } from '../services/session-log'
 import { formatFetchError } from '../services/fetch-error'
@@ -87,10 +87,11 @@ export function registerProxyHandlers(): void {
       }
     }
 
-    // Substitute {{variables}} in URL, headers, body (after pre-request scripts have run)
+    // Resolve variables once and reuse for all substitutions (avoids N+1 DB lookups)
+    const vars = getResolvedVariables(config.workspaceId, config.collectionId)
     const sub = (text: string | undefined): string | undefined =>
-      text ? substitute(text, config.workspaceId, config.collectionId) : text
-    const resolvedUrl = substitute(config.url, config.workspaceId, config.collectionId)
+      text ? substituteWith(text, vars) : text
+    const resolvedUrl = substituteWith(config.url, vars)
     const resolvedHeaders: Record<string, string> = {}
     for (const [key, value] of Object.entries(config.headers)) {
       resolvedHeaders[sub(key)!] = sub(value)!
@@ -151,9 +152,27 @@ export function registerProxyHandlers(): void {
               if (!approvedFilePaths.has(entry.filePath)) {
                 throw new Error(`File path not approved by file picker: ${basename(entry.filePath)}`)
               }
-              const buffer = readFileSync(entry.filePath)
+              // Single-use: revoke approval after consumption
+              approvedFilePaths.delete(entry.filePath)
+
+              // Reject path traversal and symlinks
+              const resolved = resolvePath(entry.filePath)
+              if (resolved !== entry.filePath) {
+                throw new Error(`File path contains traversal: ${basename(entry.filePath)}`)
+              }
+              try {
+                const stat = lstatSync(resolved)
+                if (stat.isSymbolicLink()) {
+                  throw new Error(`Symlinks are not allowed: ${basename(entry.filePath)}`)
+                }
+              } catch (e) {
+                if (e instanceof Error && (e.message.includes('Symlinks') || e.message.includes('traversal'))) throw e
+                throw new Error(`Cannot access file: ${basename(entry.filePath)}`)
+              }
+
+              const buffer = readFileSync(resolved)
               const blob = new Blob([buffer])
-              formBody.append(entry.key, blob, entry.fileName ?? basename(entry.filePath))
+              formBody.append(entry.key, blob, entry.fileName ?? basename(resolved))
             } else {
               formBody.append(entry.key, entry.value ?? '')
             }

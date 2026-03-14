@@ -220,9 +220,12 @@
     }, 500)
   }
 
+  // Stable identity list — only changes on add/remove/reorder, not on tab property mutations
+  let tabFingerprint = $derived(appStore.openTabs.map((t) => t.id).join(','))
+
   $effect(() => {
-    // Track tab list and active tab — triggers on any change
-    void appStore.openTabs.length
+    // Only track tab IDs (add/remove/reorder) and active tab — not every property change
+    void tabFingerprint
     void appStore.activeTabId
     if (sessionRestored) saveSession()
   })

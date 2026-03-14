@@ -12,21 +12,58 @@
   let { title, onclose, children, width = 'max-w-lg' }: Props = $props()
 
   let backdropEl = $state<HTMLElement | null>(null)
+  let modalEl = $state<HTMLElement | null>(null)
+
+  const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
 
   onMount(() => {
+    // Remember previously focused element to restore on close
+    const previouslyFocused = document.activeElement as HTMLElement | null
+
     // Portal to document.body so fixed positioning escapes any
     // ancestor backdrop-filter / transform containing blocks
     if (backdropEl) {
       document.body.appendChild(backdropEl)
     }
 
+    // Autofocus first focusable element inside the modal
+    requestAnimationFrame(() => {
+      const first = modalEl?.querySelector<HTMLElement>(FOCUSABLE)
+      first?.focus()
+    })
+
     function handleKey(e: KeyboardEvent): void {
-      if (e.key === 'Escape') onclose()
+      if (e.key === 'Escape') {
+        onclose()
+        return
+      }
+
+      // Focus trap: cycle Tab within the modal
+      if (e.key === 'Tab' && modalEl) {
+        const focusable = Array.from(modalEl.querySelectorAll<HTMLElement>(FOCUSABLE))
+        if (focusable.length === 0) return
+        const first = focusable[0]
+        const last = focusable[focusable.length - 1]
+
+        if (e.shiftKey) {
+          if (document.activeElement === first) {
+            e.preventDefault()
+            last.focus()
+          }
+        } else {
+          if (document.activeElement === last) {
+            e.preventDefault()
+            first.focus()
+          }
+        }
+      }
     }
     document.addEventListener('keydown', handleKey)
     return () => {
       document.removeEventListener('keydown', handleKey)
       backdropEl?.remove()
+      // Restore focus to the element that was focused before the modal opened
+      previouslyFocused?.focus()
     }
   })
 </script>
@@ -37,7 +74,7 @@
   <button class="absolute inset-0" onclick={onclose} aria-label="Close"></button>
 
   <!-- Modal -->
-  <div class="relative z-10 w-full rounded-[20px] shadow-glass animate-[modal-content-in_0.25s_cubic-bezier(0.34,1.56,0.64,1)] {width}" style="background: var(--glass-bg-heavy); backdrop-filter: blur(var(--glass-blur-heavy)); -webkit-backdrop-filter: blur(var(--glass-blur-heavy)); border: 1px solid var(--glass-border); box-shadow: var(--shadow-glass)">
+  <div bind:this={modalEl} role="dialog" aria-modal="true" aria-label={title} class="relative z-10 w-full rounded-[20px] shadow-glass animate-[modal-content-in_0.25s_cubic-bezier(0.34,1.56,0.64,1)] {width}" style="background: var(--glass-bg-heavy); backdrop-filter: blur(var(--glass-blur-heavy)); -webkit-backdrop-filter: blur(var(--glass-blur-heavy)); border: 1px solid var(--glass-border); box-shadow: var(--shadow-glass)">
     <!-- Header -->
     <div class="flex items-center justify-between px-5 py-3" style="border-bottom: 1px solid var(--glass-border)">
       <h2 class="text-sm font-semibold text-surface-100">{title}</h2>

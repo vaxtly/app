@@ -20,6 +20,8 @@ const mockGetPrompt = vi.fn().mockResolvedValue({ messages: [] })
 const mockSetNotificationHandler = vi.fn()
 const mockGetServerVersion = vi.fn(() => ({ name: 'test-server', version: '1.0.0', protocolVersion: '2025-03-26' }))
 
+const mockRemoveNotificationHandler = vi.fn()
+
 vi.mock('@modelcontextprotocol/sdk/client/index.js', () => ({
   Client: class MockClient {
     connect = mockConnect
@@ -32,6 +34,7 @@ vi.mock('@modelcontextprotocol/sdk/client/index.js', () => ({
     listPrompts = mockListPrompts
     getPrompt = mockGetPrompt
     setNotificationHandler = mockSetNotificationHandler
+    removeNotificationHandler = mockRemoveNotificationHandler
     getServerVersion = mockGetServerVersion
     fallbackNotificationHandler: null | ((...args: unknown[]) => unknown) = null
   },

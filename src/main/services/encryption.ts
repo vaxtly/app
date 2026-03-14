@@ -51,6 +51,7 @@ export function initEncryption(): void {
         ? raw.subarray(KEYCHAIN_PREFIX.length)
         : raw
       masterKey = keyData.length === 32 ? keyData : Buffer.from(keyData.toString(), 'hex')
+      console.warn('[encryption] Using plaintext master key fallback — OS keychain encryption not available.')
     }
   } else {
     // Generate new 256-bit key
@@ -67,6 +68,7 @@ export function initEncryption(): void {
       writeFileSync(keyPath, Buffer.concat([KEYCHAIN_PREFIX, encrypted]), { mode: 0o600 })
     } else {
       // Fallback: store raw key (dev environments without keychain)
+      console.warn('[encryption] OS keychain unavailable — master key stored as plaintext. This is acceptable for development but not recommended for production.')
       writeFileSync(keyPath, masterKey, { mode: 0o600 })
     }
 

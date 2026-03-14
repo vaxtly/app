@@ -94,22 +94,38 @@ export async function exchangePassword(auth: AuthConfig): Promise<TokenResponse>
   return fetchToken(auth.oauth2_access_token_url ?? '', params)
 }
 
+// Per-token-URL mutex to prevent concurrent refresh requests
+const refreshLocks = new Map<string, Promise<TokenResponse>>()
+
 export async function refreshAccessToken(auth: AuthConfig): Promise<TokenResponse> {
   if (!auth.oauth2_refresh_token) {
     throw new Error('No refresh token available')
   }
 
-  const params = new URLSearchParams({
-    grant_type: 'refresh_token',
-    refresh_token: auth.oauth2_refresh_token,
-    client_id: auth.oauth2_client_id ?? '',
-  })
+  const lockKey = `${auth.oauth2_access_token_url}:${auth.oauth2_client_id}`
+  const existing = refreshLocks.get(lockKey)
+  if (existing) return existing
 
-  if (auth.oauth2_client_secret) {
-    params.set('client_secret', auth.oauth2_client_secret)
+  const refreshPromise = (async () => {
+    const params = new URLSearchParams({
+      grant_type: 'refresh_token',
+      refresh_token: auth.oauth2_refresh_token!,
+      client_id: auth.oauth2_client_id ?? '',
+    })
+
+    if (auth.oauth2_client_secret) {
+      params.set('client_secret', auth.oauth2_client_secret)
+    }
+
+    return fetchToken(auth.oauth2_access_token_url ?? '', params)
+  })()
+
+  refreshLocks.set(lockKey, refreshPromise)
+  try {
+    return await refreshPromise
+  } finally {
+    refreshLocks.delete(lockKey)
   }
-
-  return fetchToken(auth.oauth2_access_token_url ?? '', params)
 }
 
 // --- Token expiry ---
@@ -190,7 +206,10 @@ export function startCallbackServer(preferredPort?: number): Promise<CallbackSer
       })
     })
 
-    server.on('error', reject)
+    server.on('error', (err) => {
+      clearTimeout(timeout)
+      reject(err)
+    })
   })
 }
 

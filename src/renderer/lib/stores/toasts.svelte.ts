@@ -15,10 +15,13 @@ const AUTO_DISMISS_MS = 8_000
 
 let toasts = $state<Toast[]>([])
 
-// Timer bookkeeping: track remaining time so we can pause/resume
-const timers = new Map<string, ReturnType<typeof setTimeout>>()
-const startedAt = new Map<string, number>()
-const remaining = new Map<string, number>()
+// Timer bookkeeping consolidated into a single Map
+interface TimerState {
+  timer: ReturnType<typeof setTimeout>
+  startedAt: number
+  remaining: number
+}
+const timerStates = new Map<string, TimerState>()
 
 let nextId = 0
 
@@ -38,35 +41,31 @@ function addToast(category: Toast['category'], message: string): void {
 }
 
 function scheduleDismiss(id: string, ms: number): void {
-  remaining.set(id, ms)
-  startedAt.set(id, Date.now())
-  timers.set(id, setTimeout(() => dismissToast(id), ms))
+  timerStates.set(id, {
+    timer: setTimeout(() => dismissToast(id), ms),
+    startedAt: Date.now(),
+    remaining: ms,
+  })
 }
 
 function pauseToast(id: string): void {
-  const timer = timers.get(id)
-  if (!timer) return
-  clearTimeout(timer)
-  timers.delete(id)
-
-  const start = startedAt.get(id) ?? Date.now()
-  const rem = remaining.get(id) ?? AUTO_DISMISS_MS
-  remaining.set(id, Math.max(0, rem - (Date.now() - start)))
+  const state = timerStates.get(id)
+  if (!state) return
+  clearTimeout(state.timer)
+  state.remaining = Math.max(0, state.remaining - (Date.now() - state.startedAt))
 }
 
 function resumeToast(id: string): void {
-  if (timers.has(id)) return // already running
-  const rem = remaining.get(id)
-  if (rem == null) return
-  scheduleDismiss(id, rem)
+  const state = timerStates.get(id)
+  if (!state) return
+  state.timer = setTimeout(() => dismissToast(id), state.remaining)
+  state.startedAt = Date.now()
 }
 
 function dismissToast(id: string): void {
-  const timer = timers.get(id)
-  if (timer) clearTimeout(timer)
-  timers.delete(id)
-  startedAt.delete(id)
-  remaining.delete(id)
+  const state = timerStates.get(id)
+  if (state) clearTimeout(state.timer)
+  timerStates.delete(id)
   toasts = toasts.filter((t) => t.id !== id)
 }
 

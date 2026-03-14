@@ -417,8 +417,10 @@ function mirrorToActiveEnvironment(
       if (!found) return
 
       setCachedVariables(activeEnv.id, variables)
-      // Fire-and-forget push to Vault
-      vaultPush(activeEnv.id, variables, workspaceId).catch(() => {})
+      // Fire-and-forget push to Vault — log failures
+      vaultPush(activeEnv.id, variables, workspaceId).catch((e) => {
+        logScript('vault-push', activeEnv.name, `Vault push failed: ${e instanceof Error ? e.message : String(e)}`, false)
+      })
     } else {
       const variables = JSON.parse(activeEnv.variables) as EnvironmentVariable[]
       let found = false

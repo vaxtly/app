@@ -161,6 +161,14 @@ export function substitute(
 }
 
 /**
+ * Substitute using pre-resolved variables (avoids repeated DB lookups).
+ */
+export function substituteWith(text: string, variables: Record<string, string>): string {
+  if (!text) return text
+  return resolveNested(text, variables)
+}
+
+/**
  * Substitute variables in a key→value record (both keys and values).
  */
 export function substituteRecord(

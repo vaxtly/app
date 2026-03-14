@@ -159,6 +159,7 @@ export async function disconnect(connectionId: string): Promise<void> {
 
   connections.delete(connectionId)
   try {
+    conn.ws.removeAllListeners()
     conn.ws.close()
   } catch {
     // ignore close errors

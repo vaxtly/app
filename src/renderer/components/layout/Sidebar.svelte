@@ -23,6 +23,9 @@
   let mcpSearch = $state('')
   let modeDropdownOpen = $state(false)
 
+  // Debounce filter for large collection trees
+  let searchDebounceTimer: ReturnType<typeof setTimeout> | undefined
+
   let theme = $derived(settingsStore.get('app.theme'))
   let layout = $derived(settingsStore.get('request.layout'))
   let hasExpanded = $derived(collectionsStore.expandedIds.size > 0)
@@ -58,14 +61,17 @@
 
   function handleSearchInput(e: Event): void {
     const value = (e.target as HTMLInputElement).value
-    if (appStore.sidebarMode === 'collections') {
-      collectionSearch = value
-      appStore.setSidebarSearch(value)
-    } else if (appStore.sidebarMode === 'environments') {
-      environmentSearch = value
-    } else {
-      mcpSearch = value
-    }
+    clearTimeout(searchDebounceTimer)
+    searchDebounceTimer = setTimeout(() => {
+      if (appStore.sidebarMode === 'collections') {
+        collectionSearch = value
+        appStore.setSidebarSearch(value)
+      } else if (appStore.sidebarMode === 'environments') {
+        environmentSearch = value
+      } else {
+        mcpSearch = value
+      }
+    }, 150)
   }
 
   async function handleNewCollection(): Promise<void> {
@@ -193,6 +199,7 @@
         value={searchValue}
         oninput={handleSearchInput}
         placeholder="Search..."
+        aria-label="Search collections"
         class="h-7 w-full rounded-lg border border-[var(--tint-muted)] bg-[var(--tint-subtle)] pl-7 pr-2 text-xs text-surface-200 placeholder-surface-500 transition-[border-color,background] duration-150 focus:border-brand-500/50 focus:bg-[var(--tint-muted)] focus:outline-none"
       />
     </div>
