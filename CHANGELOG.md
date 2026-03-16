@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.8.8] - 2026-03-16
+
+### Fixed
+- Code snippet modal: clipboard copy now works reliably in Electron (added fallback for modal focus issues)
+- Code snippet modal: request body, auth, and other data now correctly included in generated code (Svelte 5 reactive proxies serialized via `$state.snapshot()` before IPC)
+
 ## [0.8.7] - 2026-03-14
 
 ### Added
