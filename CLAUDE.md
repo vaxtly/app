@@ -44,6 +44,7 @@ npx electron-rebuild -f -w better-sqlite3  # Rebuild native module for Electron 
 - **Curly braces in attributes**: use JS expression syntax `placeholder={"text with {braces}"}`, not string attributes.
 - **No nested `<button>`**: use `<div role="button" tabindex="0">` as outer interactive element when it contains a button child.
 - **Bind `HTMLElement` refs**: always use `let el = $state<HTMLElement | null>(null)`, not bare `let el: HTMLElement`.
+- **IPC data**: use `$state.snapshot()` before sending reactive props/state over Electron IPC — Svelte 5 proxies may not serialize correctly via V8's structured clone.
 
 ### Database
 - UUID primary keys (TEXT) via `uuid` package.

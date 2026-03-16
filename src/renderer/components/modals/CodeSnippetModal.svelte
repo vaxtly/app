@@ -46,7 +46,8 @@
     activeLanguage = lang
 
     const authType = auth.type ?? 'none'
-    const data = {
+    // Use $state.snapshot() to convert reactive proxy objects to plain data for IPC serialization
+    const data = $state.snapshot({
       method,
       url,
       headers,
@@ -60,7 +61,7 @@
       authPassword: auth.basic_password ?? '',
       apiKeyName: auth.api_key_header ?? '',
       apiKeyValue: auth.api_key_value ?? '',
-    }
+    })
 
     try {
       generatedCode = await window.api.codeGenerator.generate(lang, data, workspaceId, collectionId)
@@ -70,7 +71,19 @@
   }
 
   async function copyToClipboard(): Promise<void> {
-    await navigator.clipboard.writeText(generatedCode)
+    try {
+      await navigator.clipboard.writeText(generatedCode)
+    } catch {
+      // Fallback for environments where clipboard API fails (Electron modal focus issues)
+      const el = document.createElement('textarea')
+      el.value = generatedCode
+      el.style.position = 'fixed'
+      el.style.opacity = '0'
+      document.body.appendChild(el)
+      el.select()
+      document.execCommand('copy')
+      document.body.removeChild(el)
+    }
     copied = true
     setTimeout(() => { copied = false }, 2000)
   }
