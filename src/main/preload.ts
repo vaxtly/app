@@ -90,6 +90,8 @@ const api = {
       ipcRenderer.invoke(IPC.ENVIRONMENTS_ACTIVATE, id, workspaceId),
     deactivate: (id: string): Promise<void> =>
       ipcRenderer.invoke(IPC.ENVIRONMENTS_DEACTIVATE, id),
+    importDotenv: (workspaceId?: string): Promise<Environment | null> =>
+      ipcRenderer.invoke(IPC.ENVIRONMENTS_IMPORT_DOTENV, workspaceId),
   },
 
   variables: {
@@ -320,6 +322,10 @@ const api = {
       ipcRenderer.invoke(IPC.WINDOW_GET_STATE),
     saveState: (state: WindowState): Promise<void> =>
       ipcRenderer.invoke(IPC.WINDOW_SAVE_STATE, state),
+    dragStart: (): void =>
+      ipcRenderer.send(IPC.WINDOW_DRAG_START),
+    dragMove: (dx: number, dy: number): void =>
+      ipcRenderer.send(IPC.WINDOW_DRAG_MOVE, dx, dy),
   },
 
   // Event listeners for main→renderer pushes

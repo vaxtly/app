@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.8.9] - 2026-03-23
+
+### Added
+- .env file import: import environment variables from a `.env` file via the sidebar import button — supports quoted values, comments, `export` prefix, and escape sequences
+
+### Fixed
+- Tab bar now supports window dragging on macOS — drag empty space to move the window, double-click to open a new draft (JS-based drag via IPC, no CSS `app-region` conflicts)
+- Pre-existing `tsconfig.node.json` error: removed `electron.vite.config.ts` from include (lives outside `rootDir`)
+
 ## [0.8.8] - 2026-03-16
 
 ### Fixed

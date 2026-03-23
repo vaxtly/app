@@ -23,11 +23,37 @@
 
   const DRAG_THRESHOLD = 4
 
+  // JS-based window dragging on empty tab bar space (macOS)
+  let winDragStart: { screenX: number; screenY: number } | null = null
+
+  function handleBarMouseDown(e: MouseEvent): void {
+    if (!isMac) return
+    if ((e.target as HTMLElement).closest('[role="tab"]')) return
+    if (e.button !== 0) return
+    winDragStart = { screenX: e.screenX, screenY: e.screenY }
+    window.api.window.dragStart()
+    window.addEventListener('mousemove', handleBarMouseMove)
+    window.addEventListener('mouseup', handleBarMouseUp)
+  }
+
+  function handleBarMouseMove(e: MouseEvent): void {
+    if (!winDragStart) return
+    window.api.window.dragMove(e.screenX - winDragStart.screenX, e.screenY - winDragStart.screenY)
+  }
+
+  function handleBarMouseUp(): void {
+    winDragStart = null
+    window.removeEventListener('mousemove', handleBarMouseMove)
+    window.removeEventListener('mouseup', handleBarMouseUp)
+  }
+
   // Clean up window-level listeners if component is destroyed mid-drag
   onMount(() => {
     return () => {
       window.removeEventListener('pointermove', handlePointerMove)
       window.removeEventListener('pointerup', handlePointerUp)
+      window.removeEventListener('mousemove', handleBarMouseMove)
+      window.removeEventListener('mouseup', handleBarMouseUp)
     }
   })
 
@@ -149,9 +175,10 @@
   }
 </script>
 
-<div class="flex shrink-0 px-1 {isMac ? 'drag-region h-11 items-center' : 'h-9 items-end'}" style="border-bottom: 1px solid var(--glass-border); background: var(--glass-bg); backdrop-filter: blur(var(--glass-blur)); -webkit-backdrop-filter: blur(var(--glass-blur))">
+<!-- svelte-ignore a11y_no_static_element_interactions -->
+<div class="flex shrink-0 px-1 {isMac ? 'h-11 items-center' : 'h-9 items-end'}" style="border-bottom: 1px solid var(--glass-border); background: var(--glass-bg); backdrop-filter: blur(var(--glass-blur)); -webkit-backdrop-filter: blur(var(--glass-blur))" onmousedown={handleBarMouseDown}>
   <!-- svelte-ignore a11y_no_static_element_interactions -->
-  <div class="tab-scroll no-drag flex flex-1 min-w-0 overflow-x-auto {isMac ? 'items-center' : 'items-end'}" style:user-select={isDragging ? 'none' : 'auto'} bind:this={scrollEl} onwheel={handleWheel} ondblclick={handleBarDblClick}>
+  <div class="tab-scroll flex flex-1 min-w-0 overflow-x-auto {isMac ? 'items-center' : 'items-end'}" style:user-select={isDragging ? 'none' : 'auto'} bind:this={scrollEl} onwheel={handleWheel} ondblclick={handleBarDblClick}>
   {#each appStore.openTabs as tab, i (tab.id)}
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div
@@ -227,7 +254,7 @@
   {/each}
   </div>
 
-  <div class="no-drag flex self-stretch">
+  <div class="flex self-stretch">
     <EnvironmentSelector />
   </div>
 </div>

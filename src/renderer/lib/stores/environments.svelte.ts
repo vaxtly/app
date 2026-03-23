@@ -80,6 +80,14 @@ async function deactivate(id: string): Promise<void> {
   }
 }
 
+async function importDotenv(workspaceId?: string): Promise<Environment | null> {
+  const env = await window.api.environments.importDotenv(workspaceId)
+  if (env) {
+    environments = [...environments, env]
+  }
+  return env
+}
+
 function getById(id: string): Environment | undefined {
   return environments.find((e) => e.id === id)
 }
@@ -98,5 +106,6 @@ export const environmentsStore = {
   remove,
   activate,
   deactivate,
+  importDotenv,
   getById,
 }

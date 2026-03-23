@@ -1,4 +1,4 @@
-import { ipcMain } from 'electron'
+import { ipcMain, BrowserWindow } from 'electron'
 import { IPC } from '../../shared/types/ipc'
 import * as settingsRepo from '../database/repositories/settings'
 import * as workspacesRepo from '../database/repositories/workspaces'
@@ -71,5 +71,24 @@ export function registerSettingsHandlers(): void {
 
   ipcMain.handle(IPC.WINDOW_SAVE_STATE, (_event, state) => {
     settingsRepo.saveWindowState(state)
+  })
+
+  // JS-based window dragging (coexists with double-click on tab bar)
+  let dragStartPos: { x: number; y: number } | null = null
+
+  ipcMain.on(IPC.WINDOW_DRAG_START, (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender)
+    if (win) {
+      const [x, y] = win.getPosition()
+      dragStartPos = { x, y }
+    }
+  })
+
+  ipcMain.on(IPC.WINDOW_DRAG_MOVE, (event, dx: number, dy: number) => {
+    if (!dragStartPos) return
+    const win = BrowserWindow.fromWebContents(event.sender)
+    if (win) {
+      win.setPosition(dragStartPos.x + dx, dragStartPos.y + dy)
+    }
   })
 }

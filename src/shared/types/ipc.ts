@@ -46,6 +46,7 @@ export const IPC = {
   ENVIRONMENTS_REORDER: 'environments:reorder',
   ENVIRONMENTS_ACTIVATE: 'environments:activate',
   ENVIRONMENTS_DEACTIVATE: 'environments:deactivate',
+  ENVIRONMENTS_IMPORT_DOTENV: 'environments:import-dotenv',
 
   // Variables
   VARIABLES_RESOLVE: 'variables:resolve',
@@ -106,6 +107,8 @@ export const IPC = {
   // Window
   WINDOW_GET_STATE: 'window:get-state',
   WINDOW_SAVE_STATE: 'window:save-state',
+  WINDOW_DRAG_START: 'window:drag-start',
+  WINDOW_DRAG_MOVE: 'window:drag-move',
 
   // OAuth 2.0
   OAUTH2_GET_TOKEN: 'oauth2:get-token',

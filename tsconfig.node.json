@@ -14,5 +14,5 @@
       "@shared/*": ["./src/shared/*"]
     }
   },
-  "include": ["src/main/**/*", "src/shared/**/*", "electron.vite.config.ts"]
+  "include": ["src/main/**/*", "src/shared/**/*"]
 }

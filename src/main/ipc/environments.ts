@@ -1,8 +1,11 @@
-import { ipcMain } from 'electron'
+import { ipcMain, dialog } from 'electron'
+import { readFile } from 'node:fs/promises'
+import { basename } from 'node:path'
 import { IPC } from '../../shared/types/ipc'
 import * as environmentsRepo from '../database/repositories/environments'
 import { ensureLoaded } from '../vault/vault-sync-service'
 import { logVault } from '../services/session-log'
+import { parseDotenv } from '../services/dotenv-parser'
 
 export function registerEnvironmentHandlers(): void {
   ipcMain.handle(IPC.ENVIRONMENTS_LIST, (_event, workspaceId?: string) => {
@@ -48,5 +51,34 @@ export function registerEnvironmentHandlers(): void {
 
   ipcMain.handle(IPC.ENVIRONMENTS_DEACTIVATE, (_event, id: string) => {
     environmentsRepo.deactivate(id)
+  })
+
+  ipcMain.handle(IPC.ENVIRONMENTS_IMPORT_DOTENV, async (_event, workspaceId?: string) => {
+    const result = await dialog.showOpenDialog({
+      properties: ['openFile'],
+      filters: [
+        { name: 'Environment Files', extensions: ['env'] },
+        { name: 'All Files', extensions: ['*'] },
+      ],
+    })
+    if (result.canceled || result.filePaths.length === 0) return null
+
+    const filePath = result.filePaths[0]
+    const content = await readFile(filePath, 'utf-8')
+    const variables = parseDotenv(content)
+
+    // Derive environment name from filename (e.g. ".env.production" → "production", ".env" → "dotenv")
+    const fileName = basename(filePath)
+    const name = fileName.startsWith('.env.')
+      ? fileName.slice(5)
+      : fileName === '.env'
+        ? 'dotenv'
+        : fileName.replace(/\.env$/, '') || fileName
+
+    return environmentsRepo.create({
+      name,
+      workspace_id: workspaceId,
+      variables: JSON.stringify(variables),
+    })
   })
 }
