@@ -88,19 +88,6 @@ jobs:
 
           npx electron-builder $ARGS
 
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: vaxtly-${{ matrix.platform }}-${{ matrix.arch }}
-          path: |
-            dist/*.deb
-            dist/*.AppImage
-            dist/*.snap
-            dist/*.exe
-            dist/*-setup.exe
-            dist/*.dmg
-            dist/*.zip
-          retention-days: 30
 
   fix-mac-update-yml:
     needs: build
