@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.8.10] - 2026-04-10
+
+### Changed
+- New collections now appear at the top of the sidebar instead of the bottom
+
+### Fixed
+- Removed redundant Actions artifact upload from build workflow
+
 ## [0.8.9] - 2026-03-23
 
 ### Added
