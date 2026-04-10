@@ -7,10 +7,14 @@ export function create(data: { name: string; workspace_id?: string; description?
   const id = uuid()
   const now = new Date().toISOString()
 
+  // Shift existing collections down and insert at the top
+  db.prepare(`UPDATE collections SET "order" = "order" + 1 WHERE workspace_id IS ?`)
+    .run(data.workspace_id ?? null)
+
   db.prepare(`
     INSERT INTO collections (id, workspace_id, name, description, "order", created_at, updated_at)
-    VALUES (?, ?, ?, ?, (SELECT COALESCE(MAX("order"), 0) + 1 FROM collections WHERE workspace_id IS ?), ?, ?)
-  `).run(id, data.workspace_id ?? null, data.name, data.description ?? null, data.workspace_id ?? null, now, now)
+    VALUES (?, ?, ?, ?, 0, ?, ?)
+  `).run(id, data.workspace_id ?? null, data.name, data.description ?? null, now, now)
 
   return findById(id)!
 }
