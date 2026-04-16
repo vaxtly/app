@@ -54,8 +54,14 @@
   })
 
   let auth = $derived.by((): AuthConfig => {
-    if (!state?.auth) return { type: 'none' }
-    try { return JSON.parse(state.auth) } catch { return { type: 'none' } }
+    if (!state?.auth) return { type: 'inherit' }
+    try { return JSON.parse(state.auth) } catch { return { type: 'inherit' } }
+  })
+
+  // Resolve auth for header generation — if 'inherit', walk the parent chain
+  let resolvedAuth = $derived.by((): AuthConfig => {
+    if (auth.type !== 'inherit') return auth
+    return collectionsStore.resolveInheritedAuth(requestId) ?? { type: 'none' }
   })
 
   let scripts = $derived.by((): ScriptsConfig => {
@@ -179,13 +185,14 @@
     if (!state) return
 
     // Reactive dependencies — effect re-runs when these change
+    // Use resolvedAuth so inherited auth generates correct headers
     const bodyType = state.body_type
-    const authType = auth.type
-    const bearerToken = auth.bearer_token
-    const basicUser = auth.basic_username
-    const basicPass = auth.basic_password
-    const apiKeyHeader = auth.api_key_header
-    const apiKeyValue = auth.api_key_value
+    const authType = resolvedAuth.type
+    const bearerToken = resolvedAuth.bearer_token
+    const basicUser = resolvedAuth.basic_username
+    const basicPass = resolvedAuth.basic_password
+    const apiKeyHeader = resolvedAuth.api_key_header
+    const apiKeyValue = resolvedAuth.api_key_value
 
     clearTimeout(headerSyncTimer)
     headerSyncTimer = setTimeout(() => {
@@ -257,7 +264,7 @@
     }
     return !!(state.body?.trim())
   })
-  let authHasContent = $derived(auth.type !== 'none')
+  let authHasContent = $derived(auth.type !== 'none' && auth.type !== 'inherit')
   let scriptsHasContent = $derived(!!(scripts.pre_request || scripts.post_response?.length))
   let testsHasContent = $derived(!!(scripts.assertions?.length))
 

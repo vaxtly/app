@@ -108,18 +108,37 @@
     }
   }
 
-  function updatePreRequestId(requestId: string): void {
-    onchange({ ...scripts, pre_request: { action: 'send_request', request_id: requestId } })
+  function updatePreRequestId(id: string): void {
+    const existing = scripts.pre_request
+    onchange({ ...scripts, pre_request: { action: 'send_request', request_id: id, skip_if_valid: existing?.skip_if_valid } })
   }
+
+  function toggleSkipIfValid(): void {
+    const pre = scripts.pre_request
+    if (!pre) return
+    if (pre.skip_if_valid) {
+      onchange({ ...scripts, pre_request: { ...pre, skip_if_valid: undefined } })
+    } else {
+      onchange({ ...scripts, pre_request: { ...pre, skip_if_valid: { token_variable: '', expires_at_variable: '' } } })
+    }
+  }
+
+  function updateSkipIfValid(field: 'token_variable' | 'expires_at_variable', value: string): void {
+    const pre = scripts.pre_request
+    if (!pre?.skip_if_valid) return
+    onchange({ ...scripts, pre_request: { ...pre, skip_if_valid: { ...pre.skip_if_valid, [field]: value } } })
+  }
+
+  let hasSkipIfValid = $derived(!!scripts.pre_request?.skip_if_valid)
 
   // --- Post-response actions ---
 
-  function addPostResponse(): void {
+  function addPostResponse(action: 'set_variable' | 'set_token_expiry' = 'set_variable'): void {
     const existing = scripts.post_response ?? []
-    onchange({ ...scripts, post_response: [...existing, { action: 'set_variable', source: '', target: '' }] })
+    onchange({ ...scripts, post_response: [...existing, { action, source: '', target: '' }] })
   }
 
-  function updatePostResponse(index: number, field: 'source' | 'target', value: string): void {
+  function updatePostResponse(index: number, field: 'source' | 'target' | 'action', value: string): void {
     const updated = [...(scripts.post_response ?? [])]
     updated[index] = { ...updated[index], [field]: value }
     onchange({ ...scripts, post_response: updated })
@@ -215,6 +234,45 @@
         {#if availableRequests.length === 0}
           <p class="text-[11px] text-surface-500 mt-1 mb-0">No other requests in this collection.</p>
         {/if}
+
+        <!-- Skip if valid (smart token caching) -->
+        <div class="mt-2 pt-2" style="border-top: 1px solid var(--color-surface-700)">
+          <label class="flex items-center gap-1.5 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={hasSkipIfValid}
+              onchange={toggleSkipIfValid}
+              class="accent-[var(--color-brand-500)]"
+            />
+            <span class="text-[11px] text-surface-300">Only fetch when needed</span>
+          </label>
+
+          {#if hasSkipIfValid}
+            <div class="mt-1.5 flex flex-col gap-1.5 pl-5">
+              <div class="flex flex-col gap-0.5">
+                <span class="text-[10px] text-surface-500">Token variable (skip if set)</span>
+                <input
+                  type="text"
+                  value={scripts.pre_request?.skip_if_valid?.token_variable ?? ''}
+                  oninput={(e) => updateSkipIfValid('token_variable', e.currentTarget.value)}
+                  placeholder="api_token"
+                  class="h-[26px] w-full px-2 border border-transparent rounded-sm bg-surface-800 text-surface-200 text-xs font-sans outline-none transition-[border-color] duration-[0.12s] focus:border-brand-500 placeholder:text-surface-600"
+                />
+              </div>
+              <div class="flex flex-col gap-0.5">
+                <span class="text-[10px] text-surface-500">Expiry variable (Unix ms timestamp)</span>
+                <input
+                  type="text"
+                  value={scripts.pre_request?.skip_if_valid?.expires_at_variable ?? ''}
+                  oninput={(e) => updateSkipIfValid('expires_at_variable', e.currentTarget.value)}
+                  placeholder="api_token_expires_at"
+                  class="h-[26px] w-full px-2 border border-transparent rounded-sm bg-surface-800 text-surface-200 text-xs font-sans outline-none transition-[border-color] duration-[0.12s] focus:border-brand-500 placeholder:text-surface-600"
+                />
+              </div>
+              <p class="text-[10px] text-surface-600 m-0">Skips the request if the token exists and hasn't expired (30s safety margin).</p>
+            </div>
+          {/if}
+        </div>
       </div>
     {:else}
       <p class="text-[11px] text-surface-500 m-0 leading-relaxed">
@@ -227,9 +285,14 @@
   <section>
     <div class="flex items-center justify-between mb-2">
       <h3 class="text-xs font-medium text-surface-300 m-0">Post-response Scripts</h3>
-      <button onclick={addPostResponse} class="border-none bg-transparent text-brand-400 text-xs font-sans cursor-pointer p-0 transition-colors duration-[0.12s] hover:text-brand-300">
-        + Add
-      </button>
+      <div class="flex gap-2">
+        <button onclick={() => addPostResponse('set_variable')} class="border-none bg-transparent text-brand-400 text-xs font-sans cursor-pointer p-0 transition-colors duration-[0.12s] hover:text-brand-300">
+          + Variable
+        </button>
+        <button onclick={() => addPostResponse('set_token_expiry')} class="border-none bg-transparent text-brand-400 text-xs font-sans cursor-pointer p-0 transition-colors duration-[0.12s] hover:text-brand-300">
+          + Expiry
+        </button>
+      </div>
     </div>
 
     {#if hasPostResponse}
@@ -237,23 +300,27 @@
         {#each scripts.post_response ?? [] as script, i (i)}
           <div class="p-2.5 rounded-md border border-surface-700 bg-surface-800/50 flex items-start gap-2">
             <div class="flex-1 min-w-0 flex flex-col gap-1.5">
+              <!-- Action type badge -->
+              <span class="text-[9px] font-bold uppercase tracking-wider {script.action === 'set_token_expiry' ? 'text-warning' : 'text-surface-500'}">
+                {script.action === 'set_token_expiry' ? 'Set Token Expiry' : 'Set Variable'}
+              </span>
               <div class="flex flex-col gap-0.5">
-                <span class="text-[10px] text-surface-500">Source (e.g. body.data.token, header.X-Auth, status)</span>
+                <span class="text-[10px] text-surface-500">{script.action === 'set_token_expiry' ? 'Source (e.g. body.expires_in — seconds)' : 'Source (e.g. body.data.token, header.X-Auth, status)'}</span>
                 <input
                   type="text"
                   value={script.source}
                   oninput={(e) => updatePostResponse(i, 'source', e.currentTarget.value)}
-                  placeholder="body.data.access_token"
+                  placeholder={script.action === 'set_token_expiry' ? 'body.expires_in' : 'body.data.access_token'}
                   class="h-[30px] w-full px-2 border border-transparent rounded-sm bg-surface-800 text-surface-200 text-xs font-sans outline-none transition-[border-color] duration-[0.12s] focus:border-brand-500 placeholder:text-surface-600"
                 />
               </div>
               <div class="flex flex-col gap-0.5">
-                <span class="text-[10px] text-surface-500">Target variable name</span>
+                <span class="text-[10px] text-surface-500">{script.action === 'set_token_expiry' ? 'Target variable (stores absolute timestamp)' : 'Target variable name'}</span>
                 <input
                   type="text"
                   value={script.target}
                   oninput={(e) => updatePostResponse(i, 'target', e.currentTarget.value)}
-                  placeholder="auth_token"
+                  placeholder={script.action === 'set_token_expiry' ? 'api_token_expires_at' : 'auth_token'}
                   class="h-[30px] w-full px-2 border border-transparent rounded-sm bg-surface-800 text-surface-200 text-xs font-sans outline-none transition-[border-color] duration-[0.12s] focus:border-brand-500 placeholder:text-surface-600"
                 />
               </div>

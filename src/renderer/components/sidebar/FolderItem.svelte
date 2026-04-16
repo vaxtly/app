@@ -3,7 +3,6 @@
   import { appStore } from '../../lib/stores/app.svelte'
   import { dragStore } from '../../lib/stores/drag.svelte'
   import ContextMenu from '../shared/ContextMenu.svelte'
-  import EnvironmentAssociationModal from '../modals/EnvironmentAssociationModal.svelte'
   import SensitiveDataModal from '../modals/SensitiveDataModal.svelte'
   import FolderItem from './FolderItem.svelte'
   import RequestItem from './RequestItem.svelte'
@@ -15,7 +14,6 @@
 
   let { node, onrequestclick }: Props = $props()
 
-  let showEnvModal = $state(false)
   let sensitiveFindings = $state<{ source: string; requestName: string | null; requestId: string | null; field: string; key: string; maskedValue: string }[]>([])
   let showSensitiveModal = $state(false)
   let renaming = $state(false)
@@ -167,7 +165,7 @@
     { label: 'Add WebSocket', action: addWebSocket, icon: 'M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5' },
     { label: 'Add Subfolder', action: addSubfolder, icon: 'M12 10.5v6m3-3H9m4.06-7.19l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z' },
     { label: 'Rename', action: startRename, icon: 'm16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Z' },
-    { label: 'Set Environments', action: () => { showEnvModal = true }, icon: 'M4.745 3A23.933 23.933 0 003 12c0 3.183.62 6.22 1.745 9M19.255 3C20.38 5.78 21 8.817 21 12s-.62 6.22-1.745 9m-13.51 0A23.933 23.933 0 0012 21c2.478 0 4.852-.474 7.022-1.332M12 3a23.918 23.918 0 01-5.745 9A23.918 23.918 0 0012 21m0-18a23.918 23.918 0 005.745 9A23.918 23.918 0 0012 21M12 3v18M3 12h18' },
+    { label: 'Settings', action: () => { appStore.openFolderEditorTab({ id: node.id, name: node.name }) }, icon: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.573-1.066z M15 12a3 3 0 11-6 0 3 3 0 016 0z' },
     ...(syncEnabled ? [
       { label: '', action: () => {}, separator: true },
       { label: 'Push to Remote', action: pushCollection, icon: 'M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5' },
@@ -242,9 +240,6 @@
   <ContextMenu x={contextMenu.x} y={contextMenu.y} items={contextMenuItems} onclose={() => contextMenu = null} />
 {/if}
 
-{#if showEnvModal}
-  <EnvironmentAssociationModal targetId={node.id} targetType="folder" onclose={() => { showEnvModal = false }} />
-{/if}
 
 {#if showSensitiveModal}
   <SensitiveDataModal

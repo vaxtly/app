@@ -28,7 +28,14 @@ interface RequestData {
 
 interface CollectionData {
   variables?: KeyValueEntry[]
+  auth?: AuthConfig | null
   [key: string]: unknown
+}
+
+interface FolderData {
+  id: string
+  name: string
+  auth: AuthConfig | null
 }
 
 const SENSITIVE_HEADER_KEYS = [
@@ -102,8 +109,24 @@ export function scanRequest(request: RequestData): SensitiveFinding[] {
 export function scanCollection(
   requests: RequestData[],
   variables: KeyValueEntry[],
+  collectionAuth?: AuthConfig | null,
+  folders?: FolderData[],
 ): SensitiveFinding[] {
   const findings: SensitiveFinding[] = []
+
+  // Scan collection-level auth
+  if (collectionAuth) {
+    findings.push(...scanContainerAuth(collectionAuth, 'collection', null, null))
+  }
+
+  // Scan folder-level auth
+  if (folders) {
+    for (const folder of folders) {
+      if (folder.auth) {
+        findings.push(...scanContainerAuth(folder.auth, 'folder', folder.name, folder.id))
+      }
+    }
+  }
 
   for (const req of requests) {
     findings.push(...scanRequest(req))
@@ -126,6 +149,35 @@ function scanAuth(request: RequestData): SensitiveFinding[] {
         source: 'auth',
         requestName: request.name,
         requestId: request.id,
+        field: 'auth',
+        key: label,
+        maskedValue: maskValue(value),
+      })
+    }
+  }
+
+  if (auth.type === 'bearer') check(auth.bearer_token, 'bearer token')
+  else if (auth.type === 'basic') check(auth.basic_password, 'basic password')
+  else if (auth.type === 'api-key') check(auth.api_key_value, 'api-key value')
+
+  return findings
+}
+
+function scanContainerAuth(
+  auth: AuthConfig,
+  source: string,
+  name: string | null,
+  id: string | null,
+): SensitiveFinding[] {
+  if (!auth.type || auth.type === 'none' || auth.type === 'inherit') return []
+
+  const findings: SensitiveFinding[] = []
+  const check = (value: string | undefined, label: string): void => {
+    if (value && value !== '' && !isVariableReference(value)) {
+      findings.push({
+        source,
+        requestName: name,
+        requestId: id,
         field: 'auth',
         key: label,
         maskedValue: maskValue(value),
@@ -314,8 +366,19 @@ export function sanitizeRequestData(data: Record<string, unknown>): Record<strin
 }
 
 export function sanitizeCollectionData(data: CollectionData): CollectionData {
-  if (!data.variables || !Array.isArray(data.variables)) return data
-  data.variables = sanitizeKeyValuePairs(data.variables, ALL_SENSITIVE_KEYS)
+  if (data.variables && Array.isArray(data.variables)) {
+    data.variables = sanitizeKeyValuePairs(data.variables, ALL_SENSITIVE_KEYS)
+  }
+  if (data.auth && typeof data.auth === 'object') {
+    data.auth = sanitizeAuthData(data.auth as unknown as Record<string, unknown>) as unknown as AuthConfig
+  }
+  return data
+}
+
+export function sanitizeFolderData(data: Record<string, unknown>): Record<string, unknown> {
+  if (data.auth && typeof data.auth === 'object') {
+    data.auth = sanitizeAuthData(data.auth as Record<string, unknown>)
+  }
   return data
 }
 

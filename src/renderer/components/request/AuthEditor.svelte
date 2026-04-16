@@ -1,23 +1,38 @@
 <script lang="ts">
   import { AUTH_TYPES } from '../../../shared/constants'
   import VarInput from '../shared/VarInput.svelte'
+  import { collectionsStore } from '../../lib/stores/collections.svelte'
   import type { AuthConfig } from '../../lib/types'
 
   interface Props {
     auth: AuthConfig
-    requestId: string
+    requestId?: string
     isDraft?: boolean
+    showInherit?: boolean
     onchange: (auth: AuthConfig) => void
   }
 
-  let { auth, requestId, isDraft = false, onchange }: Props = $props()
+  let { auth, requestId, isDraft = false, showInherit = true, onchange }: Props = $props()
+
+  let visibleTypes = $derived(showInherit ? AUTH_TYPES : AUTH_TYPES.filter(t => t !== 'inherit'))
 
   const typeLabels: Record<string, string> = {
+    inherit: 'Inherit',
     none: 'No Auth',
     bearer: 'Bearer Token',
     basic: 'Basic Auth',
     'api-key': 'API Key',
     oauth2: 'OAuth 2.0',
+  }
+
+  let inheritedAuth = $derived.by((): AuthConfig | null => {
+    if (auth.type !== 'inherit' || !requestId) return null
+    return collectionsStore.resolveInheritedAuth(requestId)
+  })
+
+  function inheritedAuthLabel(resolved: AuthConfig | null): string {
+    if (!resolved) return 'No authentication configured on parent collection or folder.'
+    return `Inheriting ${typeLabels[resolved.type] ?? resolved.type} from parent.`
   }
 
   const grantTypeLabels: Record<string, string> = {
@@ -47,6 +62,7 @@
   }
 
   async function handleGetToken(): Promise<void> {
+    if (!requestId) return
     tokenLoading = true
     tokenError = null
     try {
@@ -60,6 +76,7 @@
   }
 
   async function handleRefreshToken(): Promise<void> {
+    if (!requestId) return
     tokenLoading = true
     tokenError = null
     try {
@@ -86,7 +103,7 @@
 <div class="ae-root">
   <!-- Type selector -->
   <div class="ae-types">
-    {#each AUTH_TYPES as type}
+    {#each visibleTypes as type}
       <button
         onclick={() => onchange({ ...auth, type })}
         class="ae-type"
@@ -99,7 +116,25 @@
 
   <!-- Auth fields -->
   <div class="ae-content">
-    {#if auth.type === 'none'}
+    {#if auth.type === 'inherit'}
+      <div class="ae-inherit-info">
+        <p class="ae-hint">{inheritedAuthLabel(inheritedAuth)}</p>
+        {#if inheritedAuth}
+          <div class="ae-inherit-preview">
+            <span class="ae-inherit-badge">{typeLabels[inheritedAuth.type] ?? inheritedAuth.type}</span>
+            {#if inheritedAuth.type === 'bearer' && inheritedAuth.bearer_token}
+              <code class="ae-inherit-detail">{inheritedAuth.bearer_token.slice(0, 30)}...</code>
+            {:else if inheritedAuth.type === 'basic' && inheritedAuth.basic_username}
+              <code class="ae-inherit-detail">{inheritedAuth.basic_username}</code>
+            {:else if inheritedAuth.type === 'api-key' && inheritedAuth.api_key_header}
+              <code class="ae-inherit-detail">{inheritedAuth.api_key_header}: {(inheritedAuth.api_key_value ?? '').slice(0, 20)}...</code>
+            {:else if inheritedAuth.type === 'oauth2'}
+              <code class="ae-inherit-detail">{inheritedAuth.oauth2_grant_type ?? 'authorization_code'}</code>
+            {/if}
+          </div>
+        {/if}
+      </div>
+    {:else if auth.type === 'none'}
       <p class="ae-hint">This request does not use authentication.</p>
     {:else if auth.type === 'bearer'}
       <div class="ae-fields">
@@ -619,6 +654,41 @@
 
   @keyframes ae-spin {
     to { transform: rotate(360deg); }
+  }
+
+  /* --- Inherit info --- */
+  .ae-inherit-info {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .ae-inherit-preview {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border-radius: 6px;
+    background: color-mix(in srgb, var(--color-brand-500) 6%, transparent);
+    border: 1px solid color-mix(in srgb, var(--color-brand-500) 15%, transparent);
+  }
+
+  .ae-inherit-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 600;
+    background: color-mix(in srgb, var(--color-brand-500) 15%, transparent);
+    color: var(--color-brand-400);
+    white-space: nowrap;
+  }
+
+  .ae-inherit-detail {
+    font-size: 10px;
+    color: var(--color-surface-400);
+    word-break: break-all;
   }
 
 </style>

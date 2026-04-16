@@ -3,7 +3,7 @@
  * Loads collections, folders, and requests from IPC and builds the tree.
  */
 
-import type { Collection, Folder, Request } from '../../lib/types'
+import type { Collection, Folder, Request, AuthConfig } from '../../lib/types'
 
 // --- Types ---
 
@@ -350,6 +350,62 @@ function getCollectionById(id: string): Collection | undefined {
   return collections.find((c) => c.id === id)
 }
 
+function getFolderById(id: string): Folder | undefined {
+  return folders.find((f) => f.id === id)
+}
+
+/** Parse an auth JSON string into AuthConfig, returning null if empty/none. */
+function parseAuth(authJson: string | null): AuthConfig | null {
+  if (!authJson) return null
+  try {
+    const auth: AuthConfig = JSON.parse(authJson)
+    if (auth.type === 'none' || auth.type === 'inherit') return null
+    return auth
+  } catch {
+    return null
+  }
+}
+
+/** Resolve inherited auth for a request by walking folder chain → collection. */
+function resolveInheritedAuth(requestId: string): AuthConfig | null {
+  const req = requests.find((r) => r.id === requestId)
+  if (!req) return null
+
+  // Walk up the folder chain looking for auth
+  let folderId = req.folder_id
+  while (folderId) {
+    const folder = folders.find((f) => f.id === folderId)
+    if (!folder) break
+    const auth = parseAuth(folder.auth)
+    if (auth) return auth
+    folderId = folder.parent_id
+  }
+
+  // Fall back to collection
+  const col = collections.find((c) => c.id === req.collection_id)
+  return col ? parseAuth(col.auth) : null
+}
+
+/** Resolve inherited auth for a folder by walking its parent chain → collection. */
+function resolveInheritedAuthForFolder(folderId: string): AuthConfig | null {
+  const folder = folders.find((f) => f.id === folderId)
+  if (!folder) return null
+
+  // Walk up the parent folder chain
+  let parentId = folder.parent_id
+  while (parentId) {
+    const parent = folders.find((f) => f.id === parentId)
+    if (!parent) break
+    const auth = parseAuth(parent.auth)
+    if (auth) return auth
+    parentId = parent.parent_id
+  }
+
+  // Fall back to collection
+  const col = collections.find((c) => c.id === folder.collection_id)
+  return col ? parseAuth(col.auth) : null
+}
+
 // --- Export ---
 
 export const collectionsStore = {
@@ -376,6 +432,9 @@ export const collectionsStore = {
   reloadCollection,
   getRequestById,
   getCollectionById,
+  getFolderById,
   resolveDefaultEnvironment,
+  resolveInheritedAuth,
+  resolveInheritedAuthForFolder,
   revealRequest,
 }

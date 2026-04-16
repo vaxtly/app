@@ -4,6 +4,7 @@ import type { SyncResult } from '../../shared/types/sync'
 import type { SensitiveFinding } from '../services/sensitive-data-scanner'
 import * as syncService from '../sync/remote-sync-service'
 import * as collectionsRepo from '../database/repositories/collections'
+import * as foldersRepo from '../database/repositories/folders'
 import * as requestsRepo from '../database/repositories/requests'
 import * as mcpServersRepo from '../database/repositories/mcp-servers'
 import { scanCollection, scanMcpServer } from '../services/sensitive-data-scanner'
@@ -142,6 +143,7 @@ export function registerSyncHandlers(): void {
 
       // Use the repository (which decrypts auth fields) instead of raw DB query
       const requests = requestsRepo.findByCollection(collectionId)
+      const folders = foldersRepo.findByCollection(collectionId)
 
       const parsedRequests = requests.map((r) => ({
         id: r.id,
@@ -154,9 +156,14 @@ export function registerSyncHandlers(): void {
         auth: r.auth ? JSON.parse(r.auth) : null,
       }))
 
+      const collectionAuth = collection.auth ? JSON.parse(collection.auth) : null
+      const folderData = folders
+        .filter((f) => f.auth)
+        .map((f) => ({ id: f.id, name: f.name, auth: JSON.parse(f.auth!) }))
+
       const variables: KeyValueEntry[] = collection.variables ? JSON.parse(collection.variables) : []
 
-      return scanCollection(parsedRequests, variables)
+      return scanCollection(parsedRequests, variables, collectionAuth, folderData)
     },
   )
 

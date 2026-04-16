@@ -9,10 +9,11 @@ import { fetch as undiciFetch } from 'undici'
 import { createUndiciDispatcher } from './tls-options'
 import * as requestsRepo from '../database/repositories/requests'
 import * as collectionsRepo from '../database/repositories/collections'
+import * as foldersRepo from '../database/repositories/folders'
 import * as environmentsRepo from '../database/repositories/environments'
 import * as settingsRepo from '../database/repositories/settings'
 import { getCachedVariables, setCachedVariables, pushVariables as vaultPush } from '../vault/vault-sync-service'
-import { substitute } from './variable-substitution'
+import { substitute, getResolvedVariables } from './variable-substitution'
 import { isTokenExpired, refreshAccessToken } from './oauth2'
 import { DEFAULTS } from '../../shared/constants'
 import { logHttp, logScript } from './session-log'
@@ -59,6 +60,136 @@ export async function executePreRequestScripts(
 }
 
 /**
+ * Execute collection/folder-level pre-request scripts.
+ * Walks: collection → root folder → ... → leaf folder (top-down).
+ * Each script's skip_if_valid is checked before firing.
+ */
+export async function executeContainerPreRequestScripts(
+  collectionId: string,
+  folderId: string | null,
+  workspaceId?: string,
+): Promise<void> {
+  const stack: string[] = []
+
+  // 1. Collection scripts
+  const collection = collectionsRepo.findById(collectionId)
+  if (collection?.scripts) {
+    try {
+      const scripts: ScriptsConfig = JSON.parse(collection.scripts)
+      await executeContainerScriptList(scripts, collectionId, workspaceId, stack, collection.name)
+    } catch { /* ignore parse errors */ }
+  }
+
+  // 2. Folder chain scripts (top-down: root folder → leaf folder)
+  if (folderId) {
+    const chain: Array<{ id: string; name: string; scripts: string }> = []
+    let currentId: string | null = folderId
+    while (currentId) {
+      const folder = foldersRepo.findById(currentId)
+      if (!folder) break
+      if (folder.scripts) {
+        chain.unshift({ id: folder.id, name: folder.name, scripts: folder.scripts })
+      }
+      currentId = folder.parent_id
+    }
+
+    for (const entry of chain) {
+      try {
+        const scripts: ScriptsConfig = JSON.parse(entry.scripts)
+        await executeContainerScriptList(scripts, collectionId, workspaceId, stack, entry.name)
+      } catch { /* ignore parse errors */ }
+    }
+  }
+}
+
+async function executeContainerScriptList(
+  scripts: ScriptsConfig,
+  collectionId: string,
+  workspaceId: string | undefined,
+  stack: string[],
+  ownerName: string,
+): Promise<void> {
+  if (!scripts.pre_request) return
+
+  const preScripts = Array.isArray(scripts.pre_request) ? scripts.pre_request : [scripts.pre_request]
+  let lastResponse: ResponseData | null = null
+
+  for (const script of preScripts) {
+    if (script.action !== 'send_request' || !script.request_id) continue
+
+    // Check skip_if_valid — skip if token is still fresh
+    if (shouldSkipPreRequest(script, collectionId, workspaceId)) {
+      const tokenVar = script.skip_if_valid!.token_variable
+      logScript('pre', ownerName, `Token "{{${tokenVar}}}" still valid, skipping dependent request`)
+      continue
+    }
+
+    const depName = requestsRepo.findById(script.request_id)?.name ?? script.request_id
+    logScript('pre', ownerName, `Firing dependent request: ${depName}`)
+    lastResponse = await executeDependentRequest(script.request_id, collectionId, workspaceId, stack)
+    logScript('pre', ownerName, 'Dependent request completed')
+  }
+
+  // Run container-level post-response scripts using the last dependent response
+  if (scripts.post_response && lastResponse) {
+    executeContainerPostResponseScripts(scripts.post_response, collectionId, lastResponse, ownerName, workspaceId)
+  }
+}
+
+/**
+ * Execute container-level post-response scripts (collection/folder).
+ * Same as request-level but uses the container as the context name.
+ */
+function executeContainerPostResponseScripts(
+  postScripts: PostResponseScript[],
+  collectionId: string,
+  response: ResponseData,
+  ownerName: string,
+  workspaceId?: string,
+): void {
+  for (const script of postScripts) {
+    if (!script.source || !script.target) continue
+    if (script.action !== 'set_variable' && script.action !== 'set_token_expiry') continue
+
+    const rawValue = extractValue(script.source, response.status, response.body, response.headers)
+    const value = rawValue !== null ? rawValue.replace(/\{\{[\w\-.]+\}\}/g, '') : null
+    logScript('post', ownerName, `Extract "${script.source}" → ${value !== null ? `"${value.slice(0, 50)}..."` : 'null'}, target: "${script.target}"`)
+    if (value !== null) {
+      let finalValue = value
+      if (script.action === 'set_token_expiry') {
+        const seconds = Number(value)
+        if (isNaN(seconds)) {
+          logScript('post', ownerName, `"${script.source}" is not a number (${value}), cannot compute expiry`, false)
+          continue
+        }
+        finalValue = String(Date.now() + seconds * 1000)
+        logScript('post', ownerName, `Converted expires_in=${seconds}s to absolute timestamp ${finalValue}`)
+      }
+      setCollectionVariable(collectionId, script.target, finalValue)
+      mirrorToActiveEnvironment(collectionId, script.target, finalValue, workspaceId)
+      logScript('post', ownerName, `Variable "${script.target}" set successfully`)
+    } else {
+      logScript('post', ownerName, `Failed to extract "${script.source}" from response`, false)
+    }
+  }
+}
+
+function shouldSkipPreRequest(
+  script: PreRequestScript,
+  collectionId: string,
+  workspaceId?: string,
+): boolean {
+  if (!script.skip_if_valid) return false
+  const vars = getResolvedVariables(workspaceId, collectionId)
+  const token = vars[script.skip_if_valid.token_variable]
+  const expiresAt = vars[script.skip_if_valid.expires_at_variable]
+  if (!token || !expiresAt) return false
+  const expiresAtMs = Number(expiresAt)
+  // 30-second safety margin (same as OAuth2 auto-refresh)
+  return !isNaN(expiresAtMs) && Date.now() < expiresAtMs - 30_000
+}
+
+/**
  * Execute post-response scripts — extract values and set collection variables.
  */
 export function executePostResponseScripts(
@@ -80,7 +211,8 @@ export function executePostResponseScripts(
   if (!scripts.post_response) return
 
   for (const script of scripts.post_response) {
-    if (script.action !== 'set_variable' || !script.source || !script.target) continue
+    if (!script.source || !script.target) continue
+    if (script.action !== 'set_variable' && script.action !== 'set_token_expiry') continue
 
     const rawValue = extractValue(script.source, response.status, response.body, response.headers)
     // Sanitize: strip {{...}} template patterns from server-controlled values
@@ -88,8 +220,18 @@ export function executePostResponseScripts(
     const value = rawValue !== null ? rawValue.replace(/\{\{[\w\-.]+\}\}/g, '') : null
     logScript('post', request.name, `Extract "${script.source}" → ${value !== null ? `"${value.slice(0, 50)}..."` : 'null'}, target: "${script.target}"`)
     if (value !== null) {
-      setCollectionVariable(collectionId, script.target, value)
-      mirrorToActiveEnvironment(collectionId, script.target, value, workspaceId)
+      let finalValue = value
+      if (script.action === 'set_token_expiry') {
+        const seconds = Number(value)
+        if (isNaN(seconds)) {
+          logScript('post', request.name, `"${script.source}" is not a number (${value}), cannot compute expiry`, false)
+          continue
+        }
+        finalValue = String(Date.now() + seconds * 1000)
+        logScript('post', request.name, `Converted expires_in=${seconds}s to absolute timestamp ${finalValue}`)
+      }
+      setCollectionVariable(collectionId, script.target, finalValue)
+      mirrorToActiveEnvironment(collectionId, script.target, finalValue, workspaceId)
       logScript('post', request.name, `Variable "${script.target}" set successfully`)
     } else {
       logScript('post', request.name, `Failed to extract "${script.source}" from response`, false)
@@ -105,7 +247,7 @@ async function executeDependentRequest(
   collectionId: string,
   workspaceId: string | undefined,
   stack: string[],
-): Promise<void> {
+): Promise<ResponseData> {
   if (stack.includes(requestId)) {
     throw new Error('Circular dependency detected in request scripts')
   }
@@ -128,6 +270,7 @@ async function executeDependentRequest(
 
     // Run post-response scripts
     executePostResponseScripts(requestId, collectionId, response, workspaceId)
+    return response
   } finally {
     stack.pop()
   }

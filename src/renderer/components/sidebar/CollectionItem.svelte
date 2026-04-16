@@ -4,7 +4,6 @@
   import { dragStore } from '../../lib/stores/drag.svelte'
   import ContextMenu from '../shared/ContextMenu.svelte'
   import DeleteSyncedModal from '../modals/DeleteSyncedModal.svelte'
-  import EnvironmentAssociationModal from '../modals/EnvironmentAssociationModal.svelte'
   import SensitiveDataModal from '../modals/SensitiveDataModal.svelte'
   import CollectionRunnerModal from '../modals/CollectionRunnerModal.svelte'
   import FolderItem from './FolderItem.svelte'
@@ -18,7 +17,6 @@
   let { node, onrequestclick }: Props = $props()
 
   let showDeleteSyncedModal = $state(false)
-  let showEnvModal = $state(false)
   let sensitiveFindings = $state<{ source: string; requestName: string | null; requestId: string | null; field: string; key: string; maskedValue: string }[]>([])
   let showSensitiveModal = $state(false)
   let showRunnerModal = $state(false)
@@ -236,7 +234,7 @@
     { label: 'Run Collection', action: () => { showRunnerModal = true }, icon: 'M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.347a1.125 1.125 0 0 1 0 1.972l-11.54 6.347a1.125 1.125 0 0 1-1.667-.986V5.653Z' },
     { label: 'Rename', action: startRename, icon: 'm16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Z' },
     { label: '', action: () => {}, separator: true },
-    { label: 'Set Environments', action: () => { showEnvModal = true }, icon: 'M4.745 3A23.933 23.933 0 003 12c0 3.183.62 6.22 1.745 9M19.255 3C20.38 5.78 21 8.817 21 12s-.62 6.22-1.745 9m-13.51 0A23.933 23.933 0 0012 21c2.478 0 4.852-.474 7.022-1.332M12 3a23.918 23.918 0 01-5.745 9A23.918 23.918 0 0112 21m0-18a23.918 23.918 0 005.745 9A23.918 23.918 0 0012 21M12 3v18M3 12h18' },
+    { label: 'Settings', action: () => { appStore.openCollectionEditorTab({ id: node.id, name: node.name }) }, icon: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.573-1.066z M15 12a3 3 0 11-6 0 3 3 0 016 0z' },
     { label: syncEnabled ? 'Disable Sync' : 'Enable Sync', action: toggleSync, icon: 'M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182M21.015 4.356v4.992' },
     ...(syncEnabled ? [
       { label: '', action: () => {}, separator: true },
@@ -327,9 +325,6 @@
   <ContextMenu x={contextMenu.x} y={contextMenu.y} items={contextMenuItems} onclose={() => contextMenu = null} />
 {/if}
 
-{#if showEnvModal}
-  <EnvironmentAssociationModal targetId={node.id} targetType="collection" onclose={() => { showEnvModal = false }} />
-{/if}
 
 {#if showDeleteSyncedModal}
   <DeleteSyncedModal

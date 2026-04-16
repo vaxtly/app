@@ -23,6 +23,8 @@ export interface Collection {
   sync_enabled: number // 0 | 1
   environment_ids: string | null // JSON string: string[]
   default_environment_id: string | null
+  auth: string | null // JSON string: AuthConfig
+  scripts: string | null // JSON string: ScriptsConfig
   file_shas: string | null // JSON string: Record<string, FileState>
   created_at: string
   updated_at: string
@@ -42,6 +44,8 @@ export interface Folder {
   order: number
   environment_ids: string | null // JSON string: string[]
   default_environment_id: string | null
+  auth: string | null // JSON string: AuthConfig
+  scripts: string | null // JSON string: ScriptsConfig
   created_at: string
   updated_at: string
 }
@@ -101,7 +105,7 @@ export interface KeyValueEntry {
 }
 
 export interface AuthConfig {
-  type: 'none' | 'bearer' | 'basic' | 'api-key' | 'oauth2'
+  type: 'inherit' | 'none' | 'bearer' | 'basic' | 'api-key' | 'oauth2'
   bearer_token?: string
   basic_username?: string
   basic_password?: string
@@ -165,11 +169,15 @@ export interface AssertionResult {
 export interface PreRequestScript {
   action: 'send_request'
   request_id: string
+  skip_if_valid?: {
+    token_variable: string      // e.g., 'api_token' — skip if this var is set
+    expires_at_variable: string // e.g., 'api_token_expires_at' — skip if not expired (Unix ms)
+  }
 }
 
 export interface PostResponseScript {
-  action: 'set_variable'
-  source: string // e.g., 'body.data.token', 'header.X-Auth', 'status'
+  action: 'set_variable' | 'set_token_expiry'
+  source: string // e.g., 'body.data.token', 'header.X-Auth', 'status', 'body.expires_in'
   target: string // variable key name
 }
 

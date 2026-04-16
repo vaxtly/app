@@ -25,6 +25,7 @@ import type { FileContent } from '../../shared/types/sync'
 import {
   sanitizeRequestData,
   sanitizeCollectionData,
+  sanitizeFolderData,
 } from './sensitive-data-scanner'
 
 const COLLECTION_FILE = '_collection.yaml'
@@ -112,6 +113,16 @@ export function serializeToDirectory(
     default_environment_id: collection.default_environment_id,
   }
 
+  try {
+    const collectionAuth = collection.auth ? JSON.parse(collection.auth) : null
+    if (collectionAuth) collectionData.auth = collectionAuth
+  } catch { /* skip malformed auth JSON */ }
+
+  try {
+    const collectionScripts = collection.scripts ? JSON.parse(collection.scripts) : null
+    if (collectionScripts) collectionData.scripts = collectionScripts
+  } catch { /* skip malformed scripts JSON */ }
+
   const hints = buildEnvironmentHints(environmentIds)
   if (Object.keys(hints).length > 0) {
     collectionData.environment_hints = hints
@@ -174,6 +185,20 @@ function serializeFolderRecursive(
     if (Object.keys(folderHints).length > 0) {
       folderMeta.environment_hints = folderHints
     }
+  }
+
+  try {
+    const folderAuth = folder.auth ? JSON.parse(folder.auth) : null
+    if (folderAuth) folderMeta.auth = folderAuth
+  } catch { /* skip malformed auth JSON */ }
+
+  try {
+    const folderScripts = folder.scripts ? JSON.parse(folder.scripts) : null
+    if (folderScripts) folderMeta.scripts = folderScripts
+  } catch { /* skip malformed scripts JSON */ }
+
+  if (options.sanitize) {
+    sanitizeFolderData(folderMeta)
   }
 
   files[`${folderPath}/${FOLDER_FILE}`] = toYaml(folderMeta)
@@ -308,6 +333,7 @@ export function importFromDirectory(
         UPDATE collections SET
           name = ?, description = ?, variables = ?,
           environment_ids = ?, default_environment_id = ?,
+          auth = ?, scripts = ?,
           updated_at = ?
         WHERE id = ?
       `).run(
@@ -316,6 +342,8 @@ export function importFromDirectory(
         JSON.stringify(collectionData.variables ?? []),
         environmentFields.environment_ids ? JSON.stringify(environmentFields.environment_ids) : null,
         environmentFields.default_environment_id,
+        collectionData.auth ? JSON.stringify(collectionData.auth) : null,
+        collectionData.scripts ? JSON.stringify(collectionData.scripts) : null,
         now,
         existingCollectionId,
       )
@@ -328,8 +356,8 @@ export function importFromDirectory(
       const maxOrder = (db.prepare('SELECT COALESCE(MAX("order"), 0) as max_order FROM collections').get() as { max_order: number }).max_order
 
       db.prepare(`
-        INSERT INTO collections (id, workspace_id, name, description, variables, environment_ids, default_environment_id, "order", sync_enabled, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
+        INSERT INTO collections (id, workspace_id, name, description, variables, environment_ids, default_environment_id, auth, scripts, "order", sync_enabled, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
       `).run(
         collectionData.id as string,
         workspaceId ?? null,
@@ -338,6 +366,8 @@ export function importFromDirectory(
         JSON.stringify(collectionData.variables ?? []),
         environmentFields.environment_ids ? JSON.stringify(environmentFields.environment_ids) : null,
         environmentFields.default_environment_id,
+        collectionData.auth ? JSON.stringify(collectionData.auth) : null,
+        collectionData.scripts ? JSON.stringify(collectionData.scripts) : null,
         maxOrder + 1,
         now,
         now,
@@ -397,8 +427,8 @@ function importFolderRecursive(
   const db = getDatabase()
 
   db.prepare(`
-    INSERT INTO folders (id, collection_id, parent_id, name, "order", environment_ids, default_environment_id, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO folders (id, collection_id, parent_id, name, "order", environment_ids, default_environment_id, auth, scripts, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     folderData.id as string,
     collectionId,
@@ -407,6 +437,8 @@ function importFolderRecursive(
     order,
     folderEnvFields.environment_ids ? JSON.stringify(folderEnvFields.environment_ids) : null,
     folderEnvFields.default_environment_id,
+    folderData.auth ? JSON.stringify(folderData.auth) : null,
+    folderData.scripts ? JSON.stringify(folderData.scripts) : null,
     now,
     now,
   )

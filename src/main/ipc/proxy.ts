@@ -5,7 +5,7 @@ import { fetch as undiciFetch, FormData as UndiciFormData } from 'undici'
 import { IPC } from '../../shared/types/ipc'
 import type { RequestConfig, ResponseData, FormDataEntry, ResponseCookie, SSEEvent, SSEStreamStart, SSEChunk, SSEStreamEnd } from '../../shared/types/http'
 import { substitute, substituteWith, getResolvedVariables } from '../services/variable-substitution'
-import { executePreRequestScripts, executePostResponseScripts } from '../services/script-execution'
+import { executePreRequestScripts, executeContainerPreRequestScripts, executePostResponseScripts } from '../services/script-execution'
 import { logHttp } from '../services/session-log'
 import { formatFetchError } from '../services/fetch-error'
 import { DEFAULTS } from '../../shared/constants'
@@ -57,6 +57,15 @@ export function registerProxyHandlers(): void {
     // Execute pre-request scripts BEFORE variable substitution
     // so dependent requests can set variables (e.g. auth tokens) that this request uses
     if (config.collectionId) {
+      // 1. Collection/folder-level scripts (smart token fetching with skip_if_valid)
+      try {
+        const req = requestsRepo.findById(requestId)
+        await executeContainerPreRequestScripts(config.collectionId, req?.folder_id ?? null, config.workspaceId)
+      } catch (error) {
+        logHttp('pre-script', config.url, `Container pre-script failed: ${error instanceof Error ? error.message : String(error)}`, false)
+      }
+
+      // 2. Request-level scripts
       try {
         await executePreRequestScripts(requestId, config.collectionId, config.workspaceId)
       } catch (error) {

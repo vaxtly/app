@@ -6,6 +6,7 @@
   import EnvironmentEditor from './components/environment/EnvironmentEditor.svelte'
   import McpInspector from './components/mcp/McpInspector.svelte'
   import WsInspector from './components/websocket/WsInspector.svelte'
+  import ContainerEditor from './components/container/ContainerEditor.svelte'
   import SystemLog from './components/layout/SystemLog.svelte'
   import SettingsModal from './components/settings/SettingsModal.svelte'
   import WelcomeGuide from './components/modals/WelcomeGuide.svelte'
@@ -324,6 +325,18 @@
           if (req) {
             appStore.openWebSocketTab(req)
             if (saved.pinned) appStore.togglePinTab(`tab-ws-${saved.entityId}`)
+          }
+        } else if (saved.type === 'collection') {
+          const col = collectionsStore.getCollectionById(saved.entityId)
+          if (col) {
+            appStore.openCollectionEditorTab({ id: col.id, name: col.name })
+            if (saved.pinned) appStore.togglePinTab(`tab-col-${saved.entityId}`)
+          }
+        } else if (saved.type === 'folder') {
+          const folder = collectionsStore.getFolderById(saved.entityId)
+          if (folder) {
+            appStore.openFolderEditorTab({ id: folder.id, name: folder.name })
+            if (saved.pinned) appStore.togglePinTab(`tab-fld-${saved.entityId}`)
           }
         }
       }
@@ -673,6 +686,18 @@
               <WsInspector
                 tabId={appStore.activeTab.id}
                 connectionId={appStore.activeTab.entityId}
+              />
+            {:else if appStore.activeTab.type === 'collection'}
+              <ContainerEditor
+                tabId={appStore.activeTab.id}
+                entityId={appStore.activeTab.entityId}
+                entityType="collection"
+              />
+            {:else if appStore.activeTab.type === 'folder'}
+              <ContainerEditor
+                tabId={appStore.activeTab.id}
+                entityId={appStore.activeTab.entityId}
+                entityType="folder"
               />
             {/if}
           {/key}

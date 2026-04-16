@@ -55,14 +55,16 @@ export function create(data: {
   method?: string
   url?: string
   body_type?: string
+  auth?: string
 }): Request {
   const db = getDatabase()
   const id = uuid()
   const now = new Date().toISOString()
+  const auth = encryptAuth(data.auth ?? JSON.stringify({ type: 'inherit' }))
 
   db.prepare(`
-    INSERT INTO requests (id, collection_id, folder_id, name, url, method, body_type, "order", created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?,
+    INSERT INTO requests (id, collection_id, folder_id, name, url, method, body_type, auth, "order", created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?,
       (SELECT COALESCE(MAX("order"), 0) + 1 FROM requests
        WHERE collection_id = ? AND folder_id IS ?),
       ?, ?)
@@ -74,6 +76,7 @@ export function create(data: {
     data.url ?? '',
     data.method ?? 'GET',
     data.body_type ?? 'json',
+    auth,
     data.collection_id,
     data.folder_id ?? null,
     now,

@@ -29,6 +29,8 @@ interface CollectionExport {
   description: string | null
   order: number
   variables: unknown
+  auth?: string | null
+  scripts?: string | null
   folders: FolderExport[]
   requests: RequestExport[]
 }
@@ -38,6 +40,8 @@ interface FolderExport {
   order: number
   environment_ids?: string | null
   default_environment_id?: string | null
+  auth?: string | null
+  scripts?: string | null
   children: FolderExport[]
   requests: RequestExport[]
 }
@@ -113,6 +117,8 @@ export function exportSingleCollection(collectionId: string): ExportWrapper {
     description: collection.description,
     order: collection.order,
     variables: collection.variables ? safeJsonParse(collection.variables, []) : [],
+    auth: collection.auth,
+    scripts: collection.scripts,
     folders: buildFoldersTree(collection.id, folders, null),
     requests: buildRequestsData(rootRequests),
   }
@@ -229,12 +235,24 @@ function importCollections(
           description: collData.description ?? undefined,
         })
 
+        const collUpdateData: Record<string, unknown> = {}
         if (collData.variables) {
-          collectionsRepo.update(collection.id, {
-            variables: typeof collData.variables === 'string'
-              ? collData.variables
-              : JSON.stringify(collData.variables),
-          })
+          collUpdateData.variables = typeof collData.variables === 'string'
+            ? collData.variables
+            : JSON.stringify(collData.variables)
+        }
+        if (collData.auth) {
+          collUpdateData.auth = typeof collData.auth === 'string'
+            ? collData.auth
+            : JSON.stringify(collData.auth)
+        }
+        if (collData.scripts) {
+          collUpdateData.scripts = typeof collData.scripts === 'string'
+            ? collData.scripts
+            : JSON.stringify(collData.scripts)
+        }
+        if (Object.keys(collUpdateData).length > 0) {
+          collectionsRepo.update(collection.id, collUpdateData)
         }
 
         importFolders(collData.folders ?? [], collection.id, null)
@@ -260,10 +278,16 @@ function importFolders(folders: FolderExport[], collectionId: string, parentId: 
       parent_id: parentId ?? undefined,
     })
 
-    if (folderData.environment_ids || folderData.default_environment_id) {
+    if (folderData.environment_ids || folderData.default_environment_id || folderData.auth || folderData.scripts) {
       foldersRepo.update(folder.id, {
         environment_ids: folderData.environment_ids ?? undefined,
         default_environment_id: folderData.default_environment_id ?? undefined,
+        auth: folderData.auth
+          ? (typeof folderData.auth === 'string' ? folderData.auth : JSON.stringify(folderData.auth))
+          : undefined,
+        scripts: folderData.scripts
+          ? (typeof folderData.scripts === 'string' ? folderData.scripts : JSON.stringify(folderData.scripts))
+          : undefined,
       })
     }
 
@@ -438,6 +462,7 @@ function buildCollectionsData(workspaceId?: string): CollectionExport[] {
       description: collection.description,
       order: collection.order,
       variables: collection.variables ? safeJsonParse(collection.variables, []) : [],
+      auth: collection.auth,
       folders: buildFoldersTree(collection.id, folders, null),
       requests: buildRequestsData(rootRequests),
     }
@@ -461,6 +486,12 @@ function buildFoldersTree(collectionId: string, allFolders: Folder[], parentId: 
     if (folder.environment_ids) {
       data.environment_ids = folder.environment_ids
       data.default_environment_id = folder.default_environment_id
+    }
+    if (folder.auth) {
+      data.auth = folder.auth
+    }
+    if (folder.scripts) {
+      data.scripts = folder.scripts
     }
 
     return data

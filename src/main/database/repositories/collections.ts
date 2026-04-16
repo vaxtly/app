@@ -1,6 +1,52 @@
 import { v4 as uuid } from 'uuid'
 import { getDatabase } from '../connection'
-import type { Collection } from '../../../shared/types/models'
+import { encryptValue, decryptValue } from '../../services/encryption'
+import type { Collection, AuthConfig } from '../../../shared/types/models'
+
+const ENC_PREFIX = 'enc:'
+
+const AUTH_SENSITIVE_FIELDS: (keyof AuthConfig)[] = [
+  'bearer_token',
+  'basic_username',
+  'basic_password',
+  'api_key_value',
+  'oauth2_client_secret',
+  'oauth2_password',
+  'oauth2_access_token',
+  'oauth2_refresh_token',
+]
+
+function encryptAuth(json: string | null): string | null {
+  if (!json) return json
+  const auth: AuthConfig = JSON.parse(json)
+  for (const field of AUTH_SENSITIVE_FIELDS) {
+    const val = auth[field]
+    if (typeof val === 'string' && val && !val.startsWith(ENC_PREFIX)) {
+      ;(auth as Record<string, string>)[field] = ENC_PREFIX + encryptValue(val)
+    }
+  }
+  return JSON.stringify(auth)
+}
+
+function decryptAuth(json: string | null): string | null {
+  if (!json) return json
+  const auth: AuthConfig = JSON.parse(json)
+  for (const field of AUTH_SENSITIVE_FIELDS) {
+    const val = auth[field]
+    if (typeof val === 'string' && val.startsWith(ENC_PREFIX)) {
+      try {
+        ;(auth as Record<string, string>)[field] = decryptValue(val.slice(ENC_PREFIX.length))
+      } catch {
+        // corrupted — leave as-is
+      }
+    }
+  }
+  return JSON.stringify(auth)
+}
+
+function decryptCollection(col: Collection): Collection {
+  return { ...col, auth: decryptAuth(col.auth) }
+}
 
 export function create(data: { name: string; workspace_id?: string; description?: string }): Collection {
   const db = getDatabase()
@@ -21,26 +67,31 @@ export function create(data: { name: string; workspace_id?: string; description?
 
 export function findById(id: string): Collection | undefined {
   const db = getDatabase()
-  return db.prepare('SELECT * FROM collections WHERE id = ?').get(id) as Collection | undefined
+  const row = db.prepare('SELECT * FROM collections WHERE id = ?').get(id) as Collection | undefined
+  return row ? decryptCollection(row) : undefined
 }
 
 export function findByWorkspace(workspaceId: string | null): Collection[] {
   const db = getDatabase()
   if (workspaceId) {
-    return db.prepare('SELECT * FROM collections WHERE workspace_id = ? ORDER BY "order" ASC').all(workspaceId) as Collection[]
+    return (db.prepare('SELECT * FROM collections WHERE workspace_id = ? ORDER BY "order" ASC').all(workspaceId) as Collection[]).map(decryptCollection)
   }
-  return db.prepare('SELECT * FROM collections WHERE workspace_id IS NULL ORDER BY "order" ASC').all() as Collection[]
+  return (db.prepare('SELECT * FROM collections WHERE workspace_id IS NULL ORDER BY "order" ASC').all() as Collection[]).map(decryptCollection)
 }
 
 export function findAll(): Collection[] {
   const db = getDatabase()
-  return db.prepare('SELECT * FROM collections ORDER BY "order" ASC').all() as Collection[]
+  return (db.prepare('SELECT * FROM collections ORDER BY "order" ASC').all() as Collection[]).map(decryptCollection)
 }
 
 export function update(id: string, data: Partial<Omit<Collection, 'id' | 'created_at'>>): Collection | undefined {
   const db = getDatabase()
   const existing = findById(id)
   if (!existing) return undefined
+
+  const auth = data.auth !== undefined
+    ? encryptAuth(data.auth)
+    : encryptAuth(existing.auth)
 
   db.prepare(`
     UPDATE collections SET
@@ -55,6 +106,8 @@ export function update(id: string, data: Partial<Omit<Collection, 'id' | 'create
       sync_enabled = ?,
       environment_ids = ?,
       default_environment_id = ?,
+      auth = ?,
+      scripts = ?,
       file_shas = ?,
       updated_at = ?
     WHERE id = ?
@@ -70,6 +123,8 @@ export function update(id: string, data: Partial<Omit<Collection, 'id' | 'create
     data.sync_enabled ?? existing.sync_enabled,
     data.environment_ids ?? existing.environment_ids,
     data.default_environment_id ?? existing.default_environment_id,
+    auth,
+    data.scripts ?? existing.scripts,
     data.file_shas ?? existing.file_shas,
     new Date().toISOString(),
     id
@@ -101,9 +156,9 @@ export function reorder(ids: string[]): void {
 export function findSyncEnabled(workspaceId?: string): Collection[] {
   const db = getDatabase()
   if (workspaceId) {
-    return db.prepare('SELECT * FROM collections WHERE sync_enabled = 1 AND workspace_id = ? ORDER BY "order" ASC').all(workspaceId) as Collection[]
+    return (db.prepare('SELECT * FROM collections WHERE sync_enabled = 1 AND workspace_id = ? ORDER BY "order" ASC').all(workspaceId) as Collection[]).map(decryptCollection)
   }
-  return db.prepare('SELECT * FROM collections WHERE sync_enabled = 1 AND workspace_id IS NULL ORDER BY "order" ASC').all() as Collection[]
+  return (db.prepare('SELECT * FROM collections WHERE sync_enabled = 1 AND workspace_id IS NULL ORDER BY "order" ASC').all() as Collection[]).map(decryptCollection)
 }
 
 export function unlinkSync(id: string): void {

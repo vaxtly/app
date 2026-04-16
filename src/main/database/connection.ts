@@ -12,11 +12,13 @@ import m002 from './migrations/002_mcp_servers'
 import m003 from './migrations/003_mcp_sync_fields'
 import m004 from './migrations/004_websocket'
 import m005 from './migrations/005_indexes_and_constraints'
+import m006 from './migrations/006_collection_folder_auth'
+import m007 from './migrations/007_collection_folder_scripts'
 
 let db: Database.Database | null = null
 
 // Static migration registry. Add new migrations here.
-const ALL_MIGRATIONS: MigrationFile[] = [m001, m002, m003, m004, m005]
+const ALL_MIGRATIONS: MigrationFile[] = [m001, m002, m003, m004, m005, m006, m007]
 
 /**
  * Open or create the database. Runs all pending migrations.

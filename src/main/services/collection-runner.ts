@@ -7,7 +7,7 @@ import { v4 as uuid } from 'uuid'
 import * as collectionsRepo from '../database/repositories/collections'
 import * as foldersRepo from '../database/repositories/folders'
 import * as requestsRepo from '../database/repositories/requests'
-import { executePreRequestScripts, executePostResponseScripts, executeHttpRequest } from './script-execution'
+import { executePreRequestScripts, executeContainerPreRequestScripts, executePostResponseScripts, executeHttpRequest } from './script-execution'
 import { evaluateAssertions } from './assertion-evaluator'
 import type { Request, Folder, ScriptsConfig, Assertion } from '../../shared/types/models'
 import type { RequestRunResult, CollectionRunResult, RunnerStartedEvent, RunnerProgressEvent } from '../../shared/types/runner'
@@ -179,7 +179,10 @@ async function executeRequest(
   const startTime = performance.now()
 
   try {
-    // Pre-request scripts
+    // Container pre-request scripts (collection/folder level)
+    await executeContainerPreRequestScripts(collectionId, request.folder_id ?? null, workspaceId)
+
+    // Request pre-request scripts
     await executePreRequestScripts(request.id, collectionId, workspaceId)
 
     // Execute the HTTP request

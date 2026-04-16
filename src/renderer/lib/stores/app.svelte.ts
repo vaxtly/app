@@ -3,11 +3,11 @@
  * Uses Svelte 5 runes for fine-grained reactivity.
  */
 
-import type { Request, ResponseData, Workspace, SSEEvent, McpToolCallResult, McpResourceReadResult, McpPromptGetResult, GqlSubscriptionEvent, GqlSubscriptionStatus } from '../../lib/types'
+import type { Request, ResponseData, Workspace, SSEEvent, McpToolCallResult, McpResourceReadResult, McpPromptGetResult, GqlSubscriptionEvent, GqlSubscriptionStatus, AuthConfig, ScriptsConfig } from '../../lib/types'
 
 // --- Types ---
 
-export type TabType = 'request' | 'environment' | 'mcp' | 'websocket'
+export type TabType = 'request' | 'environment' | 'mcp' | 'websocket' | 'collection' | 'folder'
 
 export interface Tab {
   id: string
@@ -84,6 +84,17 @@ export interface TabWebSocketState {
   composerType: 'text' | 'json'
 }
 
+export interface TabContainerEditorState {
+  auth: AuthConfig
+  environmentIds: string[]
+  defaultEnvironmentId: string | null
+  variables?: Array<{ key: string; value: string }>  // collection only
+  scripts: ScriptsConfig
+  activeSubTab: string
+  isDirty: boolean
+  initialized: boolean
+}
+
 type SidebarMode = 'collections' | 'environments' | 'mcp'
 
 // --- State ---
@@ -109,6 +120,9 @@ let mcpTabStates = $state<Record<string, TabMcpState>>({})
 
 // Per-tab WebSocket state cache
 let wsTabStates = $state<Record<string, TabWebSocketState>>({})
+
+// Per-tab container (collection/folder) editor state cache
+let containerEditorTabStates = $state<Record<string, TabContainerEditorState>>({})
 
 // --- Derived ---
 
@@ -205,7 +219,7 @@ function openDraftTab(): void {
     query_params: null,
     body: null,
     body_type: 'none',
-    auth: null,
+    auth: JSON.stringify({ type: 'inherit' }),
     scripts: null,
     response: null,
     loading: false,
@@ -253,6 +267,7 @@ function closeTab(tabId: string): void {
   delete envTabStates[tabId]
   delete mcpTabStates[tabId]
   delete wsTabStates[tabId]
+  delete containerEditorTabStates[tabId]
 
   if (activeTabId === tabId) {
     // Activate the nearest tab
@@ -273,6 +288,7 @@ function closeOtherTabs(keepTabId: string): void {
     delete envTabStates[t.id]
     delete mcpTabStates[t.id]
     delete wsTabStates[t.id]
+    delete containerEditorTabStates[t.id]
   }
   openTabs = keep
   if (!openTabs.find((t) => t.id === activeTabId)) {
@@ -287,6 +303,7 @@ function closeAllTabs(): void {
     delete envTabStates[t.id]
     delete mcpTabStates[t.id]
     delete wsTabStates[t.id]
+    delete containerEditorTabStates[t.id]
   }
   openTabs = openTabs.filter((t) => t.pinned)
   if (openTabs.length > 0) {
@@ -518,6 +535,85 @@ function markWsTabSaved(tabId: string): void {
   openTabs = openTabs.map((t) => (t.id === tabId ? { ...t, isUnsaved: false } : t))
 }
 
+function openCollectionEditorTab(col: { id: string; name: string }): void {
+  const existing = openTabs.find((t) => t.type === 'collection' && t.entityId === col.id)
+  if (existing) {
+    activeTabId = existing.id
+    return
+  }
+
+  const tab: Tab = {
+    id: `tab-col-${col.id}`,
+    type: 'collection',
+    entityId: col.id,
+    label: col.name,
+    pinned: false,
+    isUnsaved: false,
+    isDraft: false,
+  }
+
+  openTabs = [...openTabs, tab]
+  activeTabId = tab.id
+
+  containerEditorTabStates[tab.id] = {
+    auth: { type: 'none' },
+    environmentIds: [],
+    defaultEnvironmentId: null,
+    variables: [],
+    scripts: {},
+    activeSubTab: 'auth',
+    isDirty: false,
+    initialized: false,
+  }
+}
+
+function openFolderEditorTab(folder: { id: string; name: string }): void {
+  const existing = openTabs.find((t) => t.type === 'folder' && t.entityId === folder.id)
+  if (existing) {
+    activeTabId = existing.id
+    return
+  }
+
+  const tab: Tab = {
+    id: `tab-fld-${folder.id}`,
+    type: 'folder',
+    entityId: folder.id,
+    label: folder.name,
+    pinned: false,
+    isUnsaved: false,
+    isDraft: false,
+  }
+
+  openTabs = [...openTabs, tab]
+  activeTabId = tab.id
+
+  containerEditorTabStates[tab.id] = {
+    auth: { type: 'none' },
+    environmentIds: [],
+    defaultEnvironmentId: null,
+    scripts: {},
+    activeSubTab: 'auth',
+    isDirty: false,
+    initialized: false,
+  }
+}
+
+function getContainerEditorTabState(tabId: string): TabContainerEditorState | undefined {
+  return containerEditorTabStates[tabId]
+}
+
+function updateContainerEditorTabState(tabId: string, partial: Partial<TabContainerEditorState>): void {
+  const current = containerEditorTabStates[tabId]
+  if (!current) return
+  containerEditorTabStates[tabId] = { ...current, ...partial }
+
+  if ('isDirty' in partial) {
+    openTabs = openTabs.map((t) =>
+      t.id === tabId ? { ...t, isUnsaved: partial.isDirty ?? t.isUnsaved } : t
+    )
+  }
+}
+
 // --- Export reactive getters + actions ---
 
 export const appStore = {
@@ -569,4 +665,8 @@ export const appStore = {
   getWsTabState,
   updateWsTabState,
   markWsTabSaved,
+  openCollectionEditorTab,
+  openFolderEditorTab,
+  getContainerEditorTabState,
+  updateContainerEditorTabState,
 }
