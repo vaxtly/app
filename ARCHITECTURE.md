@@ -52,7 +52,8 @@ vaxtly/
 │   │   │   │   ├── 003_mcp_sync_fields.ts
 │   │   │   │   ├── 004_websocket.ts       # websocket_messages table
 │   │   │   │   ├── 005_indexes_and_constraints.ts # updated_at indexes, vault-synced CHECK constraint
-│   │   │   │   └── 006_collection_folder_auth.ts # auth column on collections + folders
+│   │   │   │   ├── 006_collection_folder_auth.ts # auth column on collections + folders
+│   │   │   │   └── 007_collection_folder_scripts.ts # scripts column on collections + folders
 │   │   │   └── repositories/
 │   │   │       ├── workspaces.ts
 │   │   │       ├── collections.ts
@@ -180,10 +181,10 @@ vaxtly/
 │           │   ├── HeadersEditor.svelte  # Headers editor (generated + user headers via KeyValueEditor)
 │           │   ├── BodyEditor.svelte     # 7 body types: none/json/xml/form-data/urlencoded/raw/graphql
 │           │   ├── AuthEditor.svelte     # 6 auth types: inherit/none/bearer/basic/api-key/oauth2 (showInherit prop controls inherit visibility)
-│           │   ├── ScriptsEditor.svelte  # Pre-request + post-response script config
+│           │   ├── ScriptsEditor.svelte  # Pre-request + post-response script config (skip_if_valid toggle, set_token_expiry action)
 │           │   └── TestsEditor.svelte    # Response assertions editor (status/header/json_path/response_time)
 │           ├── container/
-│           │   └── ContainerEditor.svelte # Collection/folder settings tab: Auth + Environments + Variables (collection only). Saves via IPC update.
+│           │   └── ContainerEditor.svelte # Collection/folder settings tab: Auth + Environments + Scripts + Variables (collection only). Saves via IPC update.
 │           ├── environment/
 │           │   └── EnvironmentEditor.svelte # Name, active toggle, variables, Save button, vault sync (toggle clears variables in both directions)
 │           ├── response/
@@ -333,6 +334,7 @@ folders 1──N requests (ON DELETE SET NULL)
 | environment_ids | TEXT | NULL | JSON `string[]` — associated envs |
 | default_environment_id | TEXT | NULL | |
 | auth | TEXT | NULL | JSON `AuthConfig` — collection-level auth for inheritance. Sensitive fields encrypted with `enc:` prefix |
+| scripts | TEXT | NULL | JSON `ScriptsConfig` — collection-level pre/post scripts with smart token caching |
 | file_shas | TEXT | NULL | JSON `{path: {content_hash, remote_sha, commit_sha}}` |
 | created_at | TEXT | datetime('now') | |
 | updated_at | TEXT | datetime('now') | |
@@ -348,6 +350,7 @@ folders 1──N requests (ON DELETE SET NULL)
 | environment_ids | TEXT | NULL | JSON |
 | default_environment_id | TEXT | NULL | |
 | auth | TEXT | NULL | JSON `AuthConfig` — folder-level auth for inheritance. Sensitive fields encrypted with `enc:` prefix |
+| scripts | TEXT | NULL | JSON `ScriptsConfig` — folder-level pre/post scripts with smart token caching |
 | created_at | TEXT | datetime('now') | |
 | updated_at | TEXT | datetime('now') | |
 
@@ -598,9 +601,9 @@ Pattern: `ipcMain.handle('domain:action', handler)` in main, `ipcRenderer.invoke
 interface Workspace { id, name, description?, order, settings?, created_at, updated_at }
 interface Collection { id, workspace_id?, name, description?, order, variables?, remote_sha?,
     remote_synced_at?, is_dirty, sync_enabled, environment_ids?, default_environment_id?,
-    auth?, file_shas?, created_at, updated_at }
+    auth?, scripts?, file_shas?, created_at, updated_at }
 interface Folder { id, collection_id, parent_id?, name, order, environment_ids?,
-    default_environment_id?, auth?, created_at, updated_at }
+    default_environment_id?, auth?, scripts?, created_at, updated_at }
 interface Request { id, collection_id, folder_id?, name, url, method, headers?, query_params?,
     body?, body_type, auth?, scripts?, order, created_at, updated_at }
 interface Environment { id, workspace_id?, name, variables (JSON string), is_active (0|1),
@@ -614,8 +617,9 @@ interface AuthConfig { type: 'inherit'|'none'|'bearer'|'basic'|'api-key'|'oauth2
     oauth2_client_id?, oauth2_client_secret?, oauth2_scope?, oauth2_username?,
     oauth2_password?, oauth2_redirect_url?, oauth2_pkce?, oauth2_audience?,
     oauth2_access_token?, oauth2_refresh_token?, oauth2_token_type?, oauth2_expires_at? }
-interface ScriptsConfig { pre_request?: ScriptAction[], post_response?: ScriptAction[], assertions?: Assertion[] }
-interface ScriptAction { action, request_id?, source?, target?, value? }
+interface ScriptsConfig { pre_request?: PreRequestScript | PreRequestScript[], post_response?: PostResponseScript[], assertions?: Assertion[] }
+interface PreRequestScript { action: 'send_request', request_id, skip_if_valid?: { token_variable, expires_at_variable } }
+interface PostResponseScript { action: 'set_variable' | 'set_token_expiry', source, target }
 interface EnvironmentVariable { key, value, enabled }
 type AssertionType = 'status' | 'header' | 'json_path' | 'response_time'
 type AssertionOperator = 'equals' | 'not_equals' | 'contains' | 'not_contains' | 'exists' | 'not_exists' | 'less_than' | 'greater_than' | 'matches_regex'
@@ -727,7 +731,7 @@ All stores use this pattern: module-level `$state` + `$derived` + exported objec
 - `TabWebSocketState { name, url, headers, protocols, composerMessage, composerType }`
 - `TabRequestState { name, method, url, headers, query_params, body, body_type, auth, scripts, response, loading, activeSubTab?, streaming?, sseEvents?, sseBody?, sseMetrics?, gqlSubStatus?, gqlSubEvents? }`
 - `TabEnvironmentState { name, variables, isDirty, initialized }`
-- `TabContainerEditorState { auth: AuthConfig, environmentIds: string[], defaultEnvironmentId, variables?, activeSubTab, isDirty, initialized }`
+- `TabContainerEditorState { auth: AuthConfig, environmentIds: string[], defaultEnvironmentId, variables?, scripts: ScriptsConfig, activeSubTab, isDirty, initialized }`
 
 **Actions**: `openRequestTab`, `openDraftTab`, `promoteDraft`, `openEnvironmentTab`, `openMcpTab`, `openWebSocketTab`, `openCollectionEditorTab`, `openFolderEditorTab`, `closeTab`, `closeOtherTabs`, `closeAllTabs`, `reorderTabs`, `togglePinTab`, `setActiveTab`, `nextTab`, `prevTab`, `toggleSidebar`, `getTabState`, `updateTabState`, `markTabSaved`, `updateTabLabel`, `getEnvTabState`, `updateEnvTabState`, `getMcpTabState`, `updateMcpTabState`, `getWsTabState`, `updateWsTabState`, `markWsTabSaved`, `getContainerEditorTabState`, `updateContainerEditorTabState`
 
@@ -883,8 +887,9 @@ Caches introspection results per URL in the renderer (LRU eviction at 20 entries
 - **Vault-synced environments**: when `vault_synced === 1`, reads variables from in-memory cache (`getCachedVariables`) instead of parsing the DB `variables` field (which is always `'[]'`)
 
 ### Script Execution (`services/script-execution.ts`)
-- **Pre-request**: `executePreRequestScripts(reqId, colId, wsId?)` — fires dependent requests before the main one
-- **Post-response**: `executePostResponseScripts(reqId, colId, response, wsId?)` — extracts values from response and sets collection variables
+- **Request-level pre-request**: `executePreRequestScripts(reqId, colId, wsId?)` — fires dependent requests before the main one
+- **Container-level pre-request**: `executeContainerPreRequestScripts(colId, folderId, wsId?)` — runs collection scripts first, then folder chain top-down. Supports `skip_if_valid` to skip token fetch when cached token is still valid (30s safety margin)
+- **Post-response**: `executePostResponseScripts(reqId, colId, response, wsId?)` — extracts values from response and sets collection variables. Supports `set_token_expiry` action that converts `expires_in` (seconds) to absolute timestamp
 - Circular dependency detection via per-chain execution stack (no shared global state)
 - Max chain depth: `DEFAULTS.MAX_SCRIPT_CHAIN_DEPTH` (3)
 - `extractValue(source, status, body, headers)` — supports `status`, `header.Name`, `body.key.nested[0].id`
