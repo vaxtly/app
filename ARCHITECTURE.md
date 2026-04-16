@@ -51,7 +51,8 @@ vaxtly/
 │   │   │   │   ├── 002_mcp_servers.ts
 │   │   │   │   ├── 003_mcp_sync_fields.ts
 │   │   │   │   ├── 004_websocket.ts       # websocket_messages table
-│   │   │   │   └── 005_indexes_and_constraints.ts # updated_at indexes, vault-synced CHECK constraint
+│   │   │   │   ├── 005_indexes_and_constraints.ts # updated_at indexes, vault-synced CHECK constraint
+│   │   │   │   └── 006_collection_folder_auth.ts # auth column on collections + folders
 │   │   │   └── repositories/
 │   │   │       ├── workspaces.ts
 │   │   │       ├── collections.ts
@@ -178,9 +179,11 @@ vaxtly/
 │           │   ├── ParamsEditor.svelte   # Query params ↔ URL sync
 │           │   ├── HeadersEditor.svelte  # Headers editor (generated + user headers via KeyValueEditor)
 │           │   ├── BodyEditor.svelte     # 7 body types: none/json/xml/form-data/urlencoded/raw/graphql
-│           │   ├── AuthEditor.svelte     # 5 auth types: none/bearer/basic/api-key/oauth2
+│           │   ├── AuthEditor.svelte     # 6 auth types: inherit/none/bearer/basic/api-key/oauth2 (showInherit prop controls inherit visibility)
 │           │   ├── ScriptsEditor.svelte  # Pre-request + post-response script config
 │           │   └── TestsEditor.svelte    # Response assertions editor (status/header/json_path/response_time)
+│           ├── container/
+│           │   └── ContainerEditor.svelte # Collection/folder settings tab: Auth + Environments + Variables (collection only). Saves via IPC update.
 │           ├── environment/
 │           │   └── EnvironmentEditor.svelte # Name, active toggle, variables, Save button, vault sync (toggle clears variables in both directions)
 │           ├── response/
@@ -329,6 +332,7 @@ folders 1──N requests (ON DELETE SET NULL)
 | sync_enabled | INTEGER | 0 | |
 | environment_ids | TEXT | NULL | JSON `string[]` — associated envs |
 | default_environment_id | TEXT | NULL | |
+| auth | TEXT | NULL | JSON `AuthConfig` — collection-level auth for inheritance. Sensitive fields encrypted with `enc:` prefix |
 | file_shas | TEXT | NULL | JSON `{path: {content_hash, remote_sha, commit_sha}}` |
 | created_at | TEXT | datetime('now') | |
 | updated_at | TEXT | datetime('now') | |
@@ -343,6 +347,7 @@ folders 1──N requests (ON DELETE SET NULL)
 | order | INTEGER | 0 | Scoped to (collection_id, parent_id) |
 | environment_ids | TEXT | NULL | JSON |
 | default_environment_id | TEXT | NULL | |
+| auth | TEXT | NULL | JSON `AuthConfig` — folder-level auth for inheritance. Sensitive fields encrypted with `enc:` prefix |
 | created_at | TEXT | datetime('now') | |
 | updated_at | TEXT | datetime('now') | |
 
@@ -593,9 +598,9 @@ Pattern: `ipcMain.handle('domain:action', handler)` in main, `ipcRenderer.invoke
 interface Workspace { id, name, description?, order, settings?, created_at, updated_at }
 interface Collection { id, workspace_id?, name, description?, order, variables?, remote_sha?,
     remote_synced_at?, is_dirty, sync_enabled, environment_ids?, default_environment_id?,
-    file_shas?, created_at, updated_at }
+    auth?, file_shas?, created_at, updated_at }
 interface Folder { id, collection_id, parent_id?, name, order, environment_ids?,
-    default_environment_id?, created_at, updated_at }
+    default_environment_id?, auth?, created_at, updated_at }
 interface Request { id, collection_id, folder_id?, name, url, method, headers?, query_params?,
     body?, body_type, auth?, scripts?, order, created_at, updated_at }
 interface Environment { id, workspace_id?, name, variables (JSON string), is_active (0|1),
@@ -603,7 +608,7 @@ interface Environment { id, workspace_id?, name, variables (JSON string), is_act
 interface AppSetting { key, value }
 interface WindowState { id?, x?, y?, width, height, is_maximized }
 interface KeyValueEntry { key, value, description?, enabled, generated? }
-interface AuthConfig { type: 'none'|'bearer'|'basic'|'api-key'|'oauth2', bearer_token?,
+interface AuthConfig { type: 'inherit'|'none'|'bearer'|'basic'|'api-key'|'oauth2', bearer_token?,
     basic_username?, basic_password?, api_key_header?, api_key_value?,
     oauth2_grant_type?, oauth2_access_token_url?, oauth2_authorization_url?,
     oauth2_client_id?, oauth2_client_secret?, oauth2_scope?, oauth2_username?,
@@ -687,7 +692,7 @@ interface GqlSubStatusChanged { requestId, status, error? }
 ```typescript
 HTTP_METHODS = ['GET','POST','PUT','PATCH','DELETE','HEAD','OPTIONS'] as const
 BODY_TYPES = ['none','json','xml','form-data','urlencoded','raw','graphql'] as const
-AUTH_TYPES = ['none','bearer','basic','api-key','oauth2'] as const
+AUTH_TYPES = ['inherit','none','bearer','basic','api-key','oauth2'] as const
 SENSITIVE_HEADERS = ['authorization','x-api-key','cookie','set-cookie', ...]
 SENSITIVE_PARAM_KEYS = ['api_key','apikey','token','secret','password', ...]
 DEFAULTS = { REQUEST_TIMEOUT_MS: 30000, FOLLOW_REDIRECTS: true,
@@ -714,16 +719,17 @@ All stores use this pattern: module-level `$state` + `$derived` + exported objec
 
 ### `appStore` — `lib/stores/app.svelte.ts`
 
-**State**: `activeWorkspaceId`, `openTabs: Tab[]`, `activeTabId`, `sidebarCollapsed`, `sidebarMode`, `sidebarSearch`, `tabStates: Record<string, TabRequestState>`, `envTabStates: Record<string, TabEnvironmentState>`, `mcpTabStates: Record<string, TabMcpState>`, `wsTabStates: Record<string, TabWebSocketState>`
+**State**: `activeWorkspaceId`, `openTabs: Tab[]`, `activeTabId`, `sidebarCollapsed`, `sidebarMode`, `sidebarSearch`, `tabStates: Record<string, TabRequestState>`, `envTabStates: Record<string, TabEnvironmentState>`, `mcpTabStates: Record<string, TabMcpState>`, `wsTabStates: Record<string, TabWebSocketState>`, `containerEditorTabStates: Record<string, TabContainerEditorState>`
 
 **Key types**:
-- `Tab { id, type: 'request'|'environment'|'mcp'|'websocket', entityId, label, method?, pinned, isUnsaved, isDraft }`
+- `Tab { id, type: 'request'|'environment'|'mcp'|'websocket'|'collection'|'folder', entityId, label, method?, pinned, isUnsaved, isDraft }`
 - `TabMcpState { serverId, activeLeftTab: 'tools'|'resources'|'prompts', activeRightTab: 'response'|'traffic'|'notifications', lastResponse: McpLastResponse | null }`
 - `TabWebSocketState { name, url, headers, protocols, composerMessage, composerType }`
 - `TabRequestState { name, method, url, headers, query_params, body, body_type, auth, scripts, response, loading, activeSubTab?, streaming?, sseEvents?, sseBody?, sseMetrics?, gqlSubStatus?, gqlSubEvents? }`
 - `TabEnvironmentState { name, variables, isDirty, initialized }`
+- `TabContainerEditorState { auth: AuthConfig, environmentIds: string[], defaultEnvironmentId, variables?, activeSubTab, isDirty, initialized }`
 
-**Actions**: `openRequestTab`, `openDraftTab`, `promoteDraft`, `openEnvironmentTab`, `openMcpTab`, `openWebSocketTab`, `closeTab`, `closeOtherTabs`, `closeAllTabs`, `reorderTabs`, `togglePinTab`, `setActiveTab`, `nextTab`, `prevTab`, `toggleSidebar`, `getTabState`, `updateTabState`, `markTabSaved`, `updateTabLabel`, `getEnvTabState`, `updateEnvTabState`, `getMcpTabState`, `updateMcpTabState`, `getWsTabState`, `updateWsTabState`, `markWsTabSaved`
+**Actions**: `openRequestTab`, `openDraftTab`, `promoteDraft`, `openEnvironmentTab`, `openMcpTab`, `openWebSocketTab`, `openCollectionEditorTab`, `openFolderEditorTab`, `closeTab`, `closeOtherTabs`, `closeAllTabs`, `reorderTabs`, `togglePinTab`, `setActiveTab`, `nextTab`, `prevTab`, `toggleSidebar`, `getTabState`, `updateTabState`, `markTabSaved`, `updateTabLabel`, `getEnvTabState`, `updateEnvTabState`, `getMcpTabState`, `updateMcpTabState`, `getWsTabState`, `updateWsTabState`, `markWsTabSaved`, `getContainerEditorTabState`, `updateContainerEditorTabState`
 
 **Draft requests**: `openDraftTab()` creates a transient in-memory request tab (`isDraft: true`, entity ID `draft-{counter}-{timestamp}`) with no DB backing. Drafts can be sent (the proxy only needs the config object) but don't appear in the sidebar tree. `promoteDraft(tabId, request)` replaces a draft tab in-place with a persisted tab after the user saves to a collection. OAuth2 token operations are disabled on drafts (config fields remain editable).
 
@@ -735,7 +741,7 @@ All stores use this pattern: module-level `$state` + `$derived` + exported objec
 
 **`TreeNode`**: `{ type: 'collection'|'folder'|'request', id, name, children, expanded, collectionId, parentId, method? }`
 
-**Actions**: `loadAll`, `rebuildTree`, `toggleExpanded`, `expandAll`, `collapseAll`, `createCollection/Folder/Request/WebSocket`, `renameCollection/Folder/Request`, `deleteCollection/Folder/Request`, `reloadCollection`, `getRequestById`, `getCollectionById`, `revealRequest`, `resolveDefaultEnvironment`
+**Actions**: `loadAll`, `rebuildTree`, `toggleExpanded`, `expandAll`, `collapseAll`, `createCollection/Folder/Request/WebSocket`, `renameCollection/Folder/Request`, `deleteCollection/Folder/Request`, `reloadCollection`, `getRequestById`, `getCollectionById`, `getFolderById`, `revealRequest`, `resolveDefaultEnvironment`, `resolveInheritedAuth`, `resolveInheritedAuthForFolder`
 
 **`revealRequest(requestId)`**: Expands the collection and all ancestor folders so the request is visible in the sidebar tree.
 
