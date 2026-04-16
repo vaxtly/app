@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-04-16
+
+### Added
+- Collection/folder auth inheritance — set auth (bearer, basic, api-key, oauth2) at the collection or folder level; requests default to "Inherit from Parent" and walk the folder chain
+- Collection/folder settings editor tab — replaces modals with a proper tabbed view (Auth, Environments, Scripts, Variables) opened from sidebar context menu
+- Collection/folder pre-request and post-response scripts — configure token fetch once at the collection level, runs before every request
+- Smart token caching ("Only fetch when needed") — skips token endpoint when cached token hasn't expired (30s safety margin)
+- "Set Token Expiry" post-response action — converts `expires_in` (seconds) to absolute timestamp for use with smart caching
+- Environment variable support in collection/folder auth inputs ({{variable}} highlighting)
+- Sensitive data scanner now checks collection/folder auth fields during sync
+
+### Changed
+- New requests default to "Inherit" auth type instead of "No Auth"
+- Sidebar context menu: "Set Environments" and "Set Auth" replaced with single "Settings" item
+
 ## [0.8.10] - 2026-04-10
 
 ### Changed
