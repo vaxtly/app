@@ -11,7 +11,7 @@ See `ARCHITECTURE.md` for the complete technical reference.
 |------|-------|
 | Full architecture docs | `ARCHITECTURE.md` |
 | Shared types | `src/shared/types/*.ts` + `src/shared/constants.ts` + `src/shared/curl-parser.ts` |
-| Database schema | `src/main/database/migrations/001_initial_schema.ts`, `002_mcp_servers.ts`, `003_mcp_sync_fields.ts`, `004_websocket.ts`, `005_indexes_and_constraints.ts`, `006_collection_folder_auth.ts`, `007_collection_folder_scripts.ts` |
+| Database schema | `src/main/database/migrations/001_initial_schema.ts`, `002_mcp_servers.ts`, `003_mcp_sync_fields.ts`, `004_websocket.ts`, `005_indexes_and_constraints.ts`, `006_collection_folder_auth.ts`, `007_collection_folder_scripts.ts`, `008_environment_parent.ts` |
 | All IPC handlers | `src/main/ipc/*.ts` |
 | Main services | `src/main/services/*.ts` |
 | All repositories | `src/main/database/repositories/*.ts` |
@@ -54,6 +54,7 @@ npx electron-rebuild -f -w better-sqlite3  # Rebuild native module for Electron 
 - `getDatabase()` returns the singleton `better-sqlite3` instance.
 - **Encryption**: sensitive data encrypted transparently at the repository layer (AES-256-GCM). Settings tokens, environment variable values (`enc:` prefix), and request auth credentials (`enc:` prefix) are encrypted on write and decrypted on read. See `services/encryption.ts`.
 - **Vault constraint**: `CHECK (vault_synced = 0 OR variables = '[]')` — vault-synced envs must always have empty variables in the DB (secrets held in-memory only). Set `variables: '[]'` when enabling vault sync.
+- **Env parent/child**: envs may have a `parent_id` (one level only — children cannot themselves be parents). Resolution merges parent then child; collection vars still win last. Disabled child entries are ignored (parent value applies). Mirror-back from scripts walks active→parent and writes to the first env that defines the key. `ON DELETE SET NULL` on the FK orphans children when a parent is removed. Repo enforces: no self-parent, no cross-workspace parent, no 3-level chains. Vault preload uses `ensureLoadedChain` so parent secrets are cached too.
 
 ### IPC
 - Pattern: `ipcMain.handle('domain:action', handler)` in main.

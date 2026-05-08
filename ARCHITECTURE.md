@@ -53,7 +53,8 @@ vaxtly/
 │   │   │   │   ├── 004_websocket.ts       # websocket_messages table
 │   │   │   │   ├── 005_indexes_and_constraints.ts # updated_at indexes, vault-synced CHECK constraint
 │   │   │   │   ├── 006_collection_folder_auth.ts # auth column on collections + folders
-│   │   │   │   └── 007_collection_folder_scripts.ts # scripts column on collections + folders
+│   │   │   │   ├── 007_collection_folder_scripts.ts # scripts column on collections + folders
+│   │   │   │   └── 008_environment_parent.ts # parent_id column on environments (root → child inheritance, depth cap 2)
 │   │   │   └── repositories/
 │   │   │       ├── workspaces.ts
 │   │   │       ├── collections.ts
@@ -156,7 +157,7 @@ vaxtly/
 │           │   ├── CollectionItem.svelte # Expand/collapse, rename, sync, drag-drop target + auto-sync on move + gated delete for synced collections
 │           │   ├── FolderItem.svelte    # Same pattern, self-recursive, drag-drop target + auto-sync on move
 │           │   ├── RequestItem.svelte   # Method badge, active state, draggable
-│           │   ├── EnvironmentList.svelte # Env list + active toggle + context menu
+│           │   ├── EnvironmentList.svelte # Env list + active toggle + context menu (renders parent envs with indented children)
 │           │   ├── McpServerList.svelte   # MCP server list with status dots + sync indicators + context menu (connect, edit, sync toggle, push)
 │           │   └── WorkspaceSwitcher.svelte # Dropdown workspace selector + rename/delete/create
 │           ├── mcp/
@@ -186,7 +187,7 @@ vaxtly/
 │           ├── container/
 │           │   └── ContainerEditor.svelte # Collection/folder settings tab: Auth + Environments + Scripts + Variables (collection only). Saves via IPC update.
 │           ├── environment/
-│           │   └── EnvironmentEditor.svelte # Name, active toggle, variables, Save button, vault sync (toggle clears variables in both directions)
+│           │   └── EnvironmentEditor.svelte # Name, active toggle, variables, Save button, vault sync (toggle clears variables in both directions). Parents show "Used by" pills linking to children; children show an "Inherits from" picker + "Inherited from {parent}" read-only table with per-row Override action.
 │           ├── response/
 │           │   ├── ResponseViewer.svelte  # Status bar + Body/Headers/Cookies/Preview/Events/Tests tabs + SSE streaming + GraphQL subscription UI
 │           │   ├── ResponseBody.svelte    # Read-only CodeMirror, auto-detect language, streaming body support
@@ -378,14 +379,17 @@ folders 1──N requests (ON DELETE SET NULL)
 |--------|------|---------|-------|
 | id | TEXT PK | uuid | |
 | workspace_id | TEXT | NULL | FK → workspaces ON DELETE CASCADE |
+| parent_id | TEXT | NULL | FK → environments ON DELETE SET NULL (migration 008). When set, this env inherits variables from its parent. Depth capped at 2 (children cannot themselves be parents); enforced in `repositories/environments.ts#validateParent`. Indexed. |
 | name | TEXT NOT NULL | | |
 | variables | TEXT NOT NULL | '[]' | JSON `EnvironmentVariable[]` — values encrypted with `enc:` prefix; always `'[]'` for vault-synced envs (secrets held in-memory only) |
 | is_active | INTEGER | 0 | Only 1 active per workspace (enforced in code) |
-| order | INTEGER | 0 | |
+| order | INTEGER | 0 | Scoped per (workspace_id, parent_id) sibling group |
 | vault_synced | INTEGER | 0 | CHECK: when 1, `variables` must be `'[]'` |
 | vault_path | TEXT | NULL | |
 | created_at | TEXT | datetime('now') | Indexed (migration 005) |
 | updated_at | TEXT | datetime('now') | Indexed (migration 005) |
+
+**Inheritance semantics.** When an env has a `parent_id`, `getResolvedVariables` walks the chain `parent → child` and merges enabled entries; child keys override parent keys, then collection variables win last. Disabled child entries are ignored (parent value applies). Mirror-back from scripts (`script-execution.ts#mirrorToActiveEnvironment`) walks `active → parent` and writes to the first env that already defines the key, with no auto-create. For vault-synced parents, `vault-sync-service.ts#ensureLoadedChain` primes every vault-synced env in the chain on activation and surfaces per-node failures.
 
 #### `app_settings`
 | Column | Type | Notes |
@@ -478,7 +482,7 @@ Pattern: `ipcMain.handle('domain:action', handler)` in main, `ipcRenderer.invoke
 | `environments:update` | ipc/environments.ts | `update(id, data)` | `api.environments.update(id, data)` |
 | `environments:delete` | ipc/environments.ts | `remove(id)` | `api.environments.delete(id)` |
 | `environments:reorder` | ipc/environments.ts | `reorder(ids)` | `api.environments.reorder(ids)` |
-| `environments:activate` | ipc/environments.ts | `activate(id, wsId?)` + vault pre-fetch | `api.environments.activate(id, wsId?)` → `{ vaultFailed }?` |
+| `environments:activate` | ipc/environments.ts | `activate(id, wsId?)` + chain-aware vault pre-fetch (`ensureLoadedChain`) | `api.environments.activate(id, wsId?)` → `{ vaultFailed, failures: { envId, name, reason }[] }?` |
 | `environments:deactivate` | ipc/environments.ts | `deactivate(id)` | `api.environments.deactivate(id)` |
 | `proxy:send` | ipc/proxy.ts | native fetch + var substitution (auto-detects SSE) | `api.proxy.send(reqId, config)` |
 | `proxy:cancel` | ipc/proxy.ts | AbortController | `api.proxy.cancel(reqId)` |
@@ -487,8 +491,8 @@ Pattern: `ipcMain.handle('domain:action', handler)` in main, `ipcRenderer.invoke
 | `sse:stream-start` | — (main→renderer push) | — | `api.on.sseStreamStart(cb)` |
 | `sse:stream-chunk` | — (main→renderer push) | — | `api.on.sseStreamChunk(cb)` |
 | `sse:stream-end` | — (main→renderer push) | — | `api.on.sseStreamEnd(cb)` |
-| `variables:resolve` | ipc/variables.ts | `ensureLoaded()` + `getResolvedVariables()` | `api.variables.resolve(wsId?, colId?)` |
-| `variables:resolve-with-source` | ipc/variables.ts | `ensureLoaded()` + `getResolvedVariablesWithSource()` | `api.variables.resolveWithSource(wsId?, colId?)` |
+| `variables:resolve` | ipc/variables.ts | `ensureLoadedChain()` + `getResolvedVariables()` (walks env parent chain) | `api.variables.resolve(wsId?, colId?)` |
+| `variables:resolve-with-source` | ipc/variables.ts | `ensureLoadedChain()` + `getResolvedVariablesWithSource()` — per-link source labels | `api.variables.resolveWithSource(wsId?, colId?)` |
 | `code:generate` | ipc/code-generator.ts | `generateCode(lang, data, ...)` | `api.codeGenerator.generate(...)` |
 | `graphql:introspect` | ipc/graphql.ts | `undiciFetch()` + `getIntrospectionQuery()` | `api.graphql.introspect(config)` |
 | `log:list` | ipc/session-log.ts | `getLogs()` | `api.log.list()` |
@@ -606,7 +610,7 @@ interface Folder { id, collection_id, parent_id?, name, order, environment_ids?,
     default_environment_id?, auth?, scripts?, created_at, updated_at }
 interface Request { id, collection_id, folder_id?, name, url, method, headers?, query_params?,
     body?, body_type, auth?, scripts?, order, created_at, updated_at }
-interface Environment { id, workspace_id?, name, variables (JSON string), is_active (0|1),
+interface Environment { id, workspace_id?, parent_id?, name, variables (JSON string), is_active (0|1),
     order, vault_synced, vault_path?, created_at, updated_at }
 interface AppSetting { key, value }
 interface WindowState { id?, x?, y?, width, height, is_maximized }
