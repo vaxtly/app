@@ -19,7 +19,7 @@ import { DEFAULTS } from '../../shared/constants'
 import { logHttp, logScript } from './session-log'
 import { getCookieHeader, captureCookies } from './cookie-jar'
 import { parseCookies } from '../ipc/proxy'
-import type { ScriptsConfig, PreRequestScript, PostResponseScript, EnvironmentVariable } from '../../shared/types/models'
+import type { ScriptsConfig, PreRequestScript, PostResponseScript, EnvironmentVariable, Environment } from '../../shared/types/models'
 import type { ResponseData } from '../../shared/types/http'
 
 /**
@@ -544,8 +544,64 @@ function setCollectionVariable(collectionId: string, key: string, value: string)
 }
 
 /**
- * If the active environment has a variable with the same key, update it too.
- * For vault-synced environments, updates in-memory cache and pushes to Vault.
+ * Try to update an existing key on a single environment. Returns true if the
+ * key was found and updated, false otherwise. For vault-synced envs the update
+ * lives in the in-memory cache and is pushed to Vault asynchronously.
+ */
+function updateEnvKey(
+  env: Environment,
+  key: string,
+  value: string,
+  workspaceId?: string,
+): boolean {
+  try {
+    if (env.vault_synced === 1) {
+      const cached = getCachedVariables(env.id)
+      if (!cached) return false
+
+      const variables = [...cached]
+      let found = false
+      for (const v of variables) {
+        if (v.key === key) {
+          v.value = value
+          found = true
+          break
+        }
+      }
+      if (!found) return false
+
+      setCachedVariables(env.id, variables)
+      vaultPush(env.id, variables, workspaceId).catch((e) => {
+        logScript('vault-push', env.name, `Vault push failed: ${e instanceof Error ? e.message : String(e)}`, false)
+      })
+      return true
+    }
+
+    const variables = JSON.parse(env.variables) as EnvironmentVariable[]
+    let found = false
+    for (const v of variables) {
+      if (v.key === key) {
+        v.value = value
+        found = true
+        break
+      }
+    }
+    if (!found) return false
+
+    environmentsRepo.update(env.id, { variables: JSON.stringify(variables) })
+    return true
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Mirror a script-set variable back to the env chain.
+ *
+ * Walks leaf → root and updates the first env that already defines the key.
+ * With the 2-level cap that's "active env, then its parent". If no env in the
+ * chain defines the key, no mirror happens — matching the historic contract
+ * that scripts must not silently create new env variables.
  */
 function mirrorToActiveEnvironment(
   collectionId: string,
@@ -559,44 +615,9 @@ function mirrorToActiveEnvironment(
   const activeEnv = environmentsRepo.findActive(workspaceId ?? collection.workspace_id ?? undefined)
   if (!activeEnv) return
 
-  try {
-    if (activeEnv.vault_synced === 1) {
-      // Vault-synced: update in-memory cache, push to Vault
-      const cached = getCachedVariables(activeEnv.id)
-      if (!cached) return
-
-      const variables = [...cached]
-      let found = false
-      for (const v of variables) {
-        if (v.key === key) {
-          v.value = value
-          found = true
-          break
-        }
-      }
-
-      if (!found) return
-
-      setCachedVariables(activeEnv.id, variables)
-      // Fire-and-forget push to Vault — log failures
-      vaultPush(activeEnv.id, variables, workspaceId).catch((e) => {
-        logScript('vault-push', activeEnv.name, `Vault push failed: ${e instanceof Error ? e.message : String(e)}`, false)
-      })
-    } else {
-      const variables = JSON.parse(activeEnv.variables) as EnvironmentVariable[]
-      let found = false
-      for (const v of variables) {
-        if (v.key === key) {
-          v.value = value
-          found = true
-          break
-        }
-      }
-
-      // Only update if the key already exists in the environment
-      if (!found) return
-
-      environmentsRepo.update(activeEnv.id, { variables: JSON.stringify(variables) })
-    }
-  } catch { /* ignore */ }
+  // findChain returns root → … → active. Reverse so we try the active env first.
+  const chain = [...environmentsRepo.findChain(activeEnv.id)].reverse()
+  for (const env of chain) {
+    if (updateEnvKey(env, key, value, workspaceId)) return
+  }
 }

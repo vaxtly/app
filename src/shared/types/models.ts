@@ -71,6 +71,7 @@ export interface Request {
 export interface Environment {
   id: string
   workspace_id: string | null
+  parent_id: string | null
   name: string
   variables: string // JSON string: EnvironmentVariable[]
   is_active: number // 0 | 1

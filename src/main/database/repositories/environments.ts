@@ -37,23 +37,70 @@ function decryptEnvironment(env: Environment): Environment {
   return { ...env, variables: decryptVariables(env.variables) }
 }
 
+/**
+ * Validate a proposed parent_id for a target env (or null target for create).
+ * Throws if the relationship would violate the 2-level cap or be cross-workspace.
+ */
+function validateParent(
+  parentId: string | null,
+  targetWorkspaceId: string | null,
+  targetId: string | null,
+): void {
+  if (!parentId) return
+
+  if (targetId && parentId === targetId) {
+    throw new Error('Environment cannot be its own parent')
+  }
+
+  const db = getDatabase()
+  const parent = db.prepare('SELECT id, parent_id, workspace_id FROM environments WHERE id = ?')
+    .get(parentId) as { id: string; parent_id: string | null; workspace_id: string | null } | undefined
+
+  if (!parent) {
+    throw new Error(`Parent environment ${parentId} not found`)
+  }
+
+  if ((parent.workspace_id ?? null) !== (targetWorkspaceId ?? null)) {
+    throw new Error('Parent and child must belong to the same workspace')
+  }
+
+  if (parent.parent_id !== null) {
+    throw new Error('Parent environment is already a child (max depth is 2)')
+  }
+
+  if (targetId) {
+    const hasChildren = db.prepare('SELECT 1 FROM environments WHERE parent_id = ? LIMIT 1')
+      .get(targetId)
+    if (hasChildren) {
+      throw new Error('Environment has children and cannot become a child itself')
+    }
+  }
+}
+
 export function create(data: {
   name: string
   workspace_id?: string
+  parent_id?: string | null
   variables?: string
 }): Environment {
   const db = getDatabase()
   const id = uuid()
   const now = new Date().toISOString()
 
+  const workspaceId = data.workspace_id ?? null
+  const parentId = data.parent_id ?? null
+
+  validateParent(parentId, workspaceId, null)
+
   const variables = data.variables ? encryptVariables(data.variables) : '[]'
 
   db.prepare(`
-    INSERT INTO environments (id, workspace_id, name, variables, "order", created_at, updated_at)
-    VALUES (?, ?, ?, ?,
-      (SELECT COALESCE(MAX("order"), 0) + 1 FROM environments WHERE workspace_id IS ?),
+    INSERT INTO environments (id, workspace_id, parent_id, name, variables, "order", created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?,
+      (SELECT COALESCE(MAX("order"), 0) + 1 FROM environments
+        WHERE workspace_id IS ? AND parent_id IS ?),
       ?, ?)
-  `).run(id, data.workspace_id ?? null, data.name, variables, data.workspace_id ?? null, now, now)
+  `).run(id, workspaceId, parentId, data.name, variables, workspaceId, parentId, now, now)
 
   return findById(id)!
 }
@@ -77,12 +124,31 @@ export function findAll(): Environment[] {
   return (db.prepare('SELECT * FROM environments ORDER BY "order" ASC').all() as Environment[]).map(decryptEnvironment)
 }
 
+export function findChildren(parentId: string): Environment[] {
+  const db = getDatabase()
+  const rows = db.prepare('SELECT * FROM environments WHERE parent_id = ? ORDER BY "order" ASC')
+    .all(parentId) as Environment[]
+  return rows.map(decryptEnvironment)
+}
+
 export function findActive(workspaceId?: string): Environment | undefined {
   const db = getDatabase()
   const row = workspaceId
     ? db.prepare('SELECT * FROM environments WHERE is_active = 1 AND workspace_id = ? LIMIT 1').get(workspaceId) as Environment | undefined
     : db.prepare('SELECT * FROM environments WHERE is_active = 1 LIMIT 1').get() as Environment | undefined
   return row ? decryptEnvironment(row) : undefined
+}
+
+/**
+ * Returns the chain root → … → env (length 1 or 2). Used for variable resolution
+ * and vault preload. Order matters: earlier entries are overridden by later ones.
+ */
+export function findChain(envId: string): Environment[] {
+  const env = findById(envId)
+  if (!env) return []
+  if (!env.parent_id) return [env]
+  const parent = findById(env.parent_id)
+  return parent ? [parent, env] : [env]
 }
 
 export function update(
@@ -93,6 +159,12 @@ export function update(
   const existing = findById(id)
   if (!existing) return undefined
 
+  // If parent_id is changing, validate the new value
+  if (data.parent_id !== undefined && data.parent_id !== existing.parent_id) {
+    const nextWorkspaceId = data.workspace_id !== undefined ? (data.workspace_id ?? null) : existing.workspace_id
+    validateParent(data.parent_id ?? null, nextWorkspaceId, id)
+  }
+
   // Re-encrypt variables if provided; existing.variables is already decrypted by findById
   const variables = data.variables
     ? encryptVariables(data.variables)
@@ -101,6 +173,7 @@ export function update(
   db.prepare(`
     UPDATE environments SET
       workspace_id = ?,
+      parent_id = ?,
       name = ?,
       variables = ?,
       is_active = ?,
@@ -110,7 +183,8 @@ export function update(
       updated_at = ?
     WHERE id = ?
   `).run(
-    data.workspace_id ?? existing.workspace_id,
+    data.workspace_id !== undefined ? data.workspace_id : existing.workspace_id,
+    data.parent_id !== undefined ? data.parent_id : existing.parent_id,
     data.name ?? existing.name,
     variables,
     data.is_active ?? existing.is_active,
@@ -154,6 +228,10 @@ export function remove(id: string): boolean {
   return result.changes > 0
 }
 
+/**
+ * Reorder a flat list of ids. Order is scoped per (workspace_id, parent_id) sibling group,
+ * so callers should pass ids that share the same parent.
+ */
 export function reorder(ids: string[]): void {
   const db = getDatabase()
   const stmt = db.prepare('UPDATE environments SET "order" = ?, updated_at = ? WHERE id = ?')

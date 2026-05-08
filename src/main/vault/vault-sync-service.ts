@@ -168,6 +168,34 @@ export async function ensureLoaded(environmentId: string, workspaceId?: string):
 }
 
 /**
+ * Ensure every vault-synced env in the active chain (parent + child) has its
+ * cache primed. Returns the list of failures so callers can surface partial
+ * loads in the UI without aborting the whole activation.
+ */
+export async function ensureLoadedChain(
+  environmentId: string,
+  workspaceId?: string,
+): Promise<{ failures: { envId: string; name: string; reason: string }[] }> {
+  const failures: { envId: string; name: string; reason: string }[] = []
+  const chain = environmentsRepo.findChain(environmentId)
+
+  for (const env of chain) {
+    if (env.vault_synced !== 1) continue
+    try {
+      await ensureLoaded(env.id, workspaceId)
+    } catch (e) {
+      failures.push({
+        envId: env.id,
+        name: env.name,
+        reason: e instanceof Error ? e.message : String(e),
+      })
+    }
+  }
+
+  return { failures }
+}
+
+/**
  * Fetch variables from Vault for an environment.
  * Populates in-memory cache only — never writes to the DB.
  */

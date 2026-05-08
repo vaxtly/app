@@ -243,6 +243,90 @@
     }
   }
 
+  // --- Parent inheritance ---
+
+  let children = $derived(
+    environment ? environmentsStore.environments.filter((e) => e.parent_id === environment.id) : [],
+  )
+  let envHasChildren = $derived(children.length > 0)
+  let parent = $derived(
+    environment?.parent_id ? environmentsStore.getById(environment.parent_id) : undefined,
+  )
+  let eligibleParents = $derived(
+    environment
+      ? environmentsStore.environments.filter(
+          (e) => e.id !== environment.id && e.parent_id === null && (e.workspace_id ?? null) === (environment.workspace_id ?? null),
+        )
+      : [],
+  )
+
+  // Parent variables. Non-vault parents are read synchronously from the store;
+  // vault-synced parents store '[]' locally so we fetch their secrets via IPC.
+  let parentLocalVars = $derived.by<EnvironmentVariable[] | null>(() => {
+    if (!parent || parent.vault_synced === 1) return null
+    try {
+      const parsed = JSON.parse(parent.variables) as EnvironmentVariable[]
+      return Array.isArray(parsed) ? parsed : []
+    } catch {
+      return []
+    }
+  })
+
+  // Vault fetch result. $effect is the right tool here — it's an async IPC
+  // call with cancellation, not a synchronous derivation.
+  let parentVaultVars = $state<EnvironmentVariable[]>([])
+
+  $effect(() => {
+    if (!parent || parent.vault_synced !== 1) return
+    let cancelled = false
+    const wsId = appStore.activeWorkspaceId ?? undefined
+    window.api.vault.fetchVariables(parent.id, wsId).then((vars) => {
+      if (!cancelled) parentVaultVars = vars
+    }).catch(() => {
+      if (!cancelled) parentVaultVars = []
+    })
+    return () => { cancelled = true }
+  })
+
+  let parentVariables = $derived(parentLocalVars ?? parentVaultVars)
+
+  // Keys the child currently overrides (only enabled child entries shadow the
+  // parent — disabled child rows are ignored, matching resolver semantics).
+  let overriddenKeys = $derived(new Set(
+    variables.filter((v) => v.enabled && v.key.trim() !== '').map((v) => v.key),
+  ))
+
+  // Inherited rows = parent's enabled vars, annotated with whether the child
+  // currently overrides them.
+  let inheritedRows = $derived(
+    parentVariables
+      .filter((v) => v.enabled && v.key.trim() !== '')
+      .map((v) => ({ ...v, overridden: overriddenKeys.has(v.key) })),
+  )
+
+  async function handleParentChange(value: string): Promise<void> {
+    if (!environment) return
+    const parent_id = value === '' ? null : value
+    if (parent_id === (environment.parent_id ?? null)) return
+    await environmentsStore.update(environmentId, { parent_id })
+  }
+
+  function openChild(childId: string, childName: string): void {
+    appStore.openEnvironmentTab({ id: childId, name: childName })
+  }
+
+  function overrideInherited(key: string, parentValue: string): void {
+    // Add a child row with the same key. Drop any empty/blank trailing row so
+    // the new override appears at the bottom instead of after a placeholder.
+    const trimmed = variables.filter((v) => v.key.trim() !== '' || v.value.trim() !== '')
+    const next: EnvironmentVariable[] = [
+      ...trimmed,
+      { key, value: parentValue, enabled: true },
+      { key: '', value: '', enabled: true },
+    ]
+    appStore.updateEnvTabState(tabId, { variables: next, isDirty: true })
+  }
+
 </script>
 
 {#if environment}
@@ -283,6 +367,43 @@
         </button>
       </div>
     </div>
+
+    <!-- Parent picker — hidden when this env has children (the depth cap is 2,
+         so a parent picker on a parent would create a 3-level chain). -->
+    {#if !envHasChildren && eligibleParents.length > 0}
+      <div class="flex shrink-0 items-center gap-2 px-3 pb-2 text-[11px] text-surface-500">
+        <span class="font-mono uppercase tracking-wider">Inherits from</span>
+        <select
+          value={environment.parent_id ?? ''}
+          onchange={(e) => handleParentChange(e.currentTarget.value)}
+          class="h-7 rounded-md border-0 bg-[var(--tint-muted)] px-2 text-[11px] text-surface-200 outline-none"
+          style="border: 1px solid var(--glass-border)"
+        >
+          <option value="">— None (root) —</option>
+          {#each eligibleParents as p (p.id)}
+            <option value={p.id}>{p.name}</option>
+          {/each}
+        </select>
+      </div>
+    {/if}
+
+    <!-- Children pills — root envs with children show their dependents and let
+         users jump straight into a child's tab. -->
+    {#if envHasChildren}
+      <div class="flex shrink-0 flex-wrap items-center gap-2 px-3 pb-2 text-[11px] text-surface-500">
+        <span class="font-mono uppercase tracking-wider">Used by</span>
+        {#each children as c (c.id)}
+          <button
+            type="button"
+            onclick={() => openChild(c.id, c.name)}
+            class="rounded-full px-2 py-0.5 text-[11px] text-surface-300 hover:bg-[var(--tint-active)] hover:text-surface-100"
+            style="border: 1px solid var(--glass-border); background: var(--tint-muted)"
+          >
+            {c.name}
+          </button>
+        {/each}
+      </div>
+    {/if}
 
     <!-- Variables editor -->
     <div class="flex-1 overflow-auto p-4">
@@ -325,6 +446,50 @@
             </div>
             <div class="mt-1 text-[10px] text-surface-500">Save will automatically push to Vault.</div>
           {/if}
+        </div>
+      {/if}
+
+      {#if parent && inheritedRows.length > 0}
+        <div class="mb-4">
+          <div class="mb-2 flex items-center gap-2 text-xs font-medium uppercase text-surface-500">
+            <span>Inherited from</span>
+            <span class="rounded px-1.5 py-0.5 text-[10px] normal-case" style="background: var(--tint-muted); color: var(--color-brand-400); border: 1px solid var(--glass-border)">{parent.name}</span>
+          </div>
+          <div class="overflow-hidden rounded-lg" style="border: 1px solid var(--glass-border)">
+            <table class="w-full text-[12px]">
+              <thead class="text-[10px] uppercase text-surface-500">
+                <tr style="background: var(--tint-subtle)">
+                  <th class="px-3 py-1.5 text-left font-medium">Key</th>
+                  <th class="px-3 py-1.5 text-left font-medium">Value</th>
+                  <th class="px-3 py-1.5 text-left font-medium">Source</th>
+                  <th class="w-px px-2 py-1.5"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {#each inheritedRows as row (row.key)}
+                  <tr style="border-top: 1px solid var(--glass-border)">
+                    <td class="px-3 py-1.5 font-mono text-surface-200" class:line-through={row.overridden} class:text-surface-500={row.overridden}>{row.key}</td>
+                    <td class="px-3 py-1.5 font-mono text-surface-300" class:line-through={row.overridden} class:text-surface-500={row.overridden}>{row.value}</td>
+                    <td class="px-3 py-1.5 text-[11px] text-surface-400">{parent.name}</td>
+                    <td class="px-2 py-1.5 text-right">
+                      {#if row.overridden}
+                        <span class="text-[10px] uppercase tracking-wider text-surface-500">overridden</span>
+                      {:else}
+                        <button
+                          type="button"
+                          onclick={() => overrideInherited(row.key, row.value)}
+                          class="rounded-md px-2 py-0.5 text-[10px] uppercase tracking-wider text-surface-300 hover:bg-[var(--tint-active)] hover:text-surface-100"
+                          style="border: 1px solid var(--glass-border)"
+                        >
+                          Override
+                        </button>
+                      {/if}
+                    </td>
+                  </tr>
+                {/each}
+              </tbody>
+            </table>
+          </div>
         </div>
       {/if}
 

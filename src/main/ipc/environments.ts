@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises'
 import { basename } from 'node:path'
 import { IPC } from '../../shared/types/ipc'
 import * as environmentsRepo from '../database/repositories/environments'
-import { ensureLoaded } from '../vault/vault-sync-service'
+import { ensureLoadedChain } from '../vault/vault-sync-service'
 import { logVault } from '../services/session-log'
 import { parseDotenv } from '../services/dotenv-parser'
 
@@ -35,18 +35,23 @@ export function registerEnvironmentHandlers(): void {
   ipcMain.handle(IPC.ENVIRONMENTS_ACTIVATE, async (_event, id: string, workspaceId?: string) => {
     environmentsRepo.activate(id, workspaceId)
 
-    // Pre-fetch vault secrets so they're cached before the first request
-    const env = environmentsRepo.findById(id)
-    if (env?.vault_synced === 1) {
-      try {
-        await ensureLoaded(id, workspaceId)
-        logVault('fetch', env.name, `Loaded secrets from Vault`)
-        return { vaultFailed: false }
-      } catch (e) {
-        logVault('fetch', env.name, `Failed to load secrets: ${e instanceof Error ? e.message : String(e)}`, false)
-        return { vaultFailed: true }
+    // Pre-fetch vault secrets across the parent chain so resolution sees both
+    // the child's own secrets and any inherited ones.
+    const chain = environmentsRepo.findChain(id)
+    const hasVaultInChain = chain.some((e) => e.vault_synced === 1)
+    if (!hasVaultInChain) return
+
+    const { failures } = await ensureLoadedChain(id, workspaceId)
+    for (const env of chain) {
+      if (env.vault_synced !== 1) continue
+      const failure = failures.find((f) => f.envId === env.id)
+      if (failure) {
+        logVault('fetch', env.name, `Failed to load secrets: ${failure.reason}`, false)
+      } else {
+        logVault('fetch', env.name, 'Loaded secrets from Vault')
       }
     }
+    return { vaultFailed: failures.length > 0, failures }
   })
 
   ipcMain.handle(IPC.ENVIRONMENTS_DEACTIVATE, (_event, id: string) => {

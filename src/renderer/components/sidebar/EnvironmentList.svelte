@@ -13,11 +13,33 @@
   let contextMenu = $state<{ x: number; y: number; envId: string } | null>(null)
   let deleteSyncedTarget = $state<{ id: string; name: string } | null>(null)
 
-  let filteredEnvironments = $derived(
-    searchFilter.trim()
-      ? environmentsStore.environments.filter((e) => e.name.toLowerCase().includes(searchFilter.trim().toLowerCase()))
-      : environmentsStore.environments
-  )
+  // Build a flat render list from the parent/child tree: roots in order, each
+  // followed immediately by its children (also in order). When the search
+  // filter is active we surface any matching env (root or child) directly,
+  // including its parent for context if a child matches.
+  let renderList = $derived.by(() => {
+    const all = environmentsStore.environments
+    const filter = searchFilter.trim().toLowerCase()
+
+    const matches = (e: typeof all[number]): boolean =>
+      filter === '' || e.name.toLowerCase().includes(filter)
+
+    const roots = all.filter((e) => e.parent_id === null)
+    const childrenOf = (parentId: string) => all.filter((e) => e.parent_id === parentId)
+
+    const out: { env: typeof all[number]; depth: 0 | 1 }[] = []
+    for (const root of roots) {
+      const rootChildren = childrenOf(root.id)
+      const visibleChildren = filter === '' ? rootChildren : rootChildren.filter(matches)
+      const includeRoot = matches(root) || visibleChildren.length > 0
+      if (!includeRoot) continue
+      out.push({ env: root, depth: 0 })
+      for (const child of visibleChildren) {
+        out.push({ env: child, depth: 1 })
+      }
+    }
+    return out
+  })
 
   async function createEnvironment(): Promise<void> {
     const env = await environmentsStore.create('New Environment', appStore.activeWorkspaceId ?? undefined)
@@ -71,14 +93,15 @@
 
 <div class="flex flex-col px-1 pb-2">
   <!-- Environment list -->
-  {#if filteredEnvironments.length === 0}
+  {#if renderList.length === 0}
     <p class="px-2 py-4 text-center text-xs text-surface-500">{searchFilter.trim() ? 'No matches' : 'No environments yet.'}</p>
   {:else}
-    {#each filteredEnvironments as env (env.id)}
+    {#each renderList as { env, depth } (env.id)}
       {@const active = environmentsStore.activeEnvironmentId === env.id}
       <!-- svelte-ignore a11y_no_static_element_interactions -->
       <div
         class="group flex items-center gap-2 rounded-lg px-2 py-1 transition-all duration-150 hover:bg-[var(--tint-hover)]"
+        style:padding-left={depth === 1 ? '20px' : undefined}
         oncontextmenu={(e) => handleContextMenu(e, env.id)}
       >
         <!-- Active toggle -->

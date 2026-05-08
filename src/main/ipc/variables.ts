@@ -2,15 +2,14 @@ import { ipcMain } from 'electron'
 import { IPC } from '../../shared/types/ipc'
 import { getResolvedVariables, getResolvedVariablesWithSource } from '../services/variable-substitution'
 import * as environmentsRepo from '../database/repositories/environments'
-import { ensureLoaded } from '../vault/vault-sync-service'
+import { ensureLoadedChain } from '../vault/vault-sync-service'
 
 async function ensureVaultCachePopulated(workspaceId?: string): Promise<void> {
   const activeEnv = environmentsRepo.findActive(workspaceId)
-  if (activeEnv?.vault_synced === 1) {
-    try {
-      await ensureLoaded(activeEnv.id, workspaceId)
-    } catch { /* vault unreachable — highlighting will show vars as missing */ }
-  }
+  if (!activeEnv) return
+  // Prime every vault-synced env in the chain so resolved-with-source data
+  // includes inherited parent secrets, not just the active env's own.
+  await ensureLoadedChain(activeEnv.id, workspaceId)
 }
 
 export function registerVariableHandlers(): void {

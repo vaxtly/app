@@ -57,25 +57,37 @@ function parseCollectionVariables(variablesJson: string | null): Record<string, 
 }
 
 /**
- * Get resolved variables merging active environment with collection-level overrides.
- * Collection variables take precedence.
+ * Merge a single env's enabled variables into the target map.
+ * Vault-synced envs read from the in-memory cache; others read from the DB JSON.
+ */
+function mergeEnvVariables(env: ReturnType<typeof environmentsRepo.findById>, target: Record<string, string>): void {
+  if (!env) return
+  if (env.vault_synced === 1) {
+    const cached = getCachedVariables(env.id)
+    if (cached) {
+      for (const v of cached) {
+        if (v.enabled && v.key.trim()) target[v.key] = v.value
+      }
+    }
+    return
+  }
+  Object.assign(target, parseEnabledVariables(env.variables))
+}
+
+/**
+ * Get resolved variables merging active environment (with parent chain) and
+ * collection-level overrides. Order: parent → child → collection. Later layers
+ * override earlier ones on a per-key basis.
  */
 export function getResolvedVariables(workspaceId?: string, collectionId?: string): Record<string, string> {
   const variables: Record<string, string> = {}
 
-  // 1. Active environment variables (base layer)
+  // 1. Active environment chain (root → … → active)
   const activeEnv = environmentsRepo.findActive(workspaceId)
   if (activeEnv) {
-    if (activeEnv.vault_synced === 1) {
-      // Vault-synced: read from in-memory cache (never from DB)
-      const cached = getCachedVariables(activeEnv.id)
-      if (cached) {
-        for (const v of cached) {
-          if (v.enabled && v.key.trim()) variables[v.key] = v.value
-        }
-      }
-    } else {
-      Object.assign(variables, parseEnabledVariables(activeEnv.variables))
+    const chain = environmentsRepo.findChain(activeEnv.id)
+    for (const env of chain) {
+      mergeEnvVariables(env, variables)
     }
   }
 
@@ -100,24 +112,28 @@ export function getResolvedVariablesWithSource(
 ): Record<string, ResolvedVariable> {
   const variables: Record<string, ResolvedVariable> = {}
 
-  // 1. Active environment variables
+  // 1. Active environment chain (root → … → active). Later entries in the chain
+  // override earlier ones; the source label reflects which env actually supplied
+  // the final value, so the UI can distinguish "from parent" vs "from child".
   const activeEnv = environmentsRepo.findActive(workspaceId)
   if (activeEnv) {
-    const envLabel = `Env: ${activeEnv.name}`
-    if (activeEnv.vault_synced === 1) {
-      // Vault-synced: read from in-memory cache (never from DB)
-      const cached = getCachedVariables(activeEnv.id)
-      if (cached) {
-        for (const v of cached) {
-          if (v.enabled && v.key.trim()) {
-            variables[v.key] = { value: v.value, source: envLabel }
+    const chain = environmentsRepo.findChain(activeEnv.id)
+    for (const env of chain) {
+      const envLabel = `Env: ${env.name}`
+      if (env.vault_synced === 1) {
+        const cached = getCachedVariables(env.id)
+        if (cached) {
+          for (const v of cached) {
+            if (v.enabled && v.key.trim()) {
+              variables[v.key] = { value: v.value, source: envLabel }
+            }
           }
         }
-      }
-    } else {
-      const envVars = parseEnabledVariables(activeEnv.variables)
-      for (const [key, value] of Object.entries(envVars)) {
-        variables[key] = { value, source: envLabel }
+      } else {
+        const envVars = parseEnabledVariables(env.variables)
+        for (const [key, value] of Object.entries(envVars)) {
+          variables[key] = { value, source: envLabel }
+        }
       }
     }
   }
