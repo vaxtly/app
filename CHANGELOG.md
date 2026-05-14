@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.10.1] - 2026-05-14
+
+### Fixed
+- Scoop install on Windows — the published manifest had malformed installer and uninstaller scripts (invalid JSON escapes from a misquoted heredoc in the release workflow), causing `scoop install vaxtly` to fail with a JSON parse error. The manifest generator now uses a quoted heredoc with explicit placeholder substitution and validates the JSON before publishing.
+
 ## [0.10.0] - 2026-05-08
 
 ### Added

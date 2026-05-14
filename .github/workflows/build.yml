@@ -321,35 +321,42 @@ jobs:
 
           SHA256=$(curl -sL "https://github.com/vaxtly/app/releases/download/v${VERSION}/Vaxtly-${VERSION}-setup.exe" | sha256sum | awk '{print $1}')
 
-          MANIFEST=$(cat <<EOF
+          # Single-quoted heredoc: no bash expansion, so PowerShell vars ($dir, $fname,
+          # $env:LOCALAPPDATA) and backslashes pass through verbatim. Placeholders are
+          # substituted afterwards.
+          MANIFEST=$(cat <<'EOF'
           {
-            "version": "${VERSION}",
+            "version": "__VERSION__",
             "description": "API testing tool",
             "homepage": "https://vaxtly.github.io",
             "license": "MIT",
             "architecture": {
               "64bit": {
-                "url": "https://github.com/vaxtly/app/releases/download/v${VERSION}/Vaxtly-${VERSION}-setup.exe",
-                "hash": "${SHA256}"
+                "url": "https://github.com/vaxtly/app/releases/download/v__VERSION__/Vaxtly-__VERSION__-setup.exe",
+                "hash": "__SHA256__"
               }
             },
             "installer": {
-              "script": ["Start-Process \\"\\$dir\\\\\\$fname\\" '/S' -Wait"]
+              "script": ["Start-Process \"$dir\\$fname\" '/S' -Wait"]
             },
             "uninstaller": {
-              "script": ["Start-Process \\"\\$env:LOCALAPPDATA\\\\Programs\\\\vaxtly\\\\Uninstall vaxtly.exe\\" '/S' -Wait"]
+              "script": ["Start-Process \"$env:LOCALAPPDATA\\Programs\\vaxtly\\Uninstall vaxtly.exe\" '/S' -Wait"]
             }
           }
           EOF
           )
 
-          # Remove leading whitespace from heredoc
-          MANIFEST=$(echo "$MANIFEST" | sed 's/^          //')
+          MANIFEST="${MANIFEST//__VERSION__/$VERSION}"
+          MANIFEST="${MANIFEST//__SHA256__/$SHA256}"
+
+          # Fail loudly if the manifest isn't valid JSON before publishing.
+          # Use printf, not echo — echo mangles backslashes on some shells.
+          printf '%s\n' "$MANIFEST" | jq . > /dev/null
 
           # Get current file SHA for update
           FILE_SHA=$(gh api repos/vaxtly/scoop-bucket/contents/bucket/vaxtly.json --jq '.sha' 2>/dev/null || echo "")
 
-          ENCODED=$(echo "$MANIFEST" | base64 -w0)
+          ENCODED=$(printf '%s\n' "$MANIFEST" | base64 -w0)
 
           if [[ -n "$FILE_SHA" ]]; then
             gh api repos/vaxtly/scoop-bucket/contents/bucket/vaxtly.json \
