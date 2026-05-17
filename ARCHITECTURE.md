@@ -54,7 +54,8 @@ vaxtly/
 │   │   │   │   ├── 005_indexes_and_constraints.ts # updated_at indexes, vault-synced CHECK constraint
 │   │   │   │   ├── 006_collection_folder_auth.ts # auth column on collections + folders
 │   │   │   │   ├── 007_collection_folder_scripts.ts # scripts column on collections + folders
-│   │   │   │   └── 008_environment_parent.ts # parent_id column on environments (root → child inheritance, depth cap 2)
+│   │   │   │   ├── 008_environment_parent.ts # parent_id column on environments (root → child inheritance, depth cap 2)
+│   │   │   │   └── 009_external_keys.ts # external_key TEXT column + partial unique indexes on collections/folders/requests/environments (idempotency handle for the agent socket)
 │   │   │   └── repositories/
 │   │   │       ├── workspaces.ts
 │   │   │       ├── collections.ts
@@ -64,6 +65,11 @@ vaxtly/
 │   │   │       ├── mcp-servers.ts        # MCP server CRUD + reorder + sync (markDirty, findDirtyOrNew, findSyncEnabled)
 │   │   │       ├── websocket-messages.ts # WebSocket message log CRUD + trim
 │   │   │       └── settings.ts
+│   │   ├── actions/                    # Shared mutation entry points used by BOTH IPC and the agent socket
+│   │   │   ├── collections.ts          # createCollection, updateCollection (passthrough)
+│   │   │   ├── folders.ts              # createFolder, updateFolder (passthrough)
+│   │   │   ├── requests.ts             # create/update/delete/move/reorderRequest — also fires collectionsRepo.markDirty so socket + IPC stay in sync
+│   │   │   └── environments.ts         # createEnvironment, updateEnvironment (passthrough)
 │   │   ├── ipc/                        # IPC handler registration per domain
 │   │   │   ├── workspaces.ts
 │   │   │   ├── collections.ts
@@ -110,7 +116,20 @@ vaxtly/
 │   │   │   ├── collection-runner.ts  # Sequential collection execution with progress push events
 │   │   │   ├── cookie-jar.ts        # In-memory cookie store: RFC 6265 domain/path/secure matching
 │   │   │   ├── graphql-subscription.ts # graphql-ws protocol client over raw WebSocket
-│   │   │   └── updater.ts            # electron-updater: init, check, quit-and-install, install-source detection
+│   │   │   ├── updater.ts            # electron-updater: init, check, quit-and-install, install-source detection
+│   │   │   └── agent-socket/           # Local CLI / MCP RPC server (Unix socket / named pipe)
+│   │   │       ├── index.ts          # start(), stop(), socket path resolution, lifecycle
+│   │   │       ├── auth.ts           # 32-byte token, dotfile at ~/.vaxtly/cli.json (0600), verifyToken
+│   │   │       ├── protocol.ts       # NDJSON framing, JSON-RPC 2.0 envelopes, LineBuffer, ERR codes
+│   │   │       ├── router.ts         # registerMethod / dispatch / HandlerError; reads token from envelope (req.auth)
+│   │   │       └── methods/
+│   │   │           ├── _resolvers.ts        # resolveWorkspaceId / resolveCollectionId / resolveFolderId / resolveParentEnvId
+│   │   │           ├── _redact.ts           # redactAuthJson + redactVariablesJson — unconditional, used by every get.*
+│   │   │           ├── ping.ts
+│   │   │           ├── upsert-collection.ts / upsert-folder.ts / upsert-request.ts / upsert-env.ts
+│   │   │           ├── upsert-env-variable.ts  # Single-var safe path (no whole-array replace)
+│   │   │           ├── list-{workspaces,collections,folders,requests,envs}.ts # Slim navigation shapes
+│   │   │           └── get-{collection,folder,request,env}.ts # Full entity, sensitive fields redacted
 │   │   ├── vault/
 │   │   │   ├── secrets-provider.interface.ts      # SecretsProvider interface
 │   │   │   ├── hashicorp-vault-provider.ts        # HashiCorp Vault KV v2 provider
@@ -263,7 +282,12 @@ vaxtly/
 │   │   ├── sse-parser.test.ts          # 22 tests: SSE parsing, multi-line, partial chunks, OpenAI/Anthropic formats
 │   │   ├── curl-parser.test.ts         # 36 tests: cURL parsing, headers, body types, auth, query params, quoting
 │   │   ├── assertion-evaluator.test.ts # 33 tests: all assertion types/operators, disabled assertions, edge cases
-│   │   └── cookie-jar.test.ts          # 24 tests: capture, domain/path/secure matching, expiry, RFC 6265 compliance
+│   │   ├── cookie-jar.test.ts          # 24 tests: capture, domain/path/secure matching, expiry, RFC 6265 compliance
+│   │   ├── external-keys.test.ts       # 17 tests: external_key round-trip on all 4 entities, partial unique index, scope isolation
+│   │   ├── agent-socket.test.ts        # 5 tests: real socket + NDJSON framing + token rotation, ping
+│   │   ├── agent-socket-upsert.test.ts # 20 tests: all upsert methods + upsert.env_variable + auth gate
+│   │   ├── agent-socket-read.test.ts   # 11 tests: list/get + redaction tripwires for every sensitive field
+│   │   └── cli-smoke.test.ts           # 6 tests: compiled CLI binary — argv dispatch, exit codes, help
 │   └── e2e/
 │       ├── fixtures/
 │       │   ├── electron-app.ts         # Shared fixture: temp userData, app launch, cleanup
@@ -276,6 +300,23 @@ vaxtly/
 │       ├── environment-vars.spec.ts   # 2 tests: create env+var, use {{var}}
 │       ├── session-persistence.spec.ts # 1 test: tabs survive restart
 │       └── draft-requests.spec.ts    # 6 tests: draft lifecycle, send, save, persist, double-click
+├── cli/                                # Bundled `vaxtly` CLI + MCP wrapper — talks to the running app via agent-socket
+│   ├── package.json                   # bin: { vaxtly: dist/index.js }, private, no own runtime deps
+│   ├── tsconfig.json                  # CommonJS target; dist/ shipped via electron-builder extraResources
+│   └── src/
+│       ├── index.ts                   # Argv dispatcher: upsert/list/get/ping/install-cli/mcp/help/guide
+│       ├── argparse.ts                # Hand-rolled long-flag parser (repeatable flags, --key=val, --flag '')
+│       ├── client.ts                  # JSON-RPC 2.0 client over Unix socket / named pipe (auth in envelope)
+│       ├── config.ts                  # Loads ~/.vaxtly/cli.json; honors VAXTLY_TEST_CLI_CONFIG_DIR
+│       ├── exit.ts                    # EXIT codes (0/1/2/3/4/5) + exitCodeForError(rpcCode)
+│       ├── help.ts                    # HELP_TOP + per-verb help strings (vaxtly <verb> --help)
+│       ├── guide.ts                   # Long-form agent-facing guide (printed by `vaxtly guide`)
+│       ├── mcp/server.ts              # MCP stdio server — 15 tools mirroring upsert/list/get verbs, readOnlyHint on reads
+│       └── commands/
+│           ├── upsert-collection.ts / upsert-folder.ts / upsert-request.ts / upsert-env.ts / upsert-env-var.ts
+│           ├── list.ts / get.ts       # Subcommand dispatchers
+│           ├── ping.ts
+│           └── install-cli.ts         # Symlink dist/index.js into ~/.local/bin/vaxtly (POSIX MVP)
 ├── electron.vite.config.ts             # 3-target build (main, preload, renderer)
 ├── playwright.config.ts                # E2E config: workers:1, timeout:30s
 ├── vitest.config.ts                    # @shared alias, globals: true, v8 coverage
@@ -337,6 +378,7 @@ folders 1──N requests (ON DELETE SET NULL)
 | auth | TEXT | NULL | JSON `AuthConfig` — collection-level auth for inheritance. Sensitive fields encrypted with `enc:` prefix |
 | scripts | TEXT | NULL | JSON `ScriptsConfig` — collection-level pre/post scripts with smart token caching |
 | file_shas | TEXT | NULL | JSON `{path: {content_hash, remote_sha, commit_sha}}` |
+| external_key | TEXT | NULL | Caller-chosen stable id for idempotent upserts via the agent socket (migration 009). Partial unique index `(workspace_id, external_key) WHERE external_key IS NOT NULL` — multiple NULLs allowed, uniqueness enforced per workspace |
 | created_at | TEXT | datetime('now') | |
 | updated_at | TEXT | datetime('now') | |
 
@@ -352,6 +394,7 @@ folders 1──N requests (ON DELETE SET NULL)
 | default_environment_id | TEXT | NULL | |
 | auth | TEXT | NULL | JSON `AuthConfig` — folder-level auth for inheritance. Sensitive fields encrypted with `enc:` prefix |
 | scripts | TEXT | NULL | JSON `ScriptsConfig` — folder-level pre/post scripts with smart token caching |
+| external_key | TEXT | NULL | Agent-socket idempotency handle (migration 009). Partial unique index scoped to `collection_id` — folder keys must be unique within a collection but can repeat across collections |
 | created_at | TEXT | datetime('now') | |
 | updated_at | TEXT | datetime('now') | |
 
@@ -371,6 +414,7 @@ folders 1──N requests (ON DELETE SET NULL)
 | auth | TEXT | NULL | JSON `AuthConfig` — sensitive fields encrypted with `enc:` prefix |
 | scripts | TEXT | NULL | JSON `ScriptsConfig` |
 | order | INTEGER | 0 | |
+| external_key | TEXT | NULL | Agent-socket idempotency handle (migration 009). Partial unique index scoped to `collection_id` (NOT `folder_id`) — so a request can be moved between folders within the same collection without breaking idempotency |
 | created_at | TEXT | datetime('now') | |
 | updated_at | TEXT | datetime('now') | |
 
@@ -386,6 +430,7 @@ folders 1──N requests (ON DELETE SET NULL)
 | order | INTEGER | 0 | Scoped per (workspace_id, parent_id) sibling group |
 | vault_synced | INTEGER | 0 | CHECK: when 1, `variables` must be `'[]'` |
 | vault_path | TEXT | NULL | |
+| external_key | TEXT | NULL | Agent-socket idempotency handle (migration 009). Partial unique index scoped to `workspace_id` (NOT `parent_id`) — so an env can be re-parented within a workspace without breaking idempotency |
 | created_at | TEXT | datetime('now') | Indexed (migration 005) |
 | updated_at | TEXT | datetime('now') | Indexed (migration 005) |
 
@@ -605,13 +650,13 @@ Pattern: `ipcMain.handle('domain:action', handler)` in main, `ipcRenderer.invoke
 interface Workspace { id, name, description?, order, settings?, created_at, updated_at }
 interface Collection { id, workspace_id?, name, description?, order, variables?, remote_sha?,
     remote_synced_at?, is_dirty, sync_enabled, environment_ids?, default_environment_id?,
-    auth?, scripts?, file_shas?, created_at, updated_at }
+    auth?, scripts?, file_shas?, external_key?, created_at, updated_at }
 interface Folder { id, collection_id, parent_id?, name, order, environment_ids?,
-    default_environment_id?, auth?, scripts?, created_at, updated_at }
+    default_environment_id?, auth?, scripts?, external_key?, created_at, updated_at }
 interface Request { id, collection_id, folder_id?, name, url, method, headers?, query_params?,
-    body?, body_type, auth?, scripts?, order, created_at, updated_at }
+    body?, body_type, auth?, scripts?, order, external_key?, created_at, updated_at }
 interface Environment { id, workspace_id?, parent_id?, name, variables (JSON string), is_active (0|1),
-    order, vault_synced, vault_path?, created_at, updated_at }
+    order, vault_synced, vault_path?, external_key?, created_at, updated_at }
 interface AppSetting { key, value }
 interface WindowState { id?, x?, y?, width, height, is_maximized }
 interface KeyValueEntry { key, value, description?, enabled, generated? }
@@ -1215,6 +1260,7 @@ All method colors are theme-aware via `--color-method-*` CSS variables. Componen
 3. migrateToEncryptedStorage()   — One-time: encrypt existing plaintext sensitive data
 4. ensureDefaultWorkspace()      — Create "Default Workspace" if table is empty
 5. registerAllIpcHandlers()      — Register all domain handlers (incl. workspace-settings, session-log, code-generator, oauth2, updater, mcp, ws)
+5b. agentSocket.start()          — Bind local Unix socket / named pipe + write ~/.vaxtly/cli.json so the bundled CLI / MCP wrapper can reach the running app (non-fatal on bind failure)
 6. dropLegacyTables()            — DROP TABLE IF EXISTS request_histories (feature removed)
 7. scrubVaultSecrets()           — UPDATE environments SET variables='[]' WHERE vault_synced=1 AND variables!='[]' (safety net for orphaned secrets)
 8. buildMenu()                   — Set native application menu (using IPC.MENU_* constants)
@@ -1273,6 +1319,75 @@ All method colors are theme-aware via `--color-method-*` CSS variables. Componen
 - **Linux `artifactName`**: includes `${arch}` for multi-architecture builds
 - **macOS notarization**: `build/notarize.js` (CJS) — runs `@electron/notarize` as afterSign hook; errors propagate to fail the build
 - **Dependencies**: `uuid` pinned to v9 (CJS-compatible; v13+ is pure ESM, incompatible with Electron main process)
+- **CLI bundle**: `cli/dist/` produced by `tsc -p cli/tsconfig.json` and shipped via `extraResources` → `<resourcesPath>/cli/index.js`. The compiled bundle is plain Node (CJS), no Electron APIs; loaded by `vaxtly install-cli` and never required by the renderer.
+
+---
+
+## Agent Socket (Local CLI / MCP Surface)
+
+A loopback-only RPC server inside the main process so the bundled `vaxtly` CLI (and its `vaxtly mcp` mode) can upsert entities into the running app from outside Electron. Designed for AI coding agents that have just helped a developer build an API and want to mirror it into Vaxtly.
+
+### Transport
+- **POSIX**: Unix domain socket at `<userData>/agent.sock` (mode 0700 via userData dir).
+- **Windows**: named pipe `\\.\pipe\vaxtly-agent-<sha1-of-userData>`. Per-user ACL via OS.
+- **No TCP listener.** Browser code cannot reach it.
+
+### Auth
+- Per-launch 32-byte random token, generated by `crypto.randomBytes`. Written to `~/.vaxtly/cli.json` (mode 0600) along with the socket path, pid, and app version. Rotated on every start; dotfile removed on `will-quit`.
+- Every JSON-RPC request must include the token in the envelope (`req.auth`, not `req.params.auth` — that field is reserved for method params like a request's `AuthConfig`).
+- Verified with `crypto.timingSafeEqual` per request. Mismatch → JSON-RPC error `-32001`.
+
+### Wire Protocol
+- Newline-delimited JSON-RPC 2.0 over the socket (`protocol.ts`).
+- Method dispatch in `router.ts`; methods registered up-front in `agent-socket/index.ts`.
+- Error codes: `-32700` parse, `-32600` invalid request, `-32601` method not found, `-32602` invalid params, `-32603` internal, `-32001` auth failed, `-32002` not found, `-32003` validation, `-32004` conflict.
+
+### Methods
+
+**Write (mutating):**
+| Method | Idempotency key | Notes |
+|--------|-----------------|-------|
+| `upsert.collection` | `(workspace_id, external_key)` | Workspace defaults to first if not provided |
+| `upsert.folder` | `(collection_id, external_key)` | `parent_folder_external_key: null \| ""` = collection root |
+| `upsert.request` | `(collection_id, external_key)` | Folder moves within a collection are valid updates. Auth credentials encrypted by the repo (`enc:` prefix) |
+| `upsert.env` | `(workspace_id, external_key)` | `parent_external_key` must exist; depth capped at 2 by env repo's `validateParent`. Passing `variables` REPLACES the array entirely (not a merge) — for single-var changes use `upsert.env_variable` |
+| `upsert.env_variable` | `(env_external_key, key)` | Single-var safe path: add or update ONE variable inside an existing env without disturbing the others. Necessary because reads redact values, so agents can't safely re-pass a full array |
+
+**Read (always redacted):**
+| Method | Returns |
+|--------|---------|
+| `ping` | `{ pong, app_version }` |
+| `list.workspaces` | `[{id, name}]` |
+| `list.collections` | `[{id, external_key, name, description}]` |
+| `list.folders` | `[{id, external_key, name, parent_external_key}]` |
+| `list.requests` | `[{id, external_key, name, method, url, folder_external_key}]` |
+| `list.envs` | `[{id, external_key, name, is_active, vault_synced, parent_external_key}]` |
+| `get.collection` / `get.folder` / `get.request` | Full entity with `auth` field sensitive subfields replaced with `"<redacted>"` |
+| `get.env` | Full entity with every `variables[].value` replaced with `"<redacted>"`; keys visible |
+
+**Redaction is unconditional.** No flag, no MCP param, no opt-in to view plaintext secrets. The reasoning: anything in an agent's context can leak via prompt injection from another tool; if a user genuinely needs the agent to know a secret, they paste it manually — that's a deliberate choice. See `services/agent-socket/methods/_redact.ts`. Empty/null sensitive fields are preserved so callers can distinguish "configured" from "unset".
+
+External keys live on a new column (`external_key TEXT`) on each table with partial unique indexes (`WHERE external_key IS NOT NULL`). Multiple NULLs allowed; uniqueness enforced only on the populated set.
+
+### Actions Layer (`src/main/actions/`)
+Centralizes "mutate → mark dirty" pairings so the agent-socket methods and the existing IPC handlers stay aligned. `actions/requests.ts` wraps `requestsRepo.{create,update,delete,move,reorder}` with `collectionsRepo.markDirty()`; other domains pass through. Both surfaces call the same actions function — adding new sync/audit side effects only needs to be done once.
+
+### Lifecycle
+- `start()` called in `app.whenReady()` after `registerAllIpcHandlers()` (depends on DB + encryption being live). Stale socket file unlinked on start.
+- `stop()` called from `app.on('will-quit')` alongside MCP / WebSocket / GraphQL disconnects. Server closed, socket file removed, dotfile removed, in-memory token zeroed.
+- Failure to bind is non-fatal — logged and the rest of the app continues.
+
+### Files
+- `services/agent-socket/index.ts` — server lifecycle + socket path resolution
+- `services/agent-socket/auth.ts` — token gen, dotfile read/write, `verifyToken`
+- `services/agent-socket/protocol.ts` — NDJSON framing + JSON-RPC envelope types + `LineBuffer`
+- `services/agent-socket/router.ts` — `registerMethod` / `dispatch` / `HandlerError`. Reads token from `req.auth` (envelope), not `req.params.auth`
+- `services/agent-socket/methods/_resolvers.ts` — translate external keys to UUIDs, with `HandlerError(NOT_FOUND)` on miss
+- `services/agent-socket/methods/_redact.ts` — `redactAuthJson` + `redactVariablesJson`, called by every `get.*` handler before returning
+- `services/agent-socket/methods/{ping,upsert-collection,upsert-folder,upsert-request,upsert-env,upsert-env-variable}.ts`
+- `services/agent-socket/methods/list-{workspaces,collections,folders,requests,envs}.ts` — slim navigation shapes
+- `services/agent-socket/methods/get-{collection,folder,request,env}.ts` — full entity with sensitive fields redacted
+- `cli/src/**` — the user-facing CLI, compiled via `npm run build:cli` into `cli/dist/`. Includes `cli/src/help.ts`, `cli/src/guide.ts` (long-form agent guide printed by `vaxtly guide`), and `cli/src/mcp/server.ts` which exposes 15 MCP tools mirroring the socket methods (`vaxtly mcp`).
 
 
 ## Build & Test Commands
@@ -1280,7 +1395,8 @@ All method colors are theme-aware via `--color-method-*` CSS variables. Componen
 | Command | Description |
 |---------|-------------|
 | `npm run dev` | Hot-reload dev server (electron-vite dev) |
-| `npm run build` | Production build → `out/` |
+| `npm run build` | Production build → `out/` (runs `build:cli` first) |
+| `npm run build:cli` | Compile `cli/src` → `cli/dist` (tsc, CJS, plain Node — not Electron) |
 | `npm run test` | Vitest single run |
 | `npm run test:watch` | Vitest watch mode |
 
