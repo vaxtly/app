@@ -228,6 +228,10 @@ export const IPC = {
   // GraphQL Subscriptions — Push events (main→renderer)
   GQL_SUB_STATUS_CHANGED: 'gql-sub:status-changed',
   GQL_SUB_EVENT: 'gql-sub:event',
+
+  // CLI / Agent integration — bundled `vaxtly` CLI installation onto PATH
+  CLI_INSTALL_ON_PATH: 'cli:install-on-path',
+  CLI_PATH_STATUS: 'cli:path-status',
 } as const
 
 export type IpcChannel = (typeof IPC)[keyof typeof IPC]

@@ -49,6 +49,15 @@ jobs:
         if: matrix.platform == 'linux'
         run: sudo snap install snapcraft --classic
 
+      - name: Build CLI bundle (cli/dist)
+        # extraResources in electron-builder.yml expects cli/dist to exist
+        # at pack time; without this step the bundled `vaxtly` is silently
+        # omitted from the installer.
+        run: npm run build:cli
+
+      - name: Verify CLI bundle present
+        run: test -f cli/dist/index.js
+
       - name: Build with electron-vite
         run: npx electron-vite build
 

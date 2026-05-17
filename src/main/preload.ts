@@ -543,6 +543,14 @@ const api = {
       return () => ipcRenderer.removeListener(IPC.GQL_SUB_EVENT, handler)
     },
   },
+
+  cli: {
+    // Status: where the bundled CLI lives + whether the `vaxtly` symlink is
+    // already on PATH at ~/.local/bin/vaxtly.
+    status: () => ipcRenderer.invoke(IPC.CLI_PATH_STATUS),
+    // Install: symlinks the bundled CLI into ~/.local/bin/vaxtly (POSIX).
+    install: () => ipcRenderer.invoke(IPC.CLI_INSTALL_ON_PATH),
+  },
 }
 
 export type API = typeof api

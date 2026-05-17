@@ -27,6 +27,7 @@ import { registerGraphqlHandlers } from './ipc/graphql'
 import { registerCollectionRunnerHandlers } from './ipc/collection-runner'
 import { registerCookieHandlers } from './ipc/cookies'
 import { registerGraphqlSubscriptionHandlers } from './ipc/graphql-subscription'
+import { registerCliHandlers } from './ipc/cli'
 import { disconnectAll as disconnectAllGqlSubs } from './services/graphql-subscription'
 import { disconnectAll as disconnectAllMcpServers } from './services/mcp-client'
 import { disconnectAll as disconnectAllWebSockets } from './services/websocket-client'
@@ -247,6 +248,7 @@ function registerAllIpcHandlers(): void {
   registerCollectionRunnerHandlers()
   registerCookieHandlers()
   registerGraphqlSubscriptionHandlers()
+  registerCliHandlers()
 }
 
 function ensureDefaultWorkspace(): void {

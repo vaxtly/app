@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.11.1] - 2026-05-17
+
+### Fixed
+- **CLI bundle missing from v0.11.0 installer.** The CI workflow ran `npx electron-vite build` directly, bypassing the `build:cli` npm script, so `cli/dist/` was never compiled and `extraResources` in electron-builder.yml found nothing to ship. Added an explicit "Build CLI bundle" step to `.github/workflows/build.yml` and made all local `dist*` scripts in `package.json` run `build:cli` first as defense-in-depth. The bundled `vaxtly` binary now ships with the installer as originally intended
+
+### Added
+- **"Install on your PATH" button in the WhatsNewModal** — closes the chicken-and-egg discoverability gap from v0.11.0, where users couldn't run `vaxtly install-cli` because `vaxtly` wasn't on PATH yet. New `cli:install-on-path` IPC handler in the main process symlinks the bundled CLI (`<resourcesPath>/cli/index.js`) into `~/.local/bin/vaxtly`. The modal queries status on open and shows one of: "Install" button (not yet linked), "Ready" badge (already linked), or a "this build is missing the CLI bundle" hint (for users still on v0.10.x). POSIX only in this release; Windows is a future iteration
+
 ## [0.11.0] - 2026-05-17
 
 ### Added

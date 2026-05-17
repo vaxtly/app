@@ -12,6 +12,59 @@
 
   const DOCS_URL = 'https://vaxtly.app/docs/ai-agents'
 
+  // CLI-on-PATH installation state — populated when the modal opens
+  type CliPathStatus =
+    | { state: 'unsupported'; platform: string }
+    | { state: 'missing-bundle'; expectedAt: string }
+    | { state: 'not-installed'; bundlePath: string; targetPath: string; pathHasDir: boolean }
+    | { state: 'installed'; bundlePath: string; targetPath: string; pathHasDir: boolean }
+    | { state: 'installed-elsewhere'; bundlePath: string; targetPath: string; pointsTo: string; pathHasDir: boolean }
+
+  type CliInstallResult =
+    | { ok: true; targetPath: string; pathHasDir: boolean; bundlePath: string }
+    | { ok: false; error: string; code: string }
+
+  let cliStatus = $state<CliPathStatus | null>(null)
+  let installing = $state(false)
+  let installMessage = $state<{ kind: 'success' | 'error'; text: string } | null>(null)
+
+  $effect(() => {
+    if (!open) return
+    // Reset transient state every time the modal re-opens
+    installMessage = null
+    cliStatus = null
+    const cliApi = (window.api as unknown as { cli?: { status: () => Promise<CliPathStatus> } }).cli
+    cliApi?.status?.().then((s) => { cliStatus = s }).catch(() => { cliStatus = null })
+  })
+
+  async function installCli(): Promise<void> {
+    installing = true
+    installMessage = null
+    try {
+      const cliApi = (window.api as unknown as { cli?: { install: () => Promise<CliInstallResult>; status: () => Promise<CliPathStatus> } }).cli
+      if (!cliApi) {
+        installMessage = { kind: 'error', text: 'CLI install IPC not available — try restarting Vaxtly.' }
+        return
+      }
+      const result = await cliApi.install()
+      if (result.ok) {
+        installMessage = {
+          kind: 'success',
+          text: result.pathHasDir
+            ? `Installed → ${result.targetPath}. Open a fresh terminal and run \`vaxtly\`.`
+            : `Installed → ${result.targetPath}. Add ~/.local/bin to your PATH, then run \`vaxtly\` from a fresh terminal.`,
+        }
+        cliStatus = await cliApi.status()
+      } else {
+        installMessage = { kind: 'error', text: result.error }
+      }
+    } catch (e) {
+      installMessage = { kind: 'error', text: (e as Error)?.message ?? 'Install failed.' }
+    } finally {
+      installing = false
+    }
+  }
+
   function openDocs(): void {
     window.open(DOCS_URL, '_blank')
   }
@@ -71,7 +124,7 @@
       </div>
 
       <!-- Try this quote -->
-      <div class="mx-8 mb-5 rounded-lg border border-brand-600/30 bg-brand-600/5 px-4 py-3">
+      <div class="mx-8 mb-4 rounded-lg border border-brand-600/30 bg-brand-600/5 px-4 py-3">
         <div class="mb-1.5 text-[10px] font-medium uppercase tracking-wider text-brand-400">
           Try this with your agent
         </div>
@@ -79,6 +132,56 @@
           "Add the GET /users endpoint to Vaxtly"
         </p>
       </div>
+
+      <!-- Install CLI on PATH — solves the chicken-and-egg of `vaxtly install-cli` -->
+      {#if cliStatus && cliStatus.state !== 'unsupported'}
+        <div class="mx-8 mb-5 rounded-lg border border-surface-700/50 bg-surface-800/40 px-4 py-3">
+          <div class="flex items-center justify-between gap-3">
+            <div class="flex-1 min-w-0">
+              <div class="mb-0.5 flex items-center gap-2 text-xs font-medium text-surface-100">
+                <code class="rounded bg-surface-900 px-1.5 py-0.5 font-mono text-[11px] text-success">vaxtly</code>
+                {#if cliStatus.state === 'installed'}
+                  <span>is on your PATH</span>
+                {:else if cliStatus.state === 'installed-elsewhere'}
+                  <span>on PATH (points elsewhere)</span>
+                {:else if cliStatus.state === 'missing-bundle'}
+                  <span>not bundled in this build</span>
+                {:else}
+                  <span>not on your PATH yet</span>
+                {/if}
+              </div>
+              <p class="text-[11px] leading-relaxed text-surface-400">
+                {#if cliStatus.state === 'installed'}
+                  Linked at <code class="font-mono">{cliStatus.targetPath}</code>. Run <code class="font-mono">vaxtly --help</code> in any terminal.
+                {:else if cliStatus.state === 'missing-bundle'}
+                  This build is missing the CLI bundle. Update Vaxtly to v0.11.1 or later.
+                {:else}
+                  Symlink the bundled CLI into <code class="font-mono">~/.local/bin/vaxtly</code> so any terminal — or any AI agent — can run it.
+                {/if}
+              </p>
+            </div>
+            {#if cliStatus.state === 'not-installed' || cliStatus.state === 'installed-elsewhere'}
+              <button
+                onclick={installCli}
+                disabled={installing}
+                class="shrink-0 rounded bg-success/15 px-3 py-1.5 text-xs font-medium text-success border border-success/30 hover:bg-success/25 disabled:opacity-50"
+              >
+                {installing ? 'Installing…' : 'Install'}
+              </button>
+            {:else if cliStatus.state === 'installed'}
+              <span class="shrink-0 inline-flex items-center gap-1 rounded bg-success/10 px-2.5 py-1 text-[11px] font-medium text-success">
+                <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg>
+                Ready
+              </span>
+            {/if}
+          </div>
+          {#if installMessage}
+            <div class="mt-2 text-[11px] leading-relaxed {installMessage.kind === 'success' ? 'text-success' : 'text-danger'}">
+              {installMessage.text}
+            </div>
+          {/if}
+        </div>
+      {/if}
 
       <!-- What it does -->
       <div class="mx-8 mb-5">
