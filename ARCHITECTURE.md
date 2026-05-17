@@ -844,7 +844,7 @@ Mirrors the `mcpStore` pattern. Connection management happens in the main proces
 
 **Actions**: `loadAll`, `get(key)`, `set(key, value)` — typed settings keys with IPC persistence. Used for app-wide preferences (layout orientation, timeout, SSL, theme, split percentages, etc.).
 
-**Settings keys**: `request.layout`, `request.timeout`, `request.verify_ssl`, `request.follow_redirects`, `request.splitPercent`, `mcp.splitPercent`, `app.version`, `app.welcomed`, `app.theme`, `sidebar.width`, `tls.ca_cert_path`, `tls.client_cert_path`, `tls.client_key_path`, `tls.client_key_passphrase`, `proxy.url`, `proxy.username`, `proxy.password`, `proxy.no_proxy`
+**Settings keys**: `request.layout`, `request.timeout`, `request.verify_ssl`, `request.follow_redirects`, `request.splitPercent`, `mcp.splitPercent`, `app.version`, `app.welcomed`, `app.theme`, `app.text_size`, `sidebar.width`, `tls.ca_cert_path`, `tls.client_cert_path`, `tls.client_key_path`, `tls.client_key_passphrase`, `proxy.url`, `proxy.username`, `proxy.password`, `proxy.no_proxy`
 
 ### `graphqlStore` — `lib/stores/graphql.svelte.ts`
 
@@ -1194,17 +1194,18 @@ Caches introspection results per URL in the renderer (LRU eviction at 20 entries
 
 ## App-Level Reactive Behaviors (`App.svelte`)
 
-Four `$effect` hooks and three `onMount` listeners in `App.svelte` drive cross-cutting UX behaviors:
+Five `$effect` hooks and three `onMount` listeners in `App.svelte` drive cross-cutting UX behaviors:
 
 1. **Session save**: Watches `tabFingerprint` (tab IDs joined) + `activeTabId`, debounce-writes to `session.tabs.{workspaceId}` setting (skipped until initial restore completes via `sessionRestored` flag). Sessions are scoped per workspace. Draft tabs (`isDraft: true`) are excluded from persistence — they are transient by design. Using a derived fingerprint of tab IDs (not `.length`) prevents re-triggering on tab property mutations.
 2. **Sidebar auto-reveal**: When active tab changes — request/websocket tabs (non-draft): expands ancestor tree nodes + switches sidebar to "collections"; environment tabs: switches sidebar to "environments"; MCP tabs: switches sidebar to "mcp". Draft tabs skip sidebar reveal since they have no collection/folder backing.
 3. **Default environment auto-activation**: When a request tab becomes active, resolves the nearest `default_environment_id` (folder chain → collection) and activates it if different from current.
 4. **Theme application**: Reads `app.theme` setting (`dark` | `light` | `system`), toggles `light` class on `<html>`. In `system` mode listens to `matchMedia('prefers-color-scheme: dark')` with cleanup.
-5. **Toast notifications**: `onMount` listener on `logPush` — filters `success: false` entries with `category === 'vault' || 'sync'` and calls `toastsStore.addToast()`. Also replays recent failures (within 30s) from `log.list()` on mount to catch auto-sync errors that fired before the renderer mounted. `<ToastContainer />` is mounted at root level.
-6. **Vault health LED**: `environmentsStore.vaultHealthy` drives the EnvironmentSelector LED color — green when vault secrets loaded successfully, red when fetch failed, gray when no environment is active.
-7. **Centralized conflict queue**: `onMount` listener on `syncConflict` — all sync IPC handlers (`sync:pull`, `sync:push-collection`, `sync:push-all`) push detected conflicts via `event.sender.send('sync:conflict', conflicts)`. App.svelte queues them in `conflictQueue` and renders a single `ConflictModal` for the first conflict, resolving sequentially. This replaces per-component conflict modals (e.g., RemoteSyncTab no longer handles conflicts locally).
-8. **Orphaned collection queue**: `onMount` listener on `syncOrphanedCollections` — when `sync:pull` or auto-sync detects locally-synced collections missing from remote, they are queued in `orphanQueue`. `OrphanedCollectionModal` prompts to delete locally or keep unsynced (deferred while conflicts are being resolved).
-9. **Clipboard cURL detection**: `onMount` listener on `clipboardText` — main process checks `clipboard.availableFormats()` on BrowserWindow `'focus'` event (skips non-text formats to avoid triggering OS lazy data transfers for large files/images), reads `clipboard.readText()` with try-catch, caps at 100 KB, and pushes text to renderer. Renderer also enforces the 100 KB limit, checks via `isCurlCommand()`, deduplicates by content hash (same cURL won't re-prompt after import/dismiss), parses via `parseCurl()`, and shows `CurlImportModal`. Import creates a populated draft tab. cURL can also be pasted directly into the URL bar (intercepted by `RequestBuilder.handleUrlPaste`).
+5. **Text-size application**: Reads `app.text_size` setting (`sm` | `md` | `lg`), swaps the `text-size-sm` / `text-size-lg` class on `<html>` (`md` = no class, Tailwind defaults). See § Design System → Text Size System.
+6. **Toast notifications**: `onMount` listener on `logPush` — filters `success: false` entries with `category === 'vault' || 'sync'` and calls `toastsStore.addToast()`. Also replays recent failures (within 30s) from `log.list()` on mount to catch auto-sync errors that fired before the renderer mounted. `<ToastContainer />` is mounted at root level.
+7. **Vault health LED**: `environmentsStore.vaultHealthy` drives the EnvironmentSelector LED color — green when vault secrets loaded successfully, red when fetch failed, gray when no environment is active.
+8. **Centralized conflict queue**: `onMount` listener on `syncConflict` — all sync IPC handlers (`sync:pull`, `sync:push-collection`, `sync:push-all`) push detected conflicts via `event.sender.send('sync:conflict', conflicts)`. App.svelte queues them in `conflictQueue` and renders a single `ConflictModal` for the first conflict, resolving sequentially. This replaces per-component conflict modals (e.g., RemoteSyncTab no longer handles conflicts locally).
+9. **Orphaned collection queue**: `onMount` listener on `syncOrphanedCollections` — when `sync:pull` or auto-sync detects locally-synced collections missing from remote, they are queued in `orphanQueue`. `OrphanedCollectionModal` prompts to delete locally or keep unsynced (deferred while conflicts are being resolved).
+10. **Clipboard cURL detection**: `onMount` listener on `clipboardText` — main process checks `clipboard.availableFormats()` on BrowserWindow `'focus'` event (skips non-text formats to avoid triggering OS lazy data transfers for large files/images), reads `clipboard.readText()` with try-catch, caps at 100 KB, and pushes text to renderer. Renderer also enforces the 100 KB limit, checks via `isCurlCommand()`, deduplicates by content hash (same cURL won't re-prompt after import/dismiss), parses via `parseCurl()`, and shows `CurlImportModal`. Import creates a populated draft tab. cURL can also be pasted directly into the URL bar (intercepted by `RequestBuilder.handleUrlPaste`).
 
 ---
 
@@ -1221,6 +1222,17 @@ Three-way theme: **dark** (default), **light**, **system** (follows OS preferenc
 - **Main process**: `nativeTheme.themeSource` synced before window creation for correct `backgroundColor` and native dialog matching.
 - **CodeMirror**: `Compartment` from `@codemirror/state` swaps `oneDark` ↔ `[]` reactively based on resolved theme.
 - **UI**: Appearance section in GeneralTab (Light/Dark/System picker), theme cycle button in Sidebar footer.
+
+### Text Size System
+
+Three-tier UI font scale: **sm**, **md** (default), **lg** — each step is ±1px on every font size.
+
+- **Tailwind tokens** — `html.text-size-sm` and `html.text-size-lg` override `--text-xs` through `--text-4xl` in `app.css`. Tailwind v4 compiles `text-xs`/`text-sm`/etc. to `font-size: var(--text-xs)`, so all Tailwind class-based sizes scale automatically.
+- **Explicit pxs** — every literal `font-size: Npx` in component `<style>` blocks (modals, settings tabs, CodeMirror, splash) is written as `calc(Npx + var(--ui-bump))`. The presets set `--ui-bump` to `-1px` / `0` / `+1px`. New code must follow this convention or the text-size setting won't reach it.
+- **Pinned exceptions** — the three buttons in the text-size picker itself (`.text-size-option--sm | --md | --lg` in `GeneralTab.svelte`) are intentionally fixed at 11/14/17 px so the picker is a stable visual reference, not affected by the active preset.
+- **Setting**: `app.text_size` (`'sm' | 'md' | 'lg'`), default `'md'`, persisted in settings store.
+- **Application**: `App.svelte` `$effect` swaps `text-size-sm`/`text-size-lg` class on `<html>` (md = no class).
+- **UI**: Appearance → Text size row in GeneralTab, three A-shaped buttons styled like the theme picker.
 
 ### Color Tokens (Tailwind v4 `@theme`)
 
